@@ -1,0 +1,89 @@
+{
+  "name": "Lights",
+  "slug": "lights",
+  "icon": "lightbulb",
+  "color": "#f57c00",
+  "track_expiry": false,
+  "expiry_label": "Expiry date",
+  "fields": [
+    {
+      "label": "Light type",
+      "type": "dropdown",
+      "required": false,
+      "options": [
+        "Bulb",
+        "Tube light",
+        "LED strip",
+        "Lamp",
+        "Fixture",
+        "Torch",
+        "Other"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Wattage",
+      "type": "number",
+      "unit": "W",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Brightness",
+      "type": "number",
+      "unit": "lm",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Base / socket",
+      "type": "dropdown",
+      "options": [
+        "E27",
+        "E14",
+        "B22",
+        "GU10",
+        "G13",
+        "Built-in",
+        "Other"
+      ],
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Colour temperature",
+      "type": "dropdown",
+      "options": [
+        "Warm white",
+        "Neutral white",
+        "Cool white",
+        "RGB"
+      ],
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    },
+    {
+      "label": "Smart / dimmable",
+      "type": "multiselect",
+      "options": [
+        "Smart",
+        "Dimmable"
+      ],
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    },
+    {
+      "label": "Room used in",
+      "type": "text",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    }
+  ]
+}

@@ -1,0 +1,72 @@
+{
+  "name": "Tools",
+  "slug": "tools",
+  "icon": "construction",
+  "color": "#1976d2",
+  "track_expiry": false,
+  "expiry_label": "Expiry date",
+  "fields": [
+    {
+      "label": "Tool type",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Brand",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Size / spec",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Power source",
+      "type": "dropdown",
+      "options": [
+        "Manual",
+        "Corded",
+        "Battery",
+        "Petrol",
+        "Other"
+      ],
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Condition",
+      "type": "dropdown",
+      "options": [
+        "New",
+        "Good",
+        "Worn",
+        "Needs repair"
+      ],
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    },
+    {
+      "label": "Lent to",
+      "type": "text",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    },
+    {
+      "label": "Purchased on",
+      "type": "date",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    }
+  ]
+}

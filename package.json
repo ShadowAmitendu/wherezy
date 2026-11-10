@@ -1,0 +1,14 @@
+{
+  "name": "homeinventory",
+  "version": "1.0.0",
+  "private": true,
+  "description": "LAN-only household inventory web app with custom forms, location hierarchy, QR/barcode labels, and expiry tracking",
+  "scripts": {
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": ".venv\\Scripts\\python.exe -m uvicorn backend.app.main:app --reload --port 8000",
+    "build": "npm --prefix frontend run build",
+    "test:backend": ".venv\\Scripts\\pytest.exe backend/tests",
+    "test:frontend": "npm --prefix frontend run test",
+    "test": "npm run test:backend && npm run test:frontend"
+  }
+}

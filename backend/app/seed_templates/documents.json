@@ -1,0 +1,67 @@
+{
+  "name": "Documents",
+  "slug": "documents",
+  "icon": "description",
+  "color": "#388e3c",
+  "track_expiry": true,
+  "expiry_label": "Valid till",
+  "fields": [
+    {
+      "label": "Document type",
+      "type": "dropdown",
+      "options": [
+        "ID",
+        "Certificate",
+        "Warranty",
+        "Bill/Receipt",
+        "Insurance",
+        "Agreement",
+        "Medical",
+        "Other"
+      ],
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Document number",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Issued by",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Issue date",
+      "type": "date",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Original or copy",
+      "type": "dropdown",
+      "options": [
+        "Original",
+        "Photocopy",
+        "Digital only"
+      ],
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    },
+    {
+      "label": "Digital copy location",
+      "type": "text",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    }
+  ]
+}
