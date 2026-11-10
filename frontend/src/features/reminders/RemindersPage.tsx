@@ -18,7 +18,6 @@ import {
   Menu,
   MenuItem,
   CircularProgress,
-  Alert,
 } from "@mui/material";
 import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
 import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
@@ -111,9 +110,24 @@ export const RemindersPage: React.FC = () => {
       </Box>
 
       {overdueCount > 0 && (
-        <Alert severity="error" variant="filled" sx={{ mb: 3 }}>
-          You have {overdueCount} overdue item{overdueCount > 1 ? "s" : ""} requiring attention.
-        </Alert>
+        <Box
+          sx={{
+            mb: 3,
+            p: 1.5,
+            px: 2,
+            bgcolor: "error.main",
+            color: "error.contrastText",
+            borderRadius: 1,
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5,
+          }}
+        >
+          <WarningAmberOutlinedIcon />
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            You have {overdueCount} overdue item{overdueCount > 1 ? "s" : ""} requiring attention.
+          </Typography>
+        </Box>
       )}
 
       <Tabs value={tab} onChange={(_, val) => setTab(val)} sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}>

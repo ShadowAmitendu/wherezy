@@ -22,7 +22,6 @@ import {
   Checkbox,
   Avatar,
   Tooltip,
-  Alert,
   Divider,
   Stack,
 } from "@mui/material";
@@ -37,6 +36,7 @@ import SecurityOutlinedIcon from "@mui/icons-material/SecurityOutlined";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { api, ApiException, ProfileOut, ProfileRole } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
+import { AlertDialog } from "../../components/shared/AlertDialog";
 
 const EMOJI_OPTIONS = ["👤", "🧑‍💻", "🦊", "🐱", "🏡", "📦", "⭐", "🔑", "🎨", "🛠️", "🌸", "⚡", "🍎", "🚀"];
 const COLOR_OPTIONS = [
@@ -280,17 +280,21 @@ export const UsersPage: React.FC = () => {
         }
       />
 
-      {errorMsg && (
-        <Alert severity="error" variant="filled" onClose={() => setErrorMsg(null)} sx={{ mb: 2 }}>
-          {errorMsg}
-        </Alert>
-      )}
+      <AlertDialog
+        open={Boolean(errorMsg)}
+        onClose={() => setErrorMsg(null)}
+        title="User Action Failed"
+        message={errorMsg}
+        severity="error"
+      />
 
-      {successMsg && (
-        <Alert severity="success" variant="filled" onClose={() => setSuccessMsg(null)} sx={{ mb: 2 }}>
-          {successMsg}
-        </Alert>
-      )}
+      <AlertDialog
+        open={Boolean(successMsg)}
+        onClose={() => setSuccessMsg(null)}
+        title="Success"
+        message={successMsg}
+        severity="success"
+      />
 
       {/* Grid of User Cards */}
       <Grid container spacing={2.5}>
@@ -470,11 +474,13 @@ export const UsersPage: React.FC = () => {
             {editingProfile ? `Edit User: ${editingProfile.name}` : "Create New Household User"}
           </DialogTitle>
           <DialogContent dividers sx={{ pt: 2 }}>
-            {dialogError && (
-              <Alert severity="error" variant="filled" sx={{ mb: 2 }}>
-                {dialogError}
-              </Alert>
-            )}
+            <AlertDialog
+              open={Boolean(dialogError)}
+              onClose={() => setDialogError(null)}
+              title="Save User Error"
+              message={dialogError}
+              severity="error"
+            />
 
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, sm: 6 }}>
@@ -641,11 +647,13 @@ export const UsersPage: React.FC = () => {
             Reset Password: {resetTargetProfile?.name}
           </DialogTitle>
           <DialogContent sx={{ pt: 1 }}>
-            {resetError && (
-              <Alert severity="error" variant="filled" sx={{ mb: 2 }}>
-                {resetError}
-              </Alert>
-            )}
+            <AlertDialog
+              open={Boolean(resetError)}
+              onClose={() => setResetError(null)}
+              title="Reset Password Error"
+              message={resetError}
+              severity="error"
+            />
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               Set a new password for account @{resetTargetProfile?.username || resetTargetProfile?.name}.
             </Typography>

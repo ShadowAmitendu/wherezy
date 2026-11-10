@@ -23,7 +23,6 @@ import {
   ListItemText,
   ListItemIcon,
   CircularProgress,
-  Alert,
   MenuItem,
   Select,
   FormControl,
@@ -50,6 +49,7 @@ import { Item } from "./types";
 import { PhotoManager } from "../photos/PhotoManager";
 import { ExpiryChip } from "../../components/shared/ExpiryChip";
 import { LocationBreadcrumb } from "../../components/shared/LocationBreadcrumb";
+import { AlertDialog } from "../../components/shared/AlertDialog";
 import { api, ApiException } from "../../api/client";
 
 interface ItemDetailDialogProps {
@@ -313,19 +313,27 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
 
         {/* Retired Banner */}
         {item?.status === "retired" && (
-          <Alert
-            severity="warning"
-            variant="filled"
-            sx={{ mx: 3, my: 1 }}
-            action={
-              <Button color="inherit" size="small" onClick={handleBringBack}>
-                Bring Back
-              </Button>
-            }
+          <Box
+            sx={{
+              mx: 3,
+              my: 1,
+              p: 1.5,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              bgcolor: "warning.main",
+              color: "warning.contrastText",
+              borderRadius: 1,
+            }}
           >
-            Retired: {item.retired_reason ? item.retired_reason.toUpperCase() : "RETIRED"} on {item.retired_on || "N/A"}
-            {item.retired_note ? ` — "${item.retired_note}"` : ""}
-          </Alert>
+            <Typography variant="body2" sx={{ fontWeight: 600 }}>
+              Retired: {item.retired_reason ? item.retired_reason.toUpperCase() : "RETIRED"} on {item.retired_on || "N/A"}
+              {item.retired_note ? ` — "${item.retired_note}"` : ""}
+            </Typography>
+            <Button color="inherit" size="small" variant="outlined" onClick={handleBringBack} sx={{ ml: 2, borderColor: "currentColor", flexShrink: 0 }}>
+              Bring Back
+            </Button>
+          </Box>
         )}
 
         {/* Tabs */}
@@ -343,11 +351,13 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
         </Box>
 
         <DialogContent dividers sx={{ p: { xs: 2, sm: 3 } }}>
-          {errorMsg && (
-            <Alert severity="error" variant="filled" onClose={() => setErrorMsg(null)} sx={{ mb: 2 }}>
-              {errorMsg}
-            </Alert>
-          )}
+          <AlertDialog
+            open={Boolean(errorMsg)}
+            onClose={() => setErrorMsg(null)}
+            title="Item Action Error"
+            message={errorMsg}
+            severity="error"
+          />
 
           {/* TAB 0: DETAILS */}
           {tabIndex === 0 && (

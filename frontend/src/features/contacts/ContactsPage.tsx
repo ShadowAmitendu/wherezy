@@ -16,7 +16,6 @@ import {
   DialogContent,
   DialogActions,
   CircularProgress,
-  Alert,
   Tooltip,
   Divider,
   List,
@@ -33,6 +32,7 @@ import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import AssignmentReturnOutlinedIcon from "@mui/icons-material/AssignmentReturnOutlined";
+import { AlertDialog } from "../../components/shared/AlertDialog";
 import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
 import { api, ApiException } from "../../api/client";
 import { ItemDetailDialog } from "../items/ItemDetailDialog";
@@ -192,17 +192,21 @@ export const ContactsPage: React.FC = () => {
         </Button>
       </Box>
 
-      {errorMsg && (
-        <Alert severity="error" variant="filled" onClose={() => setErrorMsg(null)} sx={{ mb: 2 }}>
-          {errorMsg}
-        </Alert>
-      )}
+      <AlertDialog
+        open={Boolean(errorMsg)}
+        onClose={() => setErrorMsg(null)}
+        title="Contact Error"
+        message={errorMsg}
+        severity="error"
+      />
 
-      {successMsg && (
-        <Alert severity="success" variant="filled" onClose={() => setSuccessMsg(null)} sx={{ mb: 2 }}>
-          {successMsg}
-        </Alert>
-      )}
+      <AlertDialog
+        open={Boolean(successMsg)}
+        onClose={() => setSuccessMsg(null)}
+        title="Success"
+        message={successMsg}
+        severity="success"
+      />
 
       {/* Search Bar */}
       <TextField

@@ -19,8 +19,8 @@ import {
   Select,
   MenuItem,
   CircularProgress,
-  Alert,
 } from "@mui/material";
+import { AlertDialog } from "../../components/shared/AlertDialog";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import MoveToInboxIcon from "@mui/icons-material/MoveToInbox";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
@@ -265,11 +265,13 @@ export const InboxPage: React.FC = () => {
       <Dialog open={Boolean(sortingItem)} onClose={() => setSortingItem(null)} maxWidth="sm" fullWidth>
         <DialogTitle>Sort Item into Inventory</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: 3 }}>
-          {errorMsg && (
-            <Alert severity="error" variant="filled" onClose={() => setErrorMsg(null)}>
-              {errorMsg}
-            </Alert>
-          )}
+          <AlertDialog
+            open={Boolean(errorMsg)}
+            onClose={() => setErrorMsg(null)}
+            title="Sort Error"
+            message={errorMsg}
+            severity="error"
+          />
 
           <Box sx={{ pt: 1, display: "flex", flexDirection: "column", gap: 2.5 }}>
             <TextField

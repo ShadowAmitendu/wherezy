@@ -11,11 +11,10 @@ import {
   Dialog,
   DialogContent,
   CircularProgress,
-  Alert,
-  Snackbar,
   Tooltip,
   Grid,
 } from "@mui/material";
+import { AlertDialog } from "../../components/shared/AlertDialog";
 import AddPhotoAlternateOutlinedIcon from "@mui/icons-material/AddPhotoAlternateOutlined";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
@@ -177,28 +176,14 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
         </Box>
       )}
 
-      <Snackbar
+      {/* Error Dialog */}
+      <AlertDialog
         open={Boolean(errorMsg)}
-        autoHideDuration={6000}
         onClose={() => setErrorMsg(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-        sx={{ zIndex: 2000, bottom: { xs: 24, sm: 32 } }}
-      >
-        <Alert
-          severity="error"
-          variant="filled"
-          onClose={() => setErrorMsg(null)}
-          sx={{
-            minWidth: { xs: 280, sm: 380 },
-            maxWidth: { xs: "90vw", sm: 540 },
-            boxShadow: "0px 6px 16px rgba(0, 0, 0, 0.35)",
-            borderRadius: 1,
-            alignItems: "center",
-          }}
-        >
-          {errorMsg}
-        </Alert>
-      </Snackbar>
+        title="Photo Error"
+        message={errorMsg}
+        severity="error"
+      />
 
       {photos.length === 0 && !isLoading ? (
         <Typography variant="body2" color="text.secondary">

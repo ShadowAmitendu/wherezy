@@ -11,7 +11,6 @@ import {
   Select,
   MenuItem,
   Box,
-  Alert,
   Divider,
   Grid,
   Typography,
@@ -21,6 +20,7 @@ import { Item } from "./types";
 import { Category, FieldDef } from "../forms/types";
 import { DynamicFields } from "../forms/DynamicFields";
 import { LocationPicker } from "../locations/LocationPicker";
+import { AlertDialog } from "../../components/shared/AlertDialog";
 import { api, ApiException } from "../../api/client";
 
 interface ItemFormDialogProps {
@@ -146,11 +146,13 @@ export const ItemFormDialog: React.FC<ItemFormDialogProps> = ({
       <form onSubmit={handleSubmit}>
         <DialogTitle>{item ? "Edit Item" : "Add New Item"}</DialogTitle>
         <DialogContent sx={{ pt: "20px !important" }}>
-          {errorMsg && (
-            <Alert severity="error" variant="filled" onClose={() => setErrorMsg(null)} sx={{ mb: 2 }}>
-              {errorMsg}
-            </Alert>
-          )}
+          <AlertDialog
+            open={Boolean(errorMsg)}
+            onClose={() => setErrorMsg(null)}
+            title="Item Save Error"
+            message={errorMsg}
+            severity="error"
+          />
 
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3, mt: 0.5 }}>
             {/* Section 1: Basic Information */}

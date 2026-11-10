@@ -7,11 +7,10 @@ import {
   Typography,
   TextField,
   Button,
-  Alert,
-  Snackbar,
   Paper,
   Divider,
 } from "@mui/material";
+import { AlertDialog } from "../../components/shared/AlertDialog";
 import PhotoCameraOutlinedIcon from "@mui/icons-material/PhotoCameraOutlined";
 import QrCodeScannerIcon from "@mui/icons-material/QrCodeScanner";
 import KeyboardAltOutlinedIcon from "@mui/icons-material/KeyboardAltOutlined";
@@ -127,28 +126,21 @@ export const ScanPage: React.FC = () => {
         subtitle="Quickly locate items and storage shelves by scanning labels"
       />
 
-      <Snackbar
+      {/* Error & Warning Dialogs */}
+      <AlertDialog
         open={Boolean(errorMsg)}
-        autoHideDuration={6000}
         onClose={() => setErrorMsg(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-        sx={{ zIndex: 2000, bottom: { xs: 24, sm: 32 } }}
-      >
-        <Alert
-          severity="error"
-          variant="filled"
-          onClose={() => setErrorMsg(null)}
-          sx={{
-            minWidth: { xs: 280, sm: 380 },
-            maxWidth: { xs: "90vw", sm: 540 },
-            boxShadow: "0px 6px 16px rgba(0, 0, 0, 0.35)",
-            borderRadius: 1,
-            alignItems: "center",
-          }}
-        >
-          {errorMsg}
-        </Alert>
-      </Snackbar>
+        title="Scan Error"
+        message={errorMsg}
+        severity="error"
+      />
+      <AlertDialog
+        open={Boolean(cameraError)}
+        onClose={() => setCameraError(null)}
+        title="Camera Warning"
+        message={cameraError}
+        severity="warning"
+      />
 
       {/* Hidden div for file decoding */}
       <div id="reader-hidden" style={{ display: "none" }} />
@@ -164,20 +156,11 @@ export const ScanPage: React.FC = () => {
           </Box>
 
           {!isSecure && (
-            <Alert severity="info" sx={{ mb: 2, textAlign: "left" }}>
-              Mobile browsers require HTTPS (or localhost) to grant live camera access. If you are accessing this over LAN HTTP (e.g. <code>http://192.168.x.x</code>), use &quot;Take a Photo&quot; or enter the code below.
-            </Alert>
-          )}
-
-          {cameraError && (
-            <Alert
-              severity="warning"
-              variant="filled"
-              onClose={() => setCameraError(null)}
-              sx={{ mb: 2, textAlign: "left" }}
-            >
-              {cameraError}
-            </Alert>
+            <Box sx={{ mb: 2, p: 2, bgcolor: "action.hover", borderRadius: 1, border: "1px dashed", borderColor: "divider", textAlign: "left" }}>
+              <Typography variant="body2" color="text.secondary">
+                Mobile browsers require HTTPS (or localhost) to grant live camera access. If you are accessing this over LAN HTTP (e.g. <code>http://192.168.x.x</code>), use &quot;Take a Photo&quot; or enter the code below.
+              </Typography>
+            </Box>
           )}
 
           <Box

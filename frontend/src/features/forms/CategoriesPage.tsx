@@ -16,7 +16,6 @@ import {
   FormControlLabel,
   Switch,
   Chip,
-  Alert,
   Snackbar,
   Tooltip,
   Grid,
@@ -29,6 +28,7 @@ import { PageHeader } from "../../components/shared/PageHeader";
 import { EmptyState } from "../../components/shared/EmptyState";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { IconPicker, renderMuiIcon } from "../../components/shared/IconPicker";
+import { AlertDialog } from "../../components/shared/AlertDialog";
 import { api, ApiException } from "../../api/client";
 import { Category } from "./types";
 
@@ -208,28 +208,13 @@ export const CategoriesPage: React.FC = () => {
         }
       />
 
-      <Snackbar
+      <AlertDialog
         open={Boolean(deleteError)}
-        autoHideDuration={6000}
         onClose={() => setDeleteError(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-        sx={{ zIndex: 2000, bottom: { xs: 24, sm: 32 } }}
-      >
-        <Alert
-          severity="error"
-          variant="filled"
-          onClose={() => setDeleteError(null)}
-          sx={{
-            minWidth: { xs: 280, sm: 380 },
-            maxWidth: { xs: "90vw", sm: 540 },
-            boxShadow: "0px 6px 16px rgba(0, 0, 0, 0.35)",
-            borderRadius: 1,
-            alignItems: "center",
-          }}
-        >
-          {deleteError}
-        </Alert>
-      </Snackbar>
+        title="Cannot Delete Category"
+        message={deleteError}
+        severity="error"
+      />
 
       {categories.length === 0 && !isLoading ? (
         <EmptyState
@@ -400,11 +385,13 @@ export const CategoriesPage: React.FC = () => {
       <Dialog open={categoryDialogOpen} onClose={() => setCategoryDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editingCategory ? "Edit Category" : "New Category"}</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: "24px !important" }}>
-          {errorMsg && (
-            <Alert severity="error" variant="filled" onClose={() => setErrorMsg(null)} sx={{ mb: 1 }}>
-              {errorMsg}
-            </Alert>
-          )}
+          <AlertDialog
+            open={Boolean(errorMsg)}
+            onClose={() => setErrorMsg(null)}
+            title="Category Error"
+            message={errorMsg}
+            severity="error"
+          />
 
           <TextField
             label="Category Name"

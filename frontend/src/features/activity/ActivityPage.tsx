@@ -13,7 +13,6 @@ import {
   FormControl,
   InputLabel,
   CircularProgress,
-  Alert,
   Tooltip,
   Divider,
   Collapse,
@@ -25,6 +24,7 @@ import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { api, ApiException } from "../../api/client";
+import { AlertDialog } from "../../components/shared/AlertDialog";
 
 export const ActivityPage: React.FC = () => {
   const [events, setEvents] = useState<any[]>([]);
@@ -110,17 +110,21 @@ export const ActivityPage: React.FC = () => {
         </Button>
       </Box>
 
-      {errorMsg && (
-        <Alert severity="error" variant="filled" onClose={() => setErrorMsg(null)} sx={{ mb: 2 }}>
-          {errorMsg}
-        </Alert>
-      )}
+      <AlertDialog
+        open={Boolean(errorMsg)}
+        onClose={() => setErrorMsg(null)}
+        title="Activity Error"
+        message={errorMsg}
+        severity="error"
+      />
 
-      {successMsg && (
-        <Alert severity="success" variant="filled" onClose={() => setSuccessMsg(null)} sx={{ mb: 2 }}>
-          {successMsg}
-        </Alert>
-      )}
+      <AlertDialog
+        open={Boolean(successMsg)}
+        onClose={() => setSuccessMsg(null)}
+        title="Success"
+        message={successMsg}
+        severity="success"
+      />
 
       {/* Filter Bar */}
       <Card variant="outlined" sx={{ p: 2, mb: 3, borderRadius: 1 }}>

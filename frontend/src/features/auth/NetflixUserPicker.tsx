@@ -10,7 +10,6 @@ import {
   DialogActions,
   TextField,
   Button,
-  Alert,
   Avatar,
   IconButton,
   InputAdornment,
@@ -22,6 +21,7 @@ import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { api, ApiException, ProfileOut } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
+import { AlertDialog } from "../../components/shared/AlertDialog";
 
 interface NetflixUserPickerProps {
   onSelectSuccess?: (profile: ProfileOut) => void;
@@ -346,11 +346,13 @@ export const NetflixUserPicker: React.FC<NetflixUserPickerProps> = ({
           </DialogTitle>
 
           <DialogContent sx={{ px: 3, pt: 1 }}>
-            {errorMsg && (
-              <Alert severity="error" variant="filled" sx={{ mb: 2 }}>
-                {errorMsg}
-              </Alert>
-            )}
+            <AlertDialog
+              open={Boolean(errorMsg)}
+              onClose={() => setErrorMsg(null)}
+              title="Unlock Failed"
+              message={errorMsg}
+              severity="error"
+            />
 
             <TextField
               autoFocus

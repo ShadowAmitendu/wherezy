@@ -7,7 +7,6 @@ import {
   Typography,
   TextField,
   Button,
-  Alert,
   InputAdornment,
   IconButton,
   Divider,
@@ -21,6 +20,7 @@ import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
 import { useAuth } from "../../auth/AuthContext";
 import { ApiException } from "../../api/client";
+import { AlertDialog } from "../../components/shared/AlertDialog";
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -110,11 +110,13 @@ export const LoginPage: React.FC = () => {
             </Typography>
           </Box>
 
-          {errorMsg && (
-            <Alert severity="error" variant="filled" sx={{ mb: 2.5 }}>
-              {errorMsg}
-            </Alert>
-          )}
+          <AlertDialog
+            open={Boolean(errorMsg)}
+            onClose={() => setErrorMsg(null)}
+            title="Sign In Failed"
+            message={errorMsg}
+            severity="error"
+          />
 
           <form onSubmit={handleSubmit}>
             <TextField

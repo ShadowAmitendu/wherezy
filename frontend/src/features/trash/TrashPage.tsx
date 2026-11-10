@@ -17,7 +17,6 @@ import {
   TableRow,
   Paper,
   CircularProgress,
-  Alert,
   Tooltip,
 } from "@mui/material";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
@@ -25,6 +24,7 @@ import RestoreFromTrashIcon from "@mui/icons-material/RestoreFromTrash";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { api, ApiException } from "../../api/client";
+import { AlertDialog } from "../../components/shared/AlertDialog";
 
 export const TrashPage: React.FC = () => {
   const [tabIndex, setTabIndex] = useState<number>(0);
@@ -115,17 +115,21 @@ export const TrashPage: React.FC = () => {
         </Box>
       </Box>
 
-      {errorMsg && (
-        <Alert severity="error" variant="filled" onClose={() => setErrorMsg(null)} sx={{ mb: 2 }}>
-          {errorMsg}
-        </Alert>
-      )}
+      <AlertDialog
+        open={Boolean(errorMsg)}
+        onClose={() => setErrorMsg(null)}
+        title="Trash Action Error"
+        message={errorMsg}
+        severity="error"
+      />
 
-      {successMsg && (
-        <Alert severity="success" variant="filled" onClose={() => setSuccessMsg(null)} sx={{ mb: 2 }}>
-          {successMsg}
-        </Alert>
-      )}
+      <AlertDialog
+        open={Boolean(successMsg)}
+        onClose={() => setSuccessMsg(null)}
+        title="Success"
+        message={successMsg}
+        severity="success"
+      />
 
       {/* Tabs */}
       <Card variant="outlined" sx={{ mb: 2, borderRadius: 1 }}>

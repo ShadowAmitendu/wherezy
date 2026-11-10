@@ -7,7 +7,6 @@ import {
   Grid,
   Chip,
   IconButton,
-  Alert,
   CircularProgress,
   Divider,
 } from "@mui/material";
@@ -119,9 +118,23 @@ export const WallPage: React.FC = () => {
 
       {/* Connectivity error warning */}
       {failedPolls >= 3 && (
-        <Alert severity="warning" variant="filled">
-          Last updated at {lastUpdated}. Server not reachable right now. Showing cached information.
-        </Alert>
+        <Box
+          sx={{
+            p: 1.5,
+            px: 2,
+            bgcolor: "warning.main",
+            color: "warning.contrastText",
+            borderRadius: 1,
+            display: "flex",
+            alignItems: "center",
+            gap: 1.5,
+          }}
+        >
+          <WarningAmberOutlinedIcon />
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            Last updated at {lastUpdated}. Server not reachable right now. Showing cached information.
+          </Typography>
+        </Box>
       )}
 
       {loading && !data ? (

@@ -17,7 +17,6 @@ import {
   TableRow,
   Paper,
   CircularProgress,
-  Alert,
   Tooltip,
   Dialog,
   DialogTitle,
@@ -33,6 +32,7 @@ import HealingOutlinedIcon from "@mui/icons-material/HealingOutlined";
 import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
 import PhotoCameraOutlinedIcon from "@mui/icons-material/PhotoCameraOutlined";
 import EventBusyOutlinedIcon from "@mui/icons-material/EventBusyOutlined";
+import { AlertDialog } from "../../components/shared/AlertDialog";
 import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import MoveToInboxOutlinedIcon from "@mui/icons-material/MoveToInboxOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
@@ -198,11 +198,13 @@ export const HealthPage: React.FC = () => {
         </Button>
       </Box>
 
-      {errorMsg && (
-        <Alert severity="error" variant="filled" onClose={() => setErrorMsg(null)} sx={{ mb: 3 }}>
-          {errorMsg}
-        </Alert>
-      )}
+      <AlertDialog
+        open={Boolean(errorMsg)}
+        onClose={() => setErrorMsg(null)}
+        title="Health Check Error"
+        message={errorMsg}
+        severity="error"
+      />
 
       {/* Summary Cards Row */}
       <Grid container spacing={2} sx={{ mb: 3 }}>

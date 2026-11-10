@@ -9,7 +9,6 @@ import {
   Button,
   Avatar,
   Chip,
-  Alert,
   Divider,
   FormControl,
   InputLabel,
@@ -29,6 +28,7 @@ import { PageHeader } from "../../components/shared/PageHeader";
 import { useAuth } from "../../auth/AuthContext";
 import { useAppTheme, THEME_PRESETS, ThemePreset } from "../../theme";
 import { api, ApiException } from "../../api/client";
+import { AlertDialog } from "../../components/shared/AlertDialog";
 
 const EMOJI_OPTIONS = ["👤", "🧑‍💻", "🦊", "🐱", "🏡", "📦", "⭐", "🔑", "🎨", "🛠️", "🌸", "⚡", "🍎", "🚀"];
 const COLOR_OPTIONS = [
@@ -197,11 +197,13 @@ export const AccountProfilePage: React.FC = () => {
                 </Typography>
               </Box>
 
-              {profileMsg && (
-                <Alert severity={profileMsg.type} variant="filled" sx={{ mb: 2 }}>
-                  {profileMsg.text}
-                </Alert>
-              )}
+              <AlertDialog
+                open={Boolean(profileMsg)}
+                onClose={() => setProfileMsg(null)}
+                title={profileMsg?.type === "success" ? "Profile Updated" : "Profile Error"}
+                message={profileMsg?.text || null}
+                severity={profileMsg?.type || "error"}
+              />
 
               <form onSubmit={handleSaveProfile}>
                 <TextField
@@ -287,11 +289,13 @@ export const AccountProfilePage: React.FC = () => {
                 </Typography>
               </Box>
 
-              {passwordMsg && (
-                <Alert severity={passwordMsg.type} variant="filled" sx={{ mb: 2 }}>
-                  {passwordMsg.text}
-                </Alert>
-              )}
+              <AlertDialog
+                open={Boolean(passwordMsg)}
+                onClose={() => setPasswordMsg(null)}
+                title={passwordMsg?.type === "success" ? "Password Updated" : "Password Error"}
+                message={passwordMsg?.text || null}
+                severity={passwordMsg?.type || "error"}
+              />
 
               <form onSubmit={handleSavePassword}>
                 <TextField

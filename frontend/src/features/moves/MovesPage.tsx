@@ -19,7 +19,6 @@ import {
   Select,
   MenuItem,
   CircularProgress,
-  Alert,
   Tooltip,
   Divider,
   List,
@@ -33,6 +32,7 @@ import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import UnarchiveOutlinedIcon from "@mui/icons-material/UnarchiveOutlined";
 import { api, ApiException } from "../../api/client";
 import { LocationPicker } from "../locations/LocationPicker";
+import { AlertDialog } from "../../components/shared/AlertDialog";
 
 export const MovesPage: React.FC = () => {
   const [activeMove, setActiveMove] = useState<any | null>(null);
@@ -216,17 +216,21 @@ export const MovesPage: React.FC = () => {
         )}
       </Box>
 
-      {errorMsg && (
-        <Alert severity="error" variant="filled" onClose={() => setErrorMsg(null)} sx={{ mb: 2 }}>
-          {errorMsg}
-        </Alert>
-      )}
+      <AlertDialog
+        open={Boolean(errorMsg)}
+        onClose={() => setErrorMsg(null)}
+        title="Move Error"
+        message={errorMsg}
+        severity="error"
+      />
 
-      {successMsg && (
-        <Alert severity="success" variant="filled" onClose={() => setSuccessMsg(null)} sx={{ mb: 2 }}>
-          {successMsg}
-        </Alert>
-      )}
+      <AlertDialog
+        open={Boolean(successMsg)}
+        onClose={() => setSuccessMsg(null)}
+        title="Success"
+        message={successMsg}
+        severity="success"
+      />
 
       {/* Active Move Overview Card */}
       {loading ? (

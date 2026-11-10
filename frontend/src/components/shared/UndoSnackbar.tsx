@@ -1,6 +1,7 @@
 import React from "react";
-import { Snackbar, Alert, Button, IconButton, Box } from "@mui/material";
+import { Snackbar, SnackbarContent, Button, IconButton, Box, Typography } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 interface UndoSnackbarProps {
   open: boolean;
@@ -28,10 +29,13 @@ export const UndoSnackbar: React.FC<UndoSnackbarProps> = ({
         bottom: { xs: 24, sm: 32 },
       }}
     >
-      <Alert
-        variant="filled"
-        severity="info"
-        onClose={onClose}
+      <SnackbarContent
+        message={
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <InfoOutlinedIcon fontSize="small" sx={{ color: "primary.light" }} />
+            <Typography variant="body2">{message}</Typography>
+          </Box>
+        }
         action={
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Button
@@ -68,9 +72,7 @@ export const UndoSnackbar: React.FC<UndoSnackbarProps> = ({
           alignItems: "center",
           fontWeight: 500,
         }}
-      >
-        {message}
-      </Alert>
+      />
     </Snackbar>
   );
 };

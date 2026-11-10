@@ -26,11 +26,11 @@ import {
   DialogActions,
   TextField,
   Button,
-  Alert,
   Divider,
   Paper,
   Grid,
 } from "@mui/material";
+import { AlertDialog } from "../components/shared/AlertDialog";
 import MenuIcon from "@mui/icons-material/Menu";
 import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
@@ -656,11 +656,13 @@ export const AppLayout: React.FC = () => {
           <Typography variant="body2" sx={{ mb: 2 }}>
             Switching to <strong>{pinTargetProfile?.name}</strong> requires a 4-digit PIN.
           </Typography>
-          {pinError && (
-            <Alert severity="error" variant="filled" onClose={() => setPinError(null)} sx={{ mb: 2 }}>
-              {pinError}
-            </Alert>
-          )}
+          <AlertDialog
+            open={Boolean(pinError)}
+            onClose={() => setPinError(null)}
+            title="PIN Error"
+            message={pinError}
+            severity="error"
+          />
           <TextField
             autoFocus
             fullWidth

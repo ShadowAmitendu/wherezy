@@ -24,10 +24,10 @@ import {
   ListItemIcon,
   ListItemSecondaryAction,
   Tooltip,
-  Alert,
   Paper,
   Grid,
 } from "@mui/material";
+import { AlertDialog } from "../../components/shared/AlertDialog";
 import AddIcon from "@mui/icons-material/Add";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -299,9 +299,11 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
               </Box>
 
               {activeFields.length === 0 ? (
-                <Alert severity="info" sx={{ mt: 2 }}>
-                  No custom fields defined yet. Standard fields (Name, Location, Expiry, Notes, Photos) are always available.
-                </Alert>
+                <Box sx={{ mt: 2, p: 2, bgcolor: "action.hover", borderRadius: 1, border: "1px dashed", borderColor: "divider" }}>
+                  <Typography variant="body2" color="text.secondary">
+                    No custom fields defined yet. Standard fields (Name, Location, Expiry, Notes, Photos) are always available.
+                  </Typography>
+                </Box>
               ) : (
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={activeFields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
@@ -349,11 +351,13 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>{editingField ? "Edit Field" : "Add Custom Field"}</DialogTitle>
         <DialogContent sx={{ pt: "24px !important" }}>
-          {errorMsg && (
-            <Alert severity="error" variant="filled" onClose={() => setErrorMsg(null)} sx={{ mb: 2 }}>
-              {errorMsg}
-            </Alert>
-          )}
+          <AlertDialog
+            open={Boolean(errorMsg)}
+            onClose={() => setErrorMsg(null)}
+            title="Field Error"
+            message={errorMsg}
+            severity="error"
+          />
 
           <Grid container spacing={2} sx={{ mt: 1 }}>
             <Grid size={{ xs: 12, sm: 6 }}>

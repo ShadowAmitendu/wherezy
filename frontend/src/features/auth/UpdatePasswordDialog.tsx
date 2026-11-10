@@ -7,7 +7,6 @@ import {
   TextField,
   Button,
   Typography,
-  Alert,
   Box,
   InputAdornment,
   IconButton,
@@ -17,6 +16,7 @@ import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import { api, ApiException } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
+import { AlertDialog } from "../../components/shared/AlertDialog";
 
 interface UpdatePasswordDialogProps {
   open: boolean;
@@ -111,17 +111,21 @@ export const UpdatePasswordDialog: React.FC<UpdatePasswordDialogProps> = ({
               : `Change the login password for account @${currentProfile?.username || currentProfile?.name}.`}
           </Typography>
 
-          {errorMsg && (
-            <Alert severity="error" variant="filled" sx={{ mb: 2 }}>
-              {errorMsg}
-            </Alert>
-          )}
+          <AlertDialog
+            open={Boolean(errorMsg)}
+            onClose={() => setErrorMsg(null)}
+            title="Update Password Error"
+            message={errorMsg}
+            severity="error"
+          />
 
-          {successMsg && (
-            <Alert severity="success" variant="filled" sx={{ mb: 2 }}>
-              {successMsg}
-            </Alert>
-          )}
+          <AlertDialog
+            open={Boolean(successMsg)}
+            onClose={() => setSuccessMsg(null)}
+            title="Password Updated"
+            message={successMsg}
+            severity="success"
+          />
 
           {requireOldPassword && (
             <TextField
