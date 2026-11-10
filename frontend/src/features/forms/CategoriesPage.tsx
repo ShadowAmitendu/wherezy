@@ -365,7 +365,7 @@ export const CategoriesPage: React.FC = () => {
       {/* Create / Edit Category Dialog */}
       <Dialog open={categoryDialogOpen} onClose={() => setCategoryDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editingCategory ? "Edit Category" : "New Category"}</DialogTitle>
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: "20px !important" }}>
           {errorMsg && <Alert severity="error">{errorMsg}</Alert>}
 
           <TextField
@@ -376,6 +376,7 @@ export const CategoriesPage: React.FC = () => {
             fullWidth
             required
             autoFocus
+            sx={{ mt: 0.5 }}
           />
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>

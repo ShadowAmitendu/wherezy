@@ -348,10 +348,10 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
       {/* Add / Edit Dialog */}
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>{editingField ? "Edit Field" : "Add Custom Field"}</DialogTitle>
-        <DialogContent sx={{ pt: 1 }}>
+        <DialogContent sx={{ pt: "20px !important" }}>
           {errorMsg && <Alert severity="error" sx={{ mb: 2 }}>{errorMsg}</Alert>}
 
-          <Grid container spacing={2} sx={{ mt: 0.25 }}>
+          <Grid container spacing={2} sx={{ mt: 0.5 }}>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 label="Field Label"

@@ -412,7 +412,7 @@ export const SettingsPage: React.FC = () => {
       {/* PIN Dialog */}
       <Dialog open={pinDialogOpen} onClose={() => setPinDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{pinSet ? "Change or Remove PIN" : "Set Household PIN"}</DialogTitle>
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: "20px !important" }}>
           <Typography variant="body2" color="text.secondary">
             {pinSet
               ? "To change your PIN, enter the current PIN and the new PIN. To remove the PIN completely, leave the new PIN blank."

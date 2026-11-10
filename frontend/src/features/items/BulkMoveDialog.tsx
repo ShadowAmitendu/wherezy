@@ -43,7 +43,7 @@ export const BulkMoveDialog: React.FC<BulkMoveDialogProps> = ({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Move {itemIds.length} Items</DialogTitle>
-      <DialogContent sx={{ pt: 1 }}>
+      <DialogContent sx={{ pt: "20px !important" }}>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Select destination location for {itemIds.length} selected item(s):
         </Typography>

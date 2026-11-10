@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
   Box,
@@ -19,6 +19,7 @@ import {
   useTheme,
   Tooltip,
 } from "@mui/material";
+import MenuIcon from "@mui/icons-material/Menu";
 import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
@@ -33,6 +34,7 @@ import { useAppTheme } from "../theme";
 import { useAuth } from "../auth/AuthContext";
 
 const DRAWER_WIDTH = 240;
+const MINI_DRAWER_WIDTH = 68;
 
 const NAV_ITEMS = [
   { label: "Dashboard", path: "/", icon: <DashboardOutlinedIcon /> },
@@ -51,6 +53,27 @@ export const AppLayout: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { mode, setMode, resolvedMode } = useAppTheme();
   const { pinSet, logout } = useAuth();
+
+  // Desktop sidebar state: expanded (text + icons) or collapsed (only icons)
+  const [desktopOpen, setDesktopOpen] = useState<boolean>(() => {
+    const saved = localStorage.getItem("hi_sidebar_open");
+    return saved !== null ? saved === "true" : true;
+  });
+
+  // Mobile temporary drawer state
+  const [mobileOpen, setMobileOpen] = useState<boolean>(false);
+
+  const handleDrawerToggle = () => {
+    if (isMobile) {
+      setMobileOpen((prev) => !prev);
+    } else {
+      setDesktopOpen((prev) => {
+        const next = !prev;
+        localStorage.setItem("hi_sidebar_open", String(next));
+        return next;
+      });
+    }
+  };
 
   const handleThemeToggle = () => {
     if (mode === "system") {
@@ -72,29 +95,116 @@ export const AppLayout: React.FC = () => {
     return current;
   };
 
+  const renderNavList = (isMini: boolean) => (
+    <List sx={{ py: 1 }}>
+      {NAV_ITEMS.map((item) => {
+        const isSelected =
+          item.path === "/"
+            ? location.pathname === "/"
+            : location.pathname.startsWith(item.path);
+
+        const buttonContent = (
+          <ListItemButton
+            selected={isSelected}
+            onClick={() => {
+              navigate(item.path);
+              if (isMobile) setMobileOpen(false);
+            }}
+            sx={{
+              minHeight: 48,
+              justifyContent: isMini ? "center" : "initial",
+              px: isMini ? 1.5 : 2.5,
+              mx: 1,
+              borderRadius: 1,
+              "&.Mui-selected": {
+                bgcolor: "primary.main",
+                color: "primary.contrastText",
+                "& .MuiListItemIcon-root": {
+                  color: "primary.contrastText",
+                },
+                "&:hover": {
+                  bgcolor: "primary.dark",
+                },
+              },
+            }}
+          >
+            <ListItemIcon
+              sx={{
+                minWidth: 0,
+                mr: isMini ? 0 : 2,
+                justifyContent: "center",
+                color: isSelected ? "inherit" : "text.secondary",
+              }}
+            >
+              {item.icon}
+            </ListItemIcon>
+            {!isMini && (
+              <ListItemText
+                primary={item.label}
+                sx={{
+                  "& .MuiListItemText-primary": {
+                    fontWeight: isSelected ? 600 : 500,
+                    whiteSpace: "nowrap",
+                  },
+                }}
+              />
+            )}
+          </ListItemButton>
+        );
+
+        return (
+          <ListItem key={item.path} disablePadding sx={{ mb: 0.5, display: "block" }}>
+            {isMini ? (
+              <Tooltip title={item.label} placement="right" arrow>
+                {buttonContent}
+              </Tooltip>
+            ) : (
+              buttonContent
+            )}
+          </ListItem>
+        );
+      })}
+    </List>
+  );
+
+  const currentDesktopWidth = desktopOpen ? DRAWER_WIDTH : MINI_DRAWER_WIDTH;
+
   return (
     <Box sx={{ display: "flex", minHeight: "100vh", bgcolor: "background.default" }}>
-      {/* Top App Bar */}
+      {/* Top App Bar with Hamburger menu */}
       <AppBar
         position="fixed"
         elevation={4}
         sx={{
-          zIndex: (theme) => theme.zIndex.drawer + 1,
+          zIndex: (t) => t.zIndex.drawer + 1,
           bgcolor: "background.paper",
           color: "text.primary",
         }}
       >
         <Toolbar sx={{ justifyContent: "space-between" }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Inventory2OutlinedIcon color="primary" />
-            <Typography
-              variant="h6"
-              sx={{ fontWeight: 700, cursor: "pointer" }}
-              noWrap
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            {/* Hamburger Button */}
+            <Tooltip title={desktopOpen ? "Collapse sidebar (icons only)" : "Expand sidebar"}>
+              <IconButton
+                color="inherit"
+                aria-label="toggle navigation menu"
+                onClick={handleDrawerToggle}
+                edge="start"
+                sx={{ mr: 1.5 }}
+              >
+                <MenuIcon />
+              </IconButton>
+            </Tooltip>
+
+            <Box
+              sx={{ display: "flex", alignItems: "center", gap: 1, cursor: "pointer" }}
               onClick={() => navigate("/")}
             >
-              HomeInventory
-            </Typography>
+              <Inventory2OutlinedIcon color="primary" />
+              <Typography variant="h6" sx={{ fontWeight: 700 }} noWrap>
+                HomeInventory
+              </Typography>
+            </Box>
           </Box>
 
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
@@ -115,62 +225,60 @@ export const AppLayout: React.FC = () => {
         </Toolbar>
       </AppBar>
 
-      {/* Desktop Side Drawer */}
+      {/* Desktop Side Drawer (Toggles between Icons-Only and Text + Icons) */}
       {!isMobile && (
         <Drawer
           variant="permanent"
           sx={{
-            width: DRAWER_WIDTH,
+            width: currentDesktopWidth,
             flexShrink: 0,
+            whiteSpace: "nowrap",
+            boxSizing: "border-box",
+            transition: (t) =>
+              t.transitions.create("width", {
+                easing: t.transitions.easing.sharp,
+                duration: t.transitions.duration.enteringScreen,
+              }),
             [`& .MuiDrawer-paper`]: {
-              width: DRAWER_WIDTH,
+              width: currentDesktopWidth,
+              overflowX: "hidden",
               boxSizing: "border-box",
               borderRight: "1px solid",
               borderColor: "divider",
+              bgcolor: "background.paper",
+              transition: (t) =>
+                t.transitions.create("width", {
+                  easing: t.transitions.easing.sharp,
+                  duration: t.transitions.duration.enteringScreen,
+                }),
+            },
+          }}
+        >
+          <Toolbar />
+          <Box sx={{ overflow: "hidden", py: 1 }}>
+            {renderNavList(!desktopOpen)}
+          </Box>
+        </Drawer>
+      )}
+
+      {/* Mobile Drawer (Temporary slide-in when Hamburger is pressed) */}
+      {isMobile && (
+        <Drawer
+          variant="temporary"
+          open={mobileOpen}
+          onClose={() => setMobileOpen(false)}
+          ModalProps={{ keepMounted: true }}
+          sx={{
+            [`& .MuiDrawer-paper`]: {
+              width: DRAWER_WIDTH,
+              boxSizing: "border-box",
               bgcolor: "background.paper",
             },
           }}
         >
           <Toolbar />
-          <Box sx={{ overflow: "auto", py: 2 }}>
-            <List>
-              {NAV_ITEMS.map((item) => {
-                const isSelected =
-                  item.path === "/"
-                    ? location.pathname === "/"
-                    : location.pathname.startsWith(item.path);
-                return (
-                  <ListItem key={item.path} disablePadding sx={{ mb: 0.5 }}>
-                    <ListItemButton
-                      selected={isSelected}
-                      onClick={() => navigate(item.path)}
-                      sx={{
-                        mx: 1,
-                        borderRadius: 2,
-                        "&.Mui-selected": {
-                          bgcolor: "primary.main",
-                          color: "primary.contrastText",
-                          "& .MuiListItemIcon-root": {
-                            color: "primary.contrastText",
-                          },
-                          "&:hover": {
-                            bgcolor: "primary.dark",
-                          },
-                        },
-                      }}
-                    >
-                      <ListItemIcon sx={{ minWidth: 40, color: isSelected ? "inherit" : "text.secondary" }}>
-                        {item.icon}
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={item.label}
-                        sx={{ "& .MuiListItemText-primary": { fontWeight: isSelected ? 600 : 500 } }}
-                      />
-                    </ListItemButton>
-                  </ListItem>
-                );
-              })}
-            </List>
+          <Box sx={{ overflow: "auto", py: 1 }}>
+            {renderNavList(false)}
           </Box>
         </Drawer>
       )}
@@ -181,7 +289,12 @@ export const AppLayout: React.FC = () => {
         sx={{
           flexGrow: 1,
           p: { xs: 2, sm: 3 },
-          width: { sm: `calc(100% - ${DRAWER_WIDTH}px)` },
+          width: { sm: `calc(100% - ${currentDesktopWidth}px)` },
+          transition: (t) =>
+            t.transitions.create(["width", "margin"], {
+              easing: t.transitions.easing.sharp,
+              duration: t.transitions.duration.enteringScreen,
+            }),
           mt: 8,
           mb: { xs: 8, sm: 0 },
         }}
@@ -192,8 +305,16 @@ export const AppLayout: React.FC = () => {
       {/* Mobile Bottom Navigation */}
       {isMobile && (
         <Paper
-          sx={{ position: "fixed", bottom: 0, left: 0, right: 0, zIndex: 1000, borderTop: "1px solid", borderColor: "divider" }}
-          elevation={3}
+          sx={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            zIndex: 1000,
+            borderTop: "1px solid",
+            borderColor: "divider",
+          }}
+          elevation={4}
         >
           <BottomNavigation
             showLabels

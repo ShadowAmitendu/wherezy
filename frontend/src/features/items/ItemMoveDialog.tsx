@@ -50,7 +50,7 @@ export const ItemMoveDialog: React.FC<ItemMoveDialogProps> = ({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Move Item</DialogTitle>
-      <DialogContent sx={{ pt: 1 }}>
+      <DialogContent sx={{ pt: "20px !important" }}>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Select new storage location for &quot;{item?.name}&quot;:
         </Typography>

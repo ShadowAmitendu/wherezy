@@ -182,14 +182,17 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             root: {
               fontSize: "1.25rem",
               fontWeight: 500,
-              padding: "24px 24px 16px 24px",
+              padding: "24px 24px 12px 24px",
             },
           },
         },
         MuiDialogContent: {
           styleOverrides: {
             root: {
-              padding: "16px 24px 24px 24px",
+              padding: "20px 24px 24px 24px",
+              "&.MuiDialogContent-root": {
+                paddingTop: "20px",
+              },
             },
           },
         },

@@ -144,10 +144,10 @@ export const ItemFormDialog: React.FC<ItemFormDialogProps> = ({
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <form onSubmit={handleSubmit}>
         <DialogTitle>{item ? "Edit Item" : "Add New Item"}</DialogTitle>
-        <DialogContent sx={{ pt: 1 }}>
+        <DialogContent sx={{ pt: "20px !important" }}>
           {errorMsg && <Alert severity="error" sx={{ mb: 2 }}>{errorMsg}</Alert>}
 
-          <Grid container spacing={2} sx={{ mt: 0.25 }}>
+          <Grid container spacing={2} sx={{ mt: 0.5 }}>
             <Grid size={{ xs: 12, sm: 6 }}>
               <TextField
                 label="Item Name"
