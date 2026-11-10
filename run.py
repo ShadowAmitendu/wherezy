@@ -32,7 +32,8 @@ def main():
     parser = argparse.ArgumentParser(description="Start the HomeInventory server.")
     parser.add_argument("--host", default="0.0.0.0", help="Host to listen on (default: 0.0.0.0)")
     parser.add_argument("--port", type=int, default=8000, help="Port to listen on (default: 8000)")
-    parser.add_argument("--reload", action="store_true", help="Enable auto-reload on code change")
+    parser.add_argument("--reload", dest="reload", action="store_true", default=True, help="Enable auto-reload on code change (default: enabled)")
+    parser.add_argument("--no-reload", dest="reload", action="store_false", help="Disable auto-reload")
     parser.add_argument("--open", action="store_true", help="Automatically open browser on start")
     args = parser.parse_args()
 
@@ -63,6 +64,7 @@ def main():
         host=args.host,
         port=args.port,
         reload=args.reload,
+        reload_dirs=[str(ROOT_DIR / "backend")] if args.reload else None,
         log_level="info",
     )
 
