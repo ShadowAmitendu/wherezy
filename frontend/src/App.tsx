@@ -1,21 +1,22 @@
-import React, { useEffect } from "react";
+import React, { useEffect, Suspense, lazy } from "react";
 import { HashRouter, Routes, Route, Navigate, useParams, useNavigate } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Box, CircularProgress } from "@mui/material";
 import { AppThemeProvider } from "./theme";
 import { AuthProvider } from "./auth/AuthContext";
 import { AppLayout } from "./layout/AppLayout";
 
-// Pages
-import { DashboardPage } from "./features/dashboard/DashboardPage";
-import { ItemsPage } from "./features/items/ItemsPage";
-import { CategoriesPage } from "./features/forms/CategoriesPage";
-import { CategoryDetailPage } from "./features/forms/CategoryDetailPage";
-import { LocationsPage } from "./features/locations/LocationsPage";
-import { ExpiryPage } from "./features/expiry/ExpiryPage";
-import { LabelSheetPage } from "./features/labels/LabelSheetPage";
-import { ScanPage } from "./features/scan/ScanPage";
-import { SettingsPage } from "./features/settings/SettingsPage";
-import { PrintShelfPage } from "./features/print/PrintShelfPage";
+// Lazy-loaded pages for mobile-friendly code-splitting
+const DashboardPage = lazy(() => import("./features/dashboard/DashboardPage").then(m => ({ default: m.DashboardPage })));
+const ItemsPage = lazy(() => import("./features/items/ItemsPage").then(m => ({ default: m.ItemsPage })));
+const CategoriesPage = lazy(() => import("./features/forms/CategoriesPage").then(m => ({ default: m.CategoriesPage })));
+const CategoryDetailPage = lazy(() => import("./features/forms/CategoryDetailPage").then(m => ({ default: m.CategoryDetailPage })));
+const LocationsPage = lazy(() => import("./features/locations/LocationsPage").then(m => ({ default: m.LocationsPage })));
+const ExpiryPage = lazy(() => import("./features/expiry/ExpiryPage").then(m => ({ default: m.ExpiryPage })));
+const LabelSheetPage = lazy(() => import("./features/labels/LabelSheetPage").then(m => ({ default: m.LabelSheetPage })));
+const ScanPage = lazy(() => import("./features/scan/ScanPage").then(m => ({ default: m.ScanPage })));
+const SettingsPage = lazy(() => import("./features/settings/SettingsPage").then(m => ({ default: m.SettingsPage })));
+const PrintShelfPage = lazy(() => import("./features/print/PrintShelfPage").then(m => ({ default: m.PrintShelfPage })));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -51,30 +52,38 @@ export const App: React.FC = () => {
       <AppThemeProvider>
         <AuthProvider>
           <HashRouter>
-            <Routes>
-              {/* Standalone Printable Routes (without app chrome) */}
-              <Route path="/print/location/:id" element={<PrintShelfPage />} />
-              <Route path="/labels" element={<LabelSheetPage />} />
+            <Suspense
+              fallback={
+                <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "50vh" }}>
+                  <CircularProgress size={36} />
+                </Box>
+              }
+            >
+              <Routes>
+                {/* Standalone Printable Routes (without app chrome) */}
+                <Route path="/print/location/:id" element={<PrintShelfPage />} />
+                <Route path="/labels" element={<LabelSheetPage />} />
 
-              {/* Direct QR scan redirects */}
-              <Route path="/i/:id" element={<DirectItemShortcut />} />
-              <Route path="/l/:id" element={<DirectLocationShortcut />} />
+                {/* Direct QR scan redirects */}
+                <Route path="/i/:id" element={<DirectItemShortcut />} />
+                <Route path="/l/:id" element={<DirectLocationShortcut />} />
 
-              {/* Main App with Shell Layout */}
-              <Route element={<AppLayout />}>
-                <Route path="/" element={<DashboardPage />} />
-                <Route path="/items" element={<ItemsPage />} />
-                <Route path="/categories" element={<CategoriesPage />} />
-                <Route path="/categories/:id" element={<CategoryDetailPage />} />
-                <Route path="/locations" element={<LocationsPage />} />
-                <Route path="/expiry" element={<ExpiryPage />} />
-                <Route path="/scan" element={<ScanPage />} />
-                <Route path="/settings" element={<SettingsPage />} />
-              </Route>
+                {/* Main App with Shell Layout */}
+                <Route element={<AppLayout />}>
+                  <Route path="/" element={<DashboardPage />} />
+                  <Route path="/items" element={<ItemsPage />} />
+                  <Route path="/categories" element={<CategoriesPage />} />
+                  <Route path="/categories/:id" element={<CategoryDetailPage />} />
+                  <Route path="/locations" element={<LocationsPage />} />
+                  <Route path="/expiry" element={<ExpiryPage />} />
+                  <Route path="/scan" element={<ScanPage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                </Route>
 
-              {/* Fallback */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+                {/* Fallback */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
           </HashRouter>
         </AuthProvider>
       </AppThemeProvider>
