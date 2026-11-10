@@ -68,7 +68,7 @@ export const IconPicker: React.FC<IconPickerProps> = ({
   onClose,
 }) => {
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>Select an Icon</DialogTitle>
       <DialogContent>
         <Grid container spacing={1} sx={{ pt: 1 }}>

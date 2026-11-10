@@ -13,6 +13,7 @@ import {
   Box,
   Alert,
   Divider,
+  Grid,
 } from "@mui/material";
 import { useForm } from "react-hook-form";
 import { Item } from "./types";
@@ -140,78 +141,90 @@ export const ItemFormDialog: React.FC<ItemFormDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <form onSubmit={handleSubmit}>
         <DialogTitle>{item ? "Edit Item" : "Add New Item"}</DialogTitle>
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: 1 }}>
-          {errorMsg && <Alert severity="error">{errorMsg}</Alert>}
+        <DialogContent sx={{ pt: 1 }}>
+          {errorMsg && <Alert severity="error" sx={{ mb: 2 }}>{errorMsg}</Alert>}
 
-          <TextField
-            label="Item Name"
-            placeholder="e.g. Paracetamol 500mg, Phillips LED Bulb, Phillips Screwdriver"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            fullWidth
-            required
-            autoFocus
-          />
+          <Grid container spacing={2} sx={{ mt: 0.25 }}>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                label="Item Name"
+                placeholder="e.g. Paracetamol 500mg, Phillips LED Bulb"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                fullWidth
+                required
+                autoFocus
+              />
+            </Grid>
 
-          <FormControl fullWidth required>
-            <InputLabel id="item-category-select-label">Category</InputLabel>
-            <Select
-              labelId="item-category-select-label"
-              value={selectedCategoryId ? String(selectedCategoryId) : ""}
-              label="Category"
-              onChange={(e) => setSelectedCategoryId(Number(e.target.value))}
-            >
-              {categories.map((c) => (
-                <MenuItem key={c.id} value={String(c.id)}>
-                  {c.name}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <FormControl fullWidth required>
+                <InputLabel id="item-category-select-label">Category</InputLabel>
+                <Select
+                  labelId="item-category-select-label"
+                  value={selectedCategoryId ? String(selectedCategoryId) : ""}
+                  label="Category"
+                  onChange={(e) => setSelectedCategoryId(Number(e.target.value))}
+                >
+                  {categories.map((c) => (
+                    <MenuItem key={c.id} value={String(c.id)}>
+                      {c.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
 
-          <LocationPicker
-            value={selectedLocationId}
-            onChange={(newLoc) => setSelectedLocationId(newLoc)}
-          />
+            <Grid size={{ xs: 12, sm: activeCategory?.track_expiry ? 6 : 12 }}>
+              <LocationPicker
+                value={selectedLocationId}
+                onChange={(newLoc) => setSelectedLocationId(newLoc)}
+              />
+            </Grid>
 
-          {activeCategory?.track_expiry && (
-            <TextField
-              label={activeCategory.expiry_label || "Expiry Date"}
-              type="date"
-              value={expiryDate}
-              onChange={(e) => setExpiryDate(e.target.value)}
-              fullWidth
-              slotProps={{
-                inputLabel: {
-                  shrink: true,
-                },
-              }}
-            />
-          )}
+            {activeCategory?.track_expiry && (
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label={activeCategory.expiry_label || "Expiry Date"}
+                  type="date"
+                  value={expiryDate}
+                  onChange={(e) => setExpiryDate(e.target.value)}
+                  fullWidth
+                  slotProps={{
+                    inputLabel: {
+                      shrink: true,
+                    },
+                  }}
+                />
+              </Grid>
+            )}
 
-          {categoryFields.length > 0 && (
-            <>
-              <Divider sx={{ my: 0.5 }}>
-                <Box sx={{ typography: "caption", color: "text.secondary" }}>
-                  Category Custom Fields
-                </Box>
-              </Divider>
-              <DynamicFields fields={categoryFields} control={control} />
-            </>
-          )}
+            {categoryFields.length > 0 && (
+              <Grid size={{ xs: 12 }}>
+                <Divider sx={{ my: 1 }}>
+                  <Box sx={{ typography: "caption", color: "text.secondary", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                    Category Custom Fields
+                  </Box>
+                </Divider>
+                <DynamicFields fields={categoryFields} control={control} />
+              </Grid>
+            )}
 
-          <TextField
-            label="Notes (Optional)"
-            placeholder="Any extra details, serial numbers, warranty notes..."
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            multiline
-            rows={2}
-            fullWidth
-          />
+            <Grid size={{ xs: 12 }}>
+              <TextField
+                label="Notes (Optional)"
+                placeholder="Any extra details, serial numbers, warranty notes..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                multiline
+                rows={3}
+                fullWidth
+              />
+            </Grid>
+          </Grid>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={onClose} disabled={isSubmitting}>

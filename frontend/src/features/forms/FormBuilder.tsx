@@ -346,79 +346,93 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
       </Grid>
 
       {/* Add / Edit Dialog */}
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>{editingField ? "Edit Field" : "Add Custom Field"}</DialogTitle>
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
-          {errorMsg && <Alert severity="error">{errorMsg}</Alert>}
+        <DialogContent sx={{ pt: 1 }}>
+          {errorMsg && <Alert severity="error" sx={{ mb: 2 }}>{errorMsg}</Alert>}
 
-          <TextField
-            label="Field Label"
-            placeholder="e.g. Dosage, Wattage, Brand"
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            fullWidth
-            required
-            autoFocus
-          />
+          <Grid container spacing={2} sx={{ mt: 0.25 }}>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <TextField
+                label="Field Label"
+                placeholder="e.g. Dosage, Wattage, Brand"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                fullWidth
+                required
+                autoFocus
+              />
+            </Grid>
 
-          <FormControl fullWidth>
-            <InputLabel id="field-type-label">Field Type</InputLabel>
-            <Select
-              labelId="field-type-label"
-              value={type}
-              label="Field Type"
-              onChange={(e) => setType(e.target.value as FieldType)}
-            >
-              {FIELD_TYPES.map((t) => (
-                <MenuItem key={t.value} value={t.value}>
-                  {t.label}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <FormControl fullWidth>
+                <InputLabel id="field-type-label">Field Type</InputLabel>
+                <Select
+                  labelId="field-type-label"
+                  value={type}
+                  label="Field Type"
+                  onChange={(e) => setType(e.target.value as FieldType)}
+                >
+                  {FIELD_TYPES.map((t) => (
+                    <MenuItem key={t.value} value={t.value}>
+                      {t.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
 
-          {(type === "dropdown" || type === "multiselect") && (
-            <TextField
-              label="Options (comma-separated)"
-              placeholder="e.g. Tablet, Capsule, Syrup, Injection"
-              value={optionsStr}
-              onChange={(e) => setOptionsStr(e.target.value)}
-              helperText="Separate multiple choices with commas"
-              fullWidth
-              required
-            />
-          )}
+            {(type === "dropdown" || type === "multiselect") && (
+              <Grid size={{ xs: 12 }}>
+                <TextField
+                  label="Options (comma-separated)"
+                  placeholder="e.g. Tablet, Capsule, Syrup, Injection"
+                  value={optionsStr}
+                  onChange={(e) => setOptionsStr(e.target.value)}
+                  helperText="Separate multiple choices with commas"
+                  fullWidth
+                  required
+                />
+              </Grid>
+            )}
 
-          {type === "number" && (
-            <TextField
-              label="Unit of Measurement (Optional)"
-              placeholder="e.g. W, lm, V, mg, kg"
-              value={unit}
-              onChange={(e) => setUnit(e.target.value)}
-              fullWidth
-            />
-          )}
+            {type === "number" && (
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <TextField
+                  label="Unit of Measurement (Optional)"
+                  placeholder="e.g. W, lm, V, mg, kg"
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value)}
+                  fullWidth
+                />
+              </Grid>
+            )}
 
-          <TextField
-            label="Help Text / Hint (Optional)"
-            placeholder="e.g. Look at the label on the bottom"
-            value={hint}
-            onChange={(e) => setHint(e.target.value)}
-            fullWidth
-          />
+            <Grid size={{ xs: 12, sm: type === "number" ? 6 : 12 }}>
+              <TextField
+                label="Help Text / Hint (Optional)"
+                placeholder="e.g. Look at the label on the bottom"
+                value={hint}
+                onChange={(e) => setHint(e.target.value)}
+                fullWidth
+              />
+            </Grid>
 
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-            <FormControlLabel
-              control={<Switch checked={required} onChange={(e) => setRequired(e.target.checked)} />}
-              label="Mandatory field (Required to save item)"
-            />
-            <FormControlLabel
-              control={<Switch checked={showInList} onChange={(e) => setShowInList(e.target.checked)} />}
-              label="Show in Items Table (max 4 per category)"
-            />
-          </Box>
+            <Grid size={{ xs: 12 }}>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                <FormControlLabel
+                  control={<Switch checked={required} onChange={(e) => setRequired(e.target.checked)} />}
+                  label="Mandatory field (Required to save item)"
+                />
+                <FormControlLabel
+                  control={<Switch checked={showInList} onChange={(e) => setShowInList(e.target.checked)} />}
+                  label="Show in Items Table (max 4 per category)"
+                />
+              </Box>
+            </Grid>
+          </Grid>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setDialogOpen(false)} disabled={isSubmitting}>
             Cancel
           </Button>

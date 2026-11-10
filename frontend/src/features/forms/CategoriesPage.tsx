@@ -304,7 +304,7 @@ export const CategoriesPage: React.FC = () => {
       <Dialog
         open={templateDialogOpen}
         onClose={() => setTemplateDialogOpen(false)}
-        maxWidth="sm"
+        maxWidth="md"
         fullWidth
       >
         <DialogTitle>Starter Templates</DialogTitle>
@@ -363,7 +363,7 @@ export const CategoriesPage: React.FC = () => {
       </Dialog>
 
       {/* Create / Edit Category Dialog */}
-      <Dialog open={categoryDialogOpen} onClose={() => setCategoryDialogOpen(false)} maxWidth="xs" fullWidth>
+      <Dialog open={categoryDialogOpen} onClose={() => setCategoryDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editingCategory ? "Edit Category" : "New Category"}</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
           {errorMsg && <Alert severity="error">{errorMsg}</Alert>}

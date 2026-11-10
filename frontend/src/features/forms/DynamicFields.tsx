@@ -13,6 +13,7 @@ import {
   Chip,
   Box,
   InputAdornment,
+  Grid,
 } from "@mui/material";
 import { FieldDef } from "./types";
 
@@ -36,13 +37,16 @@ export const DynamicFields: React.FC<DynamicFieldsProps> = ({
   }
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
+    <Grid container spacing={2}>
       {activeFields.map((field) => {
         const fieldName = `${namePrefix}.${field.key}`;
+        const isFullWidth = field.type === "longtext" || field.type === "checkbox";
+
+        let fieldContent = null;
 
         switch (field.type) {
           case "text":
-            return (
+            fieldContent = (
               <Controller
                 key={field.key}
                 name={fieldName}
@@ -68,9 +72,10 @@ export const DynamicFields: React.FC<DynamicFieldsProps> = ({
                 )}
               />
             );
+            break;
 
           case "longtext":
-            return (
+            fieldContent = (
               <Controller
                 key={field.key}
                 name={fieldName}
@@ -91,9 +96,10 @@ export const DynamicFields: React.FC<DynamicFieldsProps> = ({
                 )}
               />
             );
+            break;
 
           case "number":
-            return (
+            fieldContent = (
               <Controller
                 key={field.key}
                 name={fieldName}
@@ -120,9 +126,10 @@ export const DynamicFields: React.FC<DynamicFieldsProps> = ({
                 )}
               />
             );
+            break;
 
           case "date":
-            return (
+            fieldContent = (
               <Controller
                 key={field.key}
                 name={fieldName}
@@ -147,10 +154,11 @@ export const DynamicFields: React.FC<DynamicFieldsProps> = ({
                 )}
               />
             );
+            break;
 
           case "dropdown": {
             const options = field.options || [];
-            return (
+            fieldContent = (
               <Controller
                 key={field.key}
                 name={fieldName}
@@ -181,11 +189,12 @@ export const DynamicFields: React.FC<DynamicFieldsProps> = ({
                 )}
               />
             );
+            break;
           }
 
           case "multiselect": {
             const options = field.options || [];
-            return (
+            fieldContent = (
               <Controller
                 key={field.key}
                 name={fieldName}
@@ -211,10 +220,11 @@ export const DynamicFields: React.FC<DynamicFieldsProps> = ({
                 )}
               />
             );
+            break;
           }
 
           case "checkbox":
-            return (
+            fieldContent = (
               <Controller
                 key={field.key}
                 name={fieldName}
@@ -234,11 +244,20 @@ export const DynamicFields: React.FC<DynamicFieldsProps> = ({
                 )}
               />
             );
+            break;
 
           default:
-            return null;
+            fieldContent = null;
         }
+
+        if (!fieldContent) return null;
+
+        return (
+          <Grid key={field.key} size={{ xs: 12, sm: isFullWidth ? 12 : 6 }}>
+            {fieldContent}
+          </Grid>
+        );
       })}
-    </Box>
+    </Grid>
   );
 };

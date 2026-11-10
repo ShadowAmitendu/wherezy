@@ -115,7 +115,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       {children}
 
       {/* Login Dialog if PIN is set and unauthenticated */}
-      <Dialog open={!isLoading && pinSet && !authenticated} maxWidth="xs" fullWidth>
+      <Dialog open={!isLoading && pinSet && !authenticated} maxWidth="sm" fullWidth>
         <form onSubmit={handleLoginSubmit}>
           <DialogTitle sx={{ textAlign: "center", pt: 3 }}>
             <Box

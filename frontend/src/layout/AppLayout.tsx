@@ -77,11 +77,9 @@ export const AppLayout: React.FC = () => {
       {/* Top App Bar */}
       <AppBar
         position="fixed"
-        elevation={0}
+        elevation={4}
         sx={{
           zIndex: (theme) => theme.zIndex.drawer + 1,
-          borderBottom: "1px solid",
-          borderColor: "divider",
           bgcolor: "background.paper",
           color: "text.primary",
         }}

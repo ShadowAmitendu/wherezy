@@ -262,7 +262,7 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
       <Dialog
         open={Boolean(zoomPhoto)}
         onClose={() => setZoomPhoto(null)}
-        maxWidth="md"
+        maxWidth="lg"
         fullWidth
       >
         <DialogContent sx={{ p: 0, bgcolor: "black", textAlign: "center" }}>
