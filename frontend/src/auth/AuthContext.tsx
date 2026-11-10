@@ -10,6 +10,7 @@ import {
   Alert,
   Box,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import { api, ApiException } from "../api/client";
 
@@ -123,8 +124,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 width: 48,
                 height: 48,
                 borderRadius: "50%",
-                bgcolor: "primary.light",
-                color: "primary.dark",
+                bgcolor: (t) =>
+                  t.palette.mode === "dark"
+                    ? alpha(t.palette.primary.main, 0.16)
+                    : alpha(t.palette.primary.main, 0.12),
+                color: "primary.main",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",

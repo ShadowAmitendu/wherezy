@@ -30,6 +30,7 @@ import {
   FormControlLabel,
   Grid,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import AddIcon from "@mui/icons-material/Add";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
@@ -248,12 +249,21 @@ export const LocationsPage: React.FC = () => {
             onClick={() => setSelectedLocationId(node.id)}
             sx={{
               pl: 1 + depth * 2,
-              borderRadius: 2,
+              borderRadius: 1,
               "&.Mui-selected": {
-                bgcolor: "primary.light",
-                color: "primary.dark",
+                bgcolor: (t) =>
+                  t.palette.mode === "dark"
+                    ? alpha(t.palette.primary.main, 0.16)
+                    : alpha(t.palette.primary.main, 0.12),
+                color: "primary.main",
                 "& .MuiListItemIcon-root": {
-                  color: "primary.dark",
+                  color: "primary.main",
+                },
+                "&:hover": {
+                  bgcolor: (t) =>
+                    t.palette.mode === "dark"
+                      ? alpha(t.palette.primary.main, 0.24)
+                      : alpha(t.palette.primary.main, 0.18),
                 },
               },
             }}
