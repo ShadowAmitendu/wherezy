@@ -508,7 +508,7 @@ export const LocationsPage: React.FC = () => {
       {/* Add / Edit Dialog */}
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editingLoc ? "Edit Location" : "New Location"}</DialogTitle>
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: "20px !important" }}>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: "24px !important" }}>
           {errorMsg && <Alert severity="error">{errorMsg}</Alert>}
 
           <TextField
@@ -519,7 +519,7 @@ export const LocationsPage: React.FC = () => {
             fullWidth
             required
             autoFocus
-            sx={{ mt: 0.5 }}
+            sx={{ mt: 1 }}
           />
 
           <FormControl fullWidth>
@@ -559,8 +559,8 @@ export const LocationsPage: React.FC = () => {
       {/* Move Dialog */}
       <Dialog open={moveDialogOpen} onClose={() => setMoveDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Move Location</DialogTitle>
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: "20px !important" }}>
-          <Typography variant="body2" color="text.secondary">
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: "24px !important" }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             Select a new parent location for &quot;{movingLoc?.name}&quot;:
           </Typography>
           {errorMsg && <Alert severity="error">{errorMsg}</Alert>}

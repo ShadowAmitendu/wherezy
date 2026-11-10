@@ -12,9 +12,6 @@ import {
   ListItemIcon,
   ListItemText,
   IconButton,
-  BottomNavigation,
-  BottomNavigationAction,
-  Paper,
   useMediaQuery,
   useTheme,
   Tooltip,
@@ -83,16 +80,6 @@ export const AppLayout: React.FC = () => {
     } else {
       setMode("system");
     }
-  };
-
-  const getActiveTab = () => {
-    const current = location.pathname;
-    if (current === "/") return "/";
-    if (current.startsWith("/items")) return "/items";
-    if (current.startsWith("/locations")) return "/locations";
-    if (current.startsWith("/scan")) return "/scan";
-    if (current.startsWith("/settings")) return "/settings";
-    return current;
   };
 
   const renderNavList = (isMini: boolean) => (
@@ -296,39 +283,11 @@ export const AppLayout: React.FC = () => {
               duration: t.transitions.duration.enteringScreen,
             }),
           mt: 8,
-          mb: { xs: 8, sm: 0 },
+          mb: 0,
         }}
       >
         <Outlet />
       </Box>
-
-      {/* Mobile Bottom Navigation */}
-      {isMobile && (
-        <Paper
-          sx={{
-            position: "fixed",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            zIndex: 1000,
-            borderTop: "1px solid",
-            borderColor: "divider",
-          }}
-          elevation={4}
-        >
-          <BottomNavigation
-            showLabels
-            value={getActiveTab()}
-            onChange={(_, newValue) => navigate(newValue)}
-          >
-            <BottomNavigationAction label="Home" value="/" icon={<DashboardOutlinedIcon />} />
-            <BottomNavigationAction label="Items" value="/items" icon={<Inventory2OutlinedIcon />} />
-            <BottomNavigationAction label="Places" value="/locations" icon={<PlaceOutlinedIcon />} />
-            <BottomNavigationAction label="Scan" value="/scan" icon={<QrCodeScannerOutlinedIcon />} />
-            <BottomNavigationAction label="More" value="/settings" icon={<SettingsOutlinedIcon />} />
-          </BottomNavigation>
-        </Paper>
-      )}
     </Box>
   );
 };
