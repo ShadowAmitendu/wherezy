@@ -85,8 +85,11 @@ cd ..
 
 ### 4. Run the Server
 ```bash
-# Start FastAPI backend (serving both API and frontend SPA)
-python -m uvicorn backend.app.main:app --host 0.0.0.0 --port 8000
+# Simple one-command launch:
+python run.py
+
+# Or with options:
+python run.py --port 8000 --open
 ```
 
 Open your browser to:
