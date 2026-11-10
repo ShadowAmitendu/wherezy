@@ -371,12 +371,13 @@ export const ItemsPage: React.FC = () => {
             {/* Search Query */}
             <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <TextField
-                size="small"
                 fullWidth
+                label="Search"
                 placeholder="Search name, notes, serials..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 slotProps={{
+                  inputLabel: { shrink: true },
                   input: {
                     startAdornment: (
                       <InputAdornment position="start">
@@ -390,12 +391,23 @@ export const ItemsPage: React.FC = () => {
 
             {/* Category Filter */}
             <Grid size={{ xs: 6, sm: 3, md: 2 }}>
-              <FormControl size="small" fullWidth>
-                <InputLabel>Category</InputLabel>
+              <FormControl fullWidth>
+                <InputLabel shrink id="category-filter-label">Category</InputLabel>
                 <Select
+                  labelId="category-filter-label"
+                  id="category-filter-select"
                   value={selectedCategory}
                   label="Category"
+                  notched
+                  displayEmpty
                   onChange={(e) => setSelectedCategory(e.target.value)}
+                  renderValue={(selected) => {
+                    if (!selected) {
+                      return <span style={{ opacity: 0.75 }}>All Categories</span>;
+                    }
+                    const cat = categories.find((c) => String(c.id) === selected);
+                    return cat ? cat.name : selected;
+                  }}
                 >
                   <MenuItem value="">
                     <em>All Categories</em>
@@ -414,17 +426,21 @@ export const ItemsPage: React.FC = () => {
               <LocationPicker
                 value={selectedLocation}
                 onChange={(locId) => setSelectedLocation(locId)}
-                label="Location Filter"
+                label="Location"
+                emptyLabel="All Locations"
               />
             </Grid>
 
             {/* Taken Out Filter */}
             <Grid size={{ xs: 6, sm: 3, md: 2 }}>
-              <FormControl size="small" fullWidth>
-                <InputLabel>Status</InputLabel>
+              <FormControl fullWidth>
+                <InputLabel shrink id="status-filter-label">Status</InputLabel>
                 <Select
+                  labelId="status-filter-label"
+                  id="status-filter-select"
                   value={takenOutFilter}
                   label="Status"
+                  notched
                   onChange={(e) => setTakenOutFilter(e.target.value)}
                 >
                   <MenuItem value="all">All Items</MenuItem>
@@ -436,11 +452,14 @@ export const ItemsPage: React.FC = () => {
 
             {/* Expiry Filter */}
             <Grid size={{ xs: 6, sm: 3, md: 2 }}>
-              <FormControl size="small" fullWidth>
-                <InputLabel>Expiry</InputLabel>
+              <FormControl fullWidth>
+                <InputLabel shrink id="expiry-filter-label">Expiry</InputLabel>
                 <Select
+                  labelId="expiry-filter-label"
+                  id="expiry-filter-select"
                   value={expiryFilter}
                   label="Expiry"
+                  notched
                   onChange={(e) => setExpiryFilter(e.target.value)}
                 >
                   <MenuItem value="all">All</MenuItem>

@@ -9,7 +9,10 @@ from backend.app.core.config import HOST, PORT, DATA_DIR
 from backend.app.core.migrations import run_migrations
 from backend.app.routers import (
     health, auth, settings, categories, fields,
-    templates, items, locations, dashboard, photos, codes, admin
+    templates, items, locations, dashboard, photos, codes, admin,
+    profiles, activity, tags, bulk, reminders, attachments, audits,
+    trash, search, inbox, lifecycle, contacts, moves, labels,
+    exports, wall, second_copy, offline, saved_filters
 )
 
 @asynccontextmanager
@@ -20,8 +23,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="HomeInventory API",
-    version="1.0.0",
-    description="LAN-only Household Inventory API with custom forms, location hierarchy, QR/barcode scanning, and expiry tracking",
+    version="2.0.0",
+    description="LAN-only Household Inventory API v2 with Profiles, Activity, Tags, Reminders, Audits, Inbox, and Moving",
     lifespan=lifespan
 )
 
@@ -48,6 +51,25 @@ app.add_middleware(
 api_prefix = "/api"
 app.include_router(health.router, prefix=api_prefix)
 app.include_router(auth.router, prefix=api_prefix)
+app.include_router(profiles.router, prefix=api_prefix)
+app.include_router(activity.router, prefix=api_prefix)
+app.include_router(tags.router, prefix=api_prefix)
+app.include_router(bulk.router, prefix=api_prefix)
+app.include_router(reminders.router, prefix=api_prefix)
+app.include_router(attachments.router, prefix=api_prefix)
+app.include_router(audits.router, prefix=api_prefix)
+app.include_router(trash.router, prefix=api_prefix)
+app.include_router(search.router, prefix=api_prefix)
+app.include_router(inbox.router, prefix=api_prefix)
+app.include_router(lifecycle.router, prefix=api_prefix)
+app.include_router(contacts.router, prefix=api_prefix)
+app.include_router(moves.router, prefix=api_prefix)
+app.include_router(labels.router, prefix=api_prefix)
+app.include_router(exports.router, prefix=api_prefix)
+app.include_router(wall.router, prefix=api_prefix)
+app.include_router(second_copy.router, prefix=api_prefix)
+app.include_router(offline.router, prefix=api_prefix)
+app.include_router(saved_filters.router, prefix=api_prefix)
 app.include_router(settings.router, prefix=api_prefix)
 app.include_router(categories.router, prefix=api_prefix)
 app.include_router(fields.router, prefix=api_prefix)

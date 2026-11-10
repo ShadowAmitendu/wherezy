@@ -20,6 +20,9 @@ import {
   ListItem,
   ListItemText,
   Grid,
+  Paper,
+  Chip,
+  Tooltip,
 } from "@mui/material";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import CloudDownloadOutlinedIcon from "@mui/icons-material/CloudDownloadOutlined";
@@ -30,7 +33,7 @@ import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
-import { useAppTheme } from "../../theme";
+import { useAppTheme, THEME_PRESETS, ThemePreset } from "../../theme";
 import { useAuth } from "../../auth/AuthContext";
 import { api } from "../../api/client";
 
@@ -43,7 +46,7 @@ function formatBytes(bytes: number) {
 }
 
 export const SettingsPage: React.FC = () => {
-  const { mode, setMode } = useAppTheme();
+  const { mode, setMode, preset, setPreset } = useAppTheme();
   const { pinSet, refreshAuth } = useAuth();
 
   // Settings State
@@ -320,16 +323,99 @@ export const SettingsPage: React.FC = () => {
               Appearance & Theme
             </Typography>
           </Box>
-          <FormControl sx={{ minWidth: 200, mt: 1 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5 }}>
+            Choose your preferred color palette and display mode.
+          </Typography>
+
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>
+            Color Palette
+          </Typography>
+          <Grid container spacing={2} sx={{ mb: 3 }}>
+            {(Object.keys(THEME_PRESETS) as ThemePreset[]).map((key) => {
+              const cfg = THEME_PRESETS[key];
+              const isSelected = preset === key;
+              return (
+                <Grid key={key} size={{ xs: 12, md: 6 }}>
+                  <Paper
+                    variant="outlined"
+                    onClick={() => setPreset(key)}
+                    sx={{
+                      p: 2,
+                      cursor: "pointer",
+                      borderRadius: 1.5,
+                      borderWidth: isSelected ? 2 : 1,
+                      borderColor: isSelected ? "primary.main" : "divider",
+                      bgcolor: isSelected ? "action.selected" : "background.paper",
+                      transition: "all 0.2s ease",
+                      "&:hover": {
+                        borderColor: "primary.main",
+                        bgcolor: "action.hover",
+                      },
+                    }}
+                  >
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+                      <Box>
+                        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                          {cfg.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {cfg.description}
+                        </Typography>
+                      </Box>
+                      {isSelected && (
+                        <Chip
+                          label="Active"
+                          size="small"
+                          color="primary"
+                          sx={{ height: 22, fontSize: "0.75rem", fontWeight: 700 }}
+                        />
+                      )}
+                    </Box>
+
+                    {/* Color Swatches */}
+                    <Box sx={{ display: "flex", gap: 1, mt: 1.5 }}>
+                      {cfg.colors.map((c, i) => (
+                        <Tooltip key={i} title={c}>
+                          <Box
+                            sx={{
+                              flex: 1,
+                              height: 32,
+                              borderRadius: 1,
+                              bgcolor: c,
+                              border: "1px solid rgba(255,255,255,0.15)",
+                              boxShadow: 1,
+                            }}
+                          />
+                        </Tooltip>
+                      ))}
+                    </Box>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", mt: 0.5 }}>
+                      <Typography variant="caption" sx={{ fontSize: "0.65rem", fontFamily: "monospace", opacity: 0.7 }}>
+                        {cfg.colors[0]}
+                      </Typography>
+                      <Typography variant="caption" sx={{ fontSize: "0.65rem", fontFamily: "monospace", opacity: 0.7 }}>
+                        {cfg.colors[cfg.colors.length - 1]}
+                      </Typography>
+                    </Box>
+                  </Paper>
+                </Grid>
+              );
+            })}
+          </Grid>
+
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>
+            Display Mode
+          </Typography>
+          <FormControl sx={{ minWidth: 220 }}>
             <InputLabel>Theme Mode</InputLabel>
             <Select
               value={mode}
               label="Theme Mode"
               onChange={(e) => setMode(e.target.value as any)}
             >
-              <MenuItem value="system">Follow System</MenuItem>
+              <MenuItem value="dark">Dark Theme (Recommended)</MenuItem>
               <MenuItem value="light">Light Theme</MenuItem>
-              <MenuItem value="dark">Dark Theme</MenuItem>
+              <MenuItem value="system">Follow System</MenuItem>
             </Select>
           </FormControl>
         </CardContent>

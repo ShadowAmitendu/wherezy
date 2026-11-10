@@ -1,0 +1,89 @@
+{
+  "reference_date": "2026-11-10",
+  "cases": [
+    {
+      "id": "expiry_overdue",
+      "source_type": "expiry",
+      "item_id": 101,
+      "item_name": "Milk",
+      "expiry_date": "2026-11-09",
+      "category_lead_days": 7,
+      "expected_due_date": "2026-11-09",
+      "expected_status": "overdue"
+    },
+    {
+      "id": "expiry_due_today",
+      "source_type": "expiry",
+      "item_id": 102,
+      "item_name": "Yogurt",
+      "expiry_date": "2026-11-10",
+      "category_lead_days": 7,
+      "expected_due_date": "2026-11-10",
+      "expected_status": "due_soon"
+    },
+    {
+      "id": "expiry_due_soon",
+      "source_type": "expiry",
+      "item_id": 103,
+      "item_name": "Bread",
+      "expiry_date": "2026-11-15",
+      "category_lead_days": 7,
+      "expected_due_date": "2026-11-15",
+      "expected_status": "due_soon"
+    },
+    {
+      "id": "expiry_later",
+      "source_type": "expiry",
+      "item_id": 104,
+      "item_name": "Canned Beans",
+      "expiry_date": "2026-12-31",
+      "category_lead_days": 7,
+      "expected_due_date": "2026-12-31",
+      "expected_status": "later"
+    },
+    {
+      "id": "warranty_field_due_soon",
+      "source_type": "field",
+      "field_key": "warranty_until",
+      "item_id": 105,
+      "item_name": "Vacuum Cleaner",
+      "field_date_value": "2026-11-25",
+      "remind_lead_days": 30,
+      "remind_offset_days": null,
+      "expected_due_date": "2026-11-25",
+      "expected_status": "due_soon"
+    },
+    {
+      "id": "opened_on_offset_calculation",
+      "source_type": "field",
+      "field_key": "opened_on",
+      "item_id": 106,
+      "item_name": "Eye Drops",
+      "field_date_value": "2026-10-14",
+      "remind_lead_days": 3,
+      "remind_offset_days": 28,
+      "expected_due_date": "2026-11-11",
+      "expected_status": "due_soon"
+    },
+    {
+      "id": "loan_overdue",
+      "source_type": "loan",
+      "item_id": 107,
+      "item_name": "Cordless Drill",
+      "taken_out": 1,
+      "taken_due": "2026-11-08",
+      "expected_due_date": "2026-11-08",
+      "expected_status": "overdue"
+    },
+    {
+      "id": "loan_due_soon",
+      "source_type": "loan",
+      "item_id": 108,
+      "item_name": "Lawnmower",
+      "taken_out": 1,
+      "taken_due": "2026-11-12",
+      "expected_due_date": "2026-11-12",
+      "expected_status": "due_soon"
+    }
+  ]
+}

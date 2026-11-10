@@ -1,0 +1,17 @@
+-- 004_tags.sql
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE COLLATE NOCASE,
+    color TEXT NOT NULL DEFAULT '#757575',
+    created_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS item_tags (
+    item_id INTEGER NOT NULL REFERENCES items(id) ON DELETE CASCADE,
+    tag_id INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+    PRIMARY KEY(item_id, tag_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_item_tags_tag ON item_tags(tag_id);

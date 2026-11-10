@@ -23,6 +23,8 @@ interface LocationPickerProps {
   required?: boolean;
   excludeId?: number | null; // For avoiding cycles when reparenting
   helperText?: string;
+  size?: "small" | "medium";
+  emptyLabel?: string;
 }
 
 function flattenTree(
@@ -54,6 +56,8 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   required = false,
   excludeId,
   helperText,
+  size = "medium",
+  emptyLabel = "None / Unassigned",
 }) => {
   const [options, setOptions] = useState<FlatLocationOption[]>([]);
 
@@ -64,19 +68,29 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   }, [excludeId]);
 
   return (
-    <FormControl fullWidth required={required}>
-      <InputLabel id="location-picker-label">{label}</InputLabel>
+    <FormControl fullWidth required={required} size={size}>
+      <InputLabel shrink id="location-picker-label">{label}</InputLabel>
       <Select
         labelId="location-picker-label"
         value={value ? String(value) : ""}
         label={label}
+        notched
+        size={size}
+        displayEmpty
+        renderValue={(selected) => {
+          if (!selected) {
+            return <span style={{ opacity: 0.75 }}>{emptyLabel}</span>;
+          }
+          const opt = options.find((o) => String(o.id) === selected);
+          return opt ? `${opt.name} (${opt.kind})` : selected;
+        }}
         onChange={(e) => {
           const val = e.target.value;
           onChange(val ? Number(val) : null);
         }}
       >
         <MenuItem value="">
-          <em>None / Unassigned</em>
+          <em>{emptyLabel}</em>
         </MenuItem>
         {options.map((opt) => (
           <MenuItem

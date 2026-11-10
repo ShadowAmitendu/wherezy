@@ -246,4 +246,249 @@ export const api = {
       body: formData,
     });
   },
+
+  // --- v2 Additions ---
+
+  // Profiles
+  getProfiles: (include_inactive = false) =>
+    apiFetch<any[]>(`/api/profiles?include_inactive=${include_inactive}`),
+  createProfile: (data: any) =>
+    apiFetch<any>("/api/profiles", { method: "POST", body: JSON.stringify(data) }),
+  getMyProfile: () => apiFetch<any>("/api/profiles/me"),
+  selectProfile: (profile_id: number, pin?: string) =>
+    apiFetch<any>("/api/profiles/select", {
+      method: "POST",
+      body: JSON.stringify({ profile_id, pin }),
+    }),
+  logoutProfile: () =>
+    apiFetch<{ ok: boolean }>("/api/profiles/logout", { method: "POST" }),
+  updateMyPrefs: (prefs: any) =>
+    apiFetch<any>("/api/profiles/me/prefs", { method: "PUT", body: JSON.stringify(prefs) }),
+  updateProfilePrefs: (profileId: number, prefs: any) =>
+    apiFetch<any>(`/api/profiles/${profileId}/prefs`, { method: "PUT", body: JSON.stringify(prefs) }),
+  updateProfile: (profileId: number, data: any) =>
+    apiFetch<any>(`/api/profiles/${profileId}`, { method: "PUT", body: JSON.stringify(data) }),
+  deactivateProfile: (profileId: number) =>
+    apiFetch<{ ok: boolean; message: string }>(`/api/profiles/${profileId}`, { method: "DELETE" }),
+
+  // Activity History
+  getActivity: (params: Record<string, any> = {}) => {
+    const q = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== "") q.set(k, String(v));
+    });
+    return apiFetch<any>(`/api/activity?${q.toString()}`);
+  },
+  getItemActivity: (itemId: number) => apiFetch<any[]>(`/api/items/${itemId}/activity`),
+  getLocationActivity: (locationId: number) => apiFetch<any[]>(`/api/locations/${locationId}/activity`),
+  revertActivity: (activityId: number) =>
+    apiFetch<any>(`/api/activity/${activityId}/revert`, { method: "POST" }),
+
+  // Tags
+  getTags: () => apiFetch<any[]>("/api/tags"),
+  createTag: (data: { name: string; color?: string }) =>
+    apiFetch<any>("/api/tags", { method: "POST", body: JSON.stringify(data) }),
+  updateTag: (tagId: number, data: { name?: string; color?: string }) =>
+    apiFetch<any>(`/api/tags/${tagId}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteTag: (tagId: number) =>
+    apiFetch<{ ok: boolean }>(`/api/tags/${tagId}`, { method: "DELETE" }),
+  mergeTag: (sourceTagId: number, targetTagId: number) =>
+    apiFetch<{ ok: boolean }>(`/api/tags/${sourceTagId}/merge`, {
+      method: "POST",
+      body: JSON.stringify({ target_tag_id: targetTagId }),
+    }),
+  setItemTags: (itemId: number, tag_ids: number[]) =>
+    apiFetch<{ ok: boolean }>(`/api/tags/items/${itemId}`, {
+      method: "PUT",
+      body: JSON.stringify({ tag_ids }),
+    }),
+
+  // Bulk Operations
+  bulkItems: (data: any) =>
+    apiFetch<any>("/api/items/bulk", { method: "POST", body: JSON.stringify(data) }),
+  bulkItemsPreview: (data: any) =>
+    apiFetch<any>("/api/items/bulk/preview", { method: "POST", body: JSON.stringify(data) }),
+  undoBatch: (batchId: string) =>
+    apiFetch<any>(`/api/batches/${batchId}/undo`, { method: "POST" }),
+
+  // Reminders
+  getReminders: (params: Record<string, any> = {}) => {
+    const q = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null) q.set(k, String(v));
+    });
+    return apiFetch<any[]>(`/api/reminders?${q.toString()}`);
+  },
+  getRemindersCount: () => apiFetch<{ overdue: number; due_soon: number; total: number }>("/api/reminders/count"),
+  snoozeReminder: (data: any) =>
+    apiFetch<{ ok: boolean }>("/api/reminders/snooze", { method: "POST", body: JSON.stringify(data) }),
+  dismissReminder: (data: any) =>
+    apiFetch<{ ok: boolean }>("/api/reminders/dismiss", { method: "POST", body: JSON.stringify(data) }),
+  testWebhook: () => apiFetch<any>("/api/admin/webhook-test", { method: "POST" }),
+
+  // Attachments
+  uploadAttachment: (itemId: number, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiFetch<any>(`/api/items/${itemId}/attachments`, {
+      method: "POST",
+      body: formData,
+    });
+  },
+  renameAttachment: (attachmentId: number, file_name: string) =>
+    apiFetch<any>(`/api/attachments/${attachmentId}`, {
+      method: "PUT",
+      body: JSON.stringify({ file_name }),
+    }),
+  deleteAttachment: (attachmentId: number) =>
+    apiFetch<{ ok: boolean }>(`/api/attachments/${attachmentId}`, { method: "DELETE" }),
+
+  // Shelf Audit
+  startAudit: (locationId: number, includeSub = true) =>
+    apiFetch<any>("/api/audits", {
+      method: "POST",
+      body: JSON.stringify({ location_id: locationId, include_sub: includeSub }),
+    }),
+  getAudit: (auditId: number) => apiFetch<any>(`/api/audits/${auditId}`),
+  updateAuditFound: (auditId: number, found_item_ids: number[]) =>
+    apiFetch<any>(`/api/audits/${auditId}/found`, {
+      method: "PUT",
+      body: JSON.stringify({ found_item_ids }),
+    }),
+  finishAudit: (auditId: number) =>
+    apiFetch<any>(`/api/audits/${auditId}/finish`, { method: "POST" }),
+  getLocationAudits: (locationId: number) =>
+    apiFetch<any[]>(`/api/locations/${locationId}/audits`),
+
+  // Trash
+  getTrash: () => apiFetch<any[]>("/api/trash"),
+  restoreTrash: (itemType: string, targetId: number, newLocationId?: number | null) =>
+    apiFetch<{ ok: boolean }>(`/api/trash/${itemType}/${targetId}/restore`, {
+      method: "POST",
+      body: JSON.stringify({ new_location_id: newLocationId || null }),
+    }),
+  purgeTrash: (itemType: string, targetId: number) =>
+    apiFetch<{ ok: boolean }>(`/api/trash/${itemType}/${targetId}`, { method: "DELETE" }),
+  emptyTrash: () => apiFetch<{ ok: boolean }>("/api/trash/empty", { method: "POST" }),
+
+  // Quick Search
+  quickSearch: (q: string) =>
+    apiFetch<any>(`/api/search/quick?q=${encodeURIComponent(q)}`),
+
+  // Inbox & Quick Capture
+  quickCapture: (photos: File[], name?: string, location_id?: number | null) => {
+    const formData = new FormData();
+    photos.forEach((p) => formData.append("photos", p));
+    if (name) formData.append("name", name);
+    if (location_id) formData.append("location_id", String(location_id));
+    return apiFetch<any>("/api/inbox", { method: "POST", body: formData });
+  },
+  getInboxItems: () => apiFetch<any[]>("/api/inbox"),
+  sortInboxItem: (itemId: number, data: any) =>
+    apiFetch<{ ok: boolean }>(`/api/inbox/${itemId}/sort`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  bulkInboxAction: (ids: number[], action: string, params: any = {}) =>
+    apiFetch<{ ok: boolean }>("/api/inbox/bulk", {
+      method: "POST",
+      body: JSON.stringify({ ids, action, params }),
+    }),
+  deleteInboxItem: (itemId: number) =>
+    apiFetch<{ ok: boolean }>(`/api/inbox/${itemId}`, { method: "DELETE" }),
+
+  // Lifecycle (Retire & Unretire)
+  retireItem: (itemId: number, reason: string, date: string, note?: string) =>
+    apiFetch<{ ok: boolean }>(`/api/items/${itemId}/retire`, {
+      method: "POST",
+      body: JSON.stringify({ reason, date, note }),
+    }),
+  unretireItem: (itemId: number, location_id?: number | null) =>
+    apiFetch<{ ok: boolean }>(`/api/items/${itemId}/unretire`, {
+      method: "POST",
+      body: JSON.stringify({ location_id: location_id || null }),
+    }),
+
+  // Data Health
+  getHealthOverview: () => apiFetch<any>("/api/health"),
+  getHealthItems: (checkName: string) => apiFetch<any[]>(`/api/health/${checkName}`),
+  ignoreHealthFinding: (check_key: string, item_id: number, other_item_id?: number | null) =>
+    apiFetch<{ ok: boolean }>("/api/health/ignore", {
+      method: "POST",
+      body: JSON.stringify({ check_key, item_id, other_item_id: other_item_id || null }),
+    }),
+  deleteHealthIgnore: (ignoreId: number) =>
+    apiFetch<{ ok: boolean }>(`/api/health/ignore/${ignoreId}`, { method: "DELETE" }),
+
+  // Contacts & Lending
+  getContacts: (include_inactive = false) =>
+    apiFetch<any[]>(`/api/contacts?include_inactive=${include_inactive}`),
+  createContact: (data: { name: string; phone?: string; note?: string }) =>
+    apiFetch<any>("/api/contacts", { method: "POST", body: JSON.stringify(data) }),
+  updateContact: (contactId: number, data: any) =>
+    apiFetch<any>(`/api/contacts/${contactId}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteContact: (contactId: number) =>
+    apiFetch<{ ok: boolean; message: string }>(`/api/contacts/${contactId}`, { method: "DELETE" }),
+  getContactLoans: (contactId: number) => apiFetch<any>(`/api/contacts/${contactId}/loans`),
+
+  // Moving House
+  getMoves: () => apiFetch<any[]>("/api/moves"),
+  createMove: (data: { name: string; target_date?: string }) =>
+    apiFetch<any>("/api/moves", { method: "POST", body: JSON.stringify(data) }),
+  updateMove: (moveId: number, data: any) =>
+    apiFetch<any>(`/api/moves/${moveId}`, { method: "PUT", body: JSON.stringify(data) }),
+  finishMove: (moveId: number) =>
+    apiFetch<any>(`/api/moves/${moveId}/finish`, { method: "POST" }),
+  getBoxes: (moveId: number) => apiFetch<any[]>(`/api/moves/${moveId}/boxes`),
+  createBox: (moveId: number, data: any) =>
+    apiFetch<any>(`/api/moves/${moveId}/boxes`, { method: "POST", body: JSON.stringify(data) }),
+  getBox: (boxId: number) => apiFetch<any>(`/api/boxes/${boxId}`),
+  updateBox: (boxId: number, data: any) =>
+    apiFetch<any>(`/api/boxes/${boxId}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteBox: (boxId: number) =>
+    apiFetch<{ ok: boolean }>(`/api/boxes/${boxId}`, { method: "DELETE" }),
+  addItemsToBox: (boxId: number, item_ids: number[]) =>
+    apiFetch<{ ok: boolean }>(`/api/boxes/${boxId}/items`, {
+      method: "POST",
+      body: JSON.stringify(item_ids),
+    }),
+  removeItemFromBox: (boxId: number, itemId: number) =>
+    apiFetch<{ ok: boolean }>(`/api/boxes/${boxId}/items/${itemId}`, { method: "DELETE" }),
+  packBox: (boxId: number) => apiFetch<{ ok: boolean }>(`/api/boxes/${boxId}/pack`, { method: "POST" }),
+  unpackBox: (boxId: number, item_ids: number[], location_id: number) =>
+    apiFetch<{ ok: boolean }>(`/api/boxes/${boxId}/unpack`, {
+      method: "POST",
+      body: JSON.stringify({ item_ids, location_id }),
+    }),
+
+  // Labels
+  getLabelTemplates: (kind?: string) =>
+    apiFetch<any[]>(`/api/label-templates${kind ? `?kind=${kind}` : ""}`),
+  createLabelTemplate: (data: any) =>
+    apiFetch<any>("/api/label-templates", { method: "POST", body: JSON.stringify(data) }),
+  updateLabelTemplate: (templateId: number, data: any) =>
+    apiFetch<any>(`/api/label-templates/${templateId}`, { method: "PUT", body: JSON.stringify(data) }),
+  deleteLabelTemplate: (templateId: number) =>
+    apiFetch<{ ok: boolean }>(`/api/label-templates/${templateId}`, { method: "DELETE" }),
+  setDefaultLabelTemplate: (templateId: number) =>
+    apiFetch<{ ok: boolean }>(`/api/label-templates/${templateId}/default`, { method: "POST" }),
+
+  // Book Export Data
+  getBookData: (groupBy = "location", includeRetired = false) =>
+    apiFetch<any>(`/api/admin/export/book-data?group_by=${groupBy}&include_retired=${includeRetired}`),
+
+  // Wall Display Data
+  getWallData: () => apiFetch<any>("/api/wall"),
+
+  // Second-Copy Backup
+  getSecondCopyStatus: () => apiFetch<any>("/api/admin/second-copy"),
+  updateSecondCopyConfig: (data: any) =>
+    apiFetch<any>("/api/admin/second-copy", { method: "PUT", body: JSON.stringify(data) }),
+  testSecondCopyFolder: () => apiFetch<{ ok: boolean; message: string }>("/api/admin/second-copy/test", { method: "POST" }),
+  runSecondCopy: () => apiFetch<{ ok: boolean; message: string }>("/api/admin/second-copy/run", { method: "POST" }),
+  getSecondCopyFiles: () => apiFetch<any[]>("/api/admin/second-copy/files"),
+
+  // Offline Sync
+  getOfflineSnapshot: () => apiFetch<any>("/api/offline/snapshot"),
+  getOfflineChanges: (cursor: string) => apiFetch<any>(`/api/offline/changes?cursor=${encodeURIComponent(cursor)}`),
 };

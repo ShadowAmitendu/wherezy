@@ -241,9 +241,13 @@ export const CategoriesPage: React.FC = () => {
       ) : (
         <Grid container spacing={2.5}>
           {categories.map((cat) => (
-            <Grid key={cat.id} size={{ xs: 12, sm: 6, md: 4 }}>
+            <Grid key={cat.id} size={{ xs: 12, sm: 6, md: 4 }} sx={{ display: "flex" }}>
               <Card
                 sx={{
+                  width: "100%",
+                  height: "100%",
+                  display: "flex",
+                  flexDirection: "column",
                   borderLeft: `6px solid ${cat.color || "#1976d2"}`,
                   transition: "transform 0.15s, box-shadow 0.15s",
                   "&:hover": {
@@ -252,8 +256,17 @@ export const CategoriesPage: React.FC = () => {
                   },
                 }}
               >
-                <CardActionArea onClick={() => navigate(`/categories/${cat.id}`)}>
-                  <CardContent sx={{ pb: 1 }}>
+                <CardActionArea
+                  onClick={() => navigate(`/categories/${cat.id}`)}
+                  sx={{
+                    height: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "stretch",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <CardContent sx={{ p: 2, flexGrow: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: 110, "&:last-child": { pb: 2 } }}>
                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
                         <Box
@@ -266,12 +279,13 @@ export const CategoriesPage: React.FC = () => {
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
+                            flexShrink: 0,
                           }}
                         >
                           {renderMuiIcon(cat.icon, "medium")}
                         </Box>
                         <Box>
-                          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                          <Typography variant="h6" sx={{ fontWeight: 700 }} noWrap>
                             {cat.name}
                           </Typography>
                           <Typography variant="body2" color="text.secondary">
@@ -300,14 +314,16 @@ export const CategoriesPage: React.FC = () => {
                       </Box>
                     </Box>
 
-                    <Box sx={{ mt: 2, display: "flex", gap: 1, flexWrap: "wrap" }}>
-                      {cat.track_expiry && (
+                    <Box sx={{ mt: 1.5, minHeight: 24, display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                      {cat.track_expiry ? (
                         <Chip
                           label={cat.expiry_label || "Expiry date"}
                           size="small"
                           color="warning"
                           variant="outlined"
                         />
+                      ) : (
+                        <Box sx={{ height: 24 }} />
                       )}
                     </Box>
                   </CardContent>

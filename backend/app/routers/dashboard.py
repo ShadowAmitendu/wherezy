@@ -7,6 +7,7 @@ from backend.app.models import Item, Category
 from backend.app.schemas import DashboardResponse, CategoryCount
 from backend.app.services.item_service import map_item
 from backend.app.routers.settings import get_setting_val
+from backend.app.services.visibility import items_visible
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
@@ -16,18 +17,16 @@ def get_dashboard(db: Session = Depends(get_db)):
     today_str = date.today().isoformat()
     warn_date_str = (date.today() + timedelta(days=warn_days)).isoformat()
 
-    total_items = db.query(Item).filter(Item.deleted_at.is_(None)).count()
-    taken_out_count = db.query(Item).filter(Item.deleted_at.is_(None), Item.taken_out == 1).count()
+    total_items = items_visible(db).count()
+    taken_out_count = items_visible(db).filter(Item.taken_out == 1).count()
 
-    expired_count = db.query(Item).filter(
-        Item.deleted_at.is_(None),
+    expired_count = items_visible(db).filter(
         Item.expiry_date.isnot(None),
         Item.expiry_date != "",
         Item.expiry_date < today_str
     ).count()
 
-    expiring_soon_count = db.query(Item).filter(
-        Item.deleted_at.is_(None),
+    expiring_soon_count = items_visible(db).filter(
         Item.expiry_date.isnot(None),
         Item.expiry_date != "",
         Item.expiry_date >= today_str,
@@ -37,8 +36,7 @@ def get_dashboard(db: Session = Depends(get_db)):
     # Category counts
     cats = db.query(Category).filter(Category.deleted_at.is_(None)).order_by(Category.sort_order).all()
     counts_raw = (
-        db.query(Item.category_id, func.count(Item.id))
-        .filter(Item.deleted_at.is_(None))
+        items_visible(db, db.query(Item.category_id, func.count(Item.id)))
         .group_by(Item.category_id)
         .all()
     )
@@ -56,9 +54,8 @@ def get_dashboard(db: Session = Depends(get_db)):
 
     # Expiring items (both expired and soon)
     expiring_items_models = (
-        db.query(Item)
+        items_visible(db)
         .filter(
-            Item.deleted_at.is_(None),
             Item.expiry_date.isnot(None),
             Item.expiry_date != "",
             Item.expiry_date <= warn_date_str
@@ -71,8 +68,7 @@ def get_dashboard(db: Session = Depends(get_db)):
 
     # Recent items
     recent_items_models = (
-        db.query(Item)
-        .filter(Item.deleted_at.is_(None))
+        items_visible(db)
         .order_by(Item.created_at.desc())
         .limit(10)
         .all()

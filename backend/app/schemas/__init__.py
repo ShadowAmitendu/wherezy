@@ -245,6 +245,9 @@ class ItemMoveRequest(BaseModel):
 class ItemTakenRequest(BaseModel):
     taken_out: bool
     taken_by: Optional[str] = None
+    taken_due: Optional[str] = None
+    taken_by_profile_id: Optional[int] = None
+    taken_by_contact_id: Optional[int] = None
 
 class BulkMoveRequest(BaseModel):
     item_ids: List[int]
@@ -253,6 +256,11 @@ class BulkMoveRequest(BaseModel):
 class BulkMoveResponse(BaseModel):
     ok: bool = True
     moved_count: int
+
+class ItemTagSimple(BaseModel):
+    id: int
+    name: str
+    color: str
 
 class ItemOut(BaseModel):
     id: int
@@ -267,10 +275,18 @@ class ItemOut(BaseModel):
     taken_out: bool = False
     taken_by: Optional[str] = None
     taken_at: Optional[str] = None
+    taken_due: Optional[str] = None
+    taken_by_profile_id: Optional[int] = None
+    taken_by_contact_id: Optional[int] = None
     expiry_date: Optional[str] = None
     expiry_status: Optional[ExpiryStatus] = None
     notes: Optional[str] = None
     values: Dict[str, Any] = Field(default_factory=dict)
+    tags: List[ItemTagSimple] = Field(default_factory=list)
+    status: str = "active"
+    retired_reason: Optional[str] = None
+    retired_on: Optional[str] = None
+    retired_note: Optional[str] = None
     cover_photo_id: Optional[int] = None
     cover_thumb_url: Optional[str] = None
     created_at: str = ""
@@ -335,3 +351,544 @@ class ImportCsvResult(BaseModel):
     total_rows: int
     imported_count: int
     errors: List[str] = []
+
+
+# ==========================================
+# --- v2 Schemas ---
+# ==========================================
+
+# --- Profiles & Roles ---
+
+ProfileRole = Literal["admin", "member", "viewer"]
+ThemeMode = Literal["system", "light", "dark"]
+TextScale = Literal[100, 125, 150]
+
+class ProfileCreate(BaseModel):
+    name: str
+    color: str = "#1976d2"
+    avatar_emoji: str = "👤"
+    role: ProfileRole = "member"
+    pin: Optional[str] = None
+    is_display: bool = False
+
+class ProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    color: Optional[str] = None
+    avatar_emoji: Optional[str] = None
+    role: Optional[ProfileRole] = None
+    pin: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class ProfilePrefsUpdate(BaseModel):
+    accent_color: Optional[str] = None
+    language: Optional[str] = None
+    text_scale: Optional[TextScale] = None
+    high_contrast: Optional[bool] = None
+    theme_mode: Optional[ThemeMode] = None
+
+class ProfileOut(BaseModel):
+    id: int
+    name: str
+    color: str
+    avatar_emoji: str
+    role: ProfileRole
+    is_active: bool
+    accent_color: Optional[str] = None
+    language: Optional[str] = None
+    text_scale: int = 100
+    high_contrast: bool = False
+    theme_mode: str = "system"
+    is_display: bool = False
+    has_pin: bool = False
+    created_at: str
+    updated_at: str
+
+class ProfileSelectRequest(BaseModel):
+    profile_id: int
+    pin: Optional[str] = None
+
+# --- Activity History ---
+
+class ActivityOut(BaseModel):
+    id: int
+    at: str
+    actor_id: Optional[int] = None
+    actor_name: Optional[str] = None
+    batch_id: Optional[str] = None
+    entity_type: str
+    entity_id: Optional[int] = None
+    action: str
+    summary: str
+    diff_json: Optional[str] = None
+
+class ActivityListResponse(BaseModel):
+    items: List[ActivityOut]
+    total: int
+    next_cursor: Optional[int] = None
+
+class ActivityRevertResponse(BaseModel):
+    ok: bool = True
+    reverted_id: int
+    new_activity_id: int
+
+# --- Tags ---
+
+class TagCreate(BaseModel):
+    name: str
+    color: str = "#757575"
+
+class TagUpdate(BaseModel):
+    name: Optional[str] = None
+    color: Optional[str] = None
+
+class TagMergeRequest(BaseModel):
+    target_tag_id: int
+
+class TagOut(BaseModel):
+    id: int
+    name: str
+    color: str
+    created_at: str
+    items_count: int = 0
+
+class ItemTagsReplaceRequest(BaseModel):
+    tag_ids: List[int]
+
+# --- Bulk Operations ---
+
+BulkActionType = Literal[
+    "move", "add_tags", "remove_tags", "set_taken", "set_expiry",
+    "change_category", "retire", "add_to_box", "delete"
+]
+
+class BulkFilter(BaseModel):
+    q: Optional[str] = None
+    category_id: Optional[int] = None
+    location_id: Optional[int] = None
+    tag_ids: Optional[List[int]] = None
+    tag_mode: Literal["any", "all"] = "any"
+    taken_out: Optional[bool] = None
+    expiry_status: Optional[str] = None
+
+class BulkRequest(BaseModel):
+    ids: Optional[List[int]] = None
+    filter: Optional[BulkFilter] = None
+    action: BulkActionType
+    params: Dict[str, Any] = Field(default_factory=dict)
+    dry_run: bool = False
+
+class BulkSkipItem(BaseModel):
+    id: int
+    name: str
+    reason: str
+
+class BulkResponse(BaseModel):
+    ok: bool = True
+    dry_run: bool = False
+    changed: int = 0
+    skipped: List[BulkSkipItem] = []
+    batch_id: Optional[str] = None
+
+class BatchUndoResponse(BaseModel):
+    ok: bool = True
+    batch_id: str
+    reverted_count: int
+
+# --- Reminders & Loans ---
+
+ReminderSource = Literal["expiry", "field", "loan"]
+ReminderStatus = Literal["overdue", "due_soon", "later", "snoozed", "dismissed"]
+
+class ReminderOut(BaseModel):
+    id: str  # synthetic id e.g. "expiry-123" or "field-123-warranty"
+    source_type: ReminderSource
+    item_id: int
+    item_name: str
+    category_name: Optional[str] = None
+    field_key: Optional[str] = None
+    field_label: Optional[str] = None
+    due_date: str
+    status: ReminderStatus
+    lead_days: int
+    profile_id: Optional[int] = None
+    snoozed_until: Optional[str] = None
+    dismissed_at: Optional[str] = None
+    borrower_name: Optional[str] = None
+    borrower_phone: Optional[str] = None
+
+class ReminderSnoozeRequest(BaseModel):
+    source_type: ReminderSource
+    item_id: int
+    field_key: Optional[str] = None
+    due_date: str
+    snooze_days: Optional[int] = None
+    snoozed_until: Optional[str] = None
+
+class ReminderDismissRequest(BaseModel):
+    source_type: ReminderSource
+    item_id: int
+    field_key: Optional[str] = None
+    due_date: str
+
+class ReminderCountResponse(BaseModel):
+    overdue: int
+    due_soon: int
+    total: int
+
+class WebhookTestResponse(BaseModel):
+    ok: bool
+    status_code: Optional[int] = None
+    message: str
+
+# --- Attachments ---
+
+class AttachmentOut(BaseModel):
+    id: int
+    item_id: int
+    file_name: str
+    mime: str
+    bytes: int
+    uploaded_by: Optional[int] = None
+    created_at: str
+
+class AttachmentRenameRequest(BaseModel):
+    file_name: str
+
+# --- Shelf Audit ---
+
+class AuditStartRequest(BaseModel):
+    location_id: int
+    include_sub: bool = True
+
+class AuditFoundRequest(BaseModel):
+    found_item_ids: List[int]
+
+class AuditItemSummary(BaseModel):
+    id: int
+    name: str
+    location_name: Optional[str] = None
+    status: Literal["found", "missing", "misplaced", "in_box"]
+
+class AuditSummary(BaseModel):
+    found_count: int
+    missing_count: int
+    misplaced_count: int
+    in_box_count: int
+    missing_items: List[AuditItemSummary] = []
+    misplaced_items: List[AuditItemSummary] = []
+
+class AuditOut(BaseModel):
+    id: int
+    location_id: int
+    started_by: Optional[int] = None
+    started_at: str
+    finished_at: Optional[str] = None
+    include_sub: bool
+    expected_count: int
+    found_count: int
+    summary: Optional[AuditSummary] = None
+
+# --- Trash ---
+
+class TrashItemOut(BaseModel):
+    type: Literal["item", "location", "category"]
+    id: int
+    name: str
+    deleted_at: str
+    deleted_by: Optional[int] = None
+    deleted_by_name: Optional[str] = None
+    original_location_name: Optional[str] = None
+
+class TrashRestoreRequest(BaseModel):
+    new_location_id: Optional[int] = None
+
+# --- Quick Search ---
+
+class QuickSearchResult(BaseModel):
+    type: Literal["item", "location", "category", "tag", "contact", "action"]
+    id: Optional[int] = None
+    title: str
+    subtitle: Optional[str] = None
+    url: str
+
+class QuickSearchResponse(BaseModel):
+    results: List[QuickSearchResult]
+
+# --- Saved Filters ---
+
+class SavedFilterCreate(BaseModel):
+    name: str
+    scope: Literal["items"] = "items"
+    query_json: str
+
+class SavedFilterOut(BaseModel):
+    id: int
+    profile_id: Optional[int] = None
+    name: str
+    scope: str
+    query_json: str
+    created_at: str
+
+# --- Inbox & Quick Capture ---
+
+class InboxItemOut(BaseModel):
+    id: int
+    name: str
+    captured_at: Optional[str] = None
+    photos: List[PhotoOut] = []
+    location_id: Optional[int] = None
+    location_name: Optional[str] = None
+
+class InboxSortRequest(BaseModel):
+    name: str
+    category_id: int
+    location_id: Optional[int] = None
+    values: Dict[str, Any] = Field(default_factory=dict)
+    notes: Optional[str] = None
+    expiry_date: Optional[str] = None
+    tag_ids: Optional[List[int]] = None
+
+class InboxBulkRequest(BaseModel):
+    ids: List[int]
+    action: Literal["set_location", "set_category", "add_tags", "discard"]
+    params: Dict[str, Any] = Field(default_factory=dict)
+
+# --- Retire Lifecycle ---
+
+RetireReason = Literal["sold", "donated", "thrown_away", "broken"]
+
+class ItemRetireRequest(BaseModel):
+    reason: RetireReason
+    date: str  # YYYY-MM-DD
+    note: Optional[str] = None
+
+class ItemUnretireRequest(BaseModel):
+    location_id: Optional[int] = None
+
+# --- Data Health ---
+
+class HealthCheckCounts(BaseModel):
+    no_location: int
+    no_photo: int
+    long_expired: int
+    duplicates: int
+    stale_inbox: int
+
+class HealthItemOut(BaseModel):
+    id: int
+    name: str
+    category_name: Optional[str] = None
+    location_path: Optional[str] = None
+    reason: str
+    other_item_id: Optional[int] = None
+    photo_url: Optional[str] = None
+
+class HealthIgnoreRequest(BaseModel):
+    check_key: Literal["no_location", "no_photo", "long_expired", "duplicate", "stale_inbox"]
+    item_id: int
+    other_item_id: Optional[int] = None
+
+# --- Contacts & Loans ---
+
+BorrowerKind = Literal["profile", "contact", "guest"]
+
+class ContactCreate(BaseModel):
+    name: str
+    phone: Optional[str] = None
+    note: Optional[str] = None
+
+class ContactUpdate(BaseModel):
+    name: Optional[str] = None
+    phone: Optional[str] = None
+    note: Optional[str] = None
+    is_active: Optional[bool] = None
+
+class ContactOut(BaseModel):
+    id: int
+    name: str
+    phone: Optional[str] = None  # Stripped for Viewers
+    note: Optional[str] = None
+    is_active: bool = True
+    items_out_count: int = 0
+    overdue_count: int = 0
+    created_at: str
+    updated_at: str
+
+class ContactLoanItem(BaseModel):
+    id: int
+    name: str
+    category_name: Optional[str] = None
+    location_path: Optional[str] = None
+    taken_at: Optional[str] = None
+    taken_due: Optional[str] = None
+    is_overdue: bool = False
+
+class ContactLoansOut(BaseModel):
+    contact: ContactOut
+    active_loans: List[ContactLoanItem]
+    returned_loans: List[Dict[str, Any]] = []
+
+# --- Moving-House Mode ---
+
+MoveStatus = Literal["planning", "done"]
+BoxStatus = Literal["packing", "packed", "unpacked"]
+
+class MoveCreate(BaseModel):
+    name: str
+    target_date: Optional[str] = None
+
+class MoveUpdate(BaseModel):
+    name: Optional[str] = None
+    target_date: Optional[str] = None
+    status: Optional[MoveStatus] = None
+
+class MoveOut(BaseModel):
+    id: int
+    name: str
+    target_date: Optional[str] = None
+    status: MoveStatus
+    created_by: Optional[int] = None
+    created_at: str
+    finished_at: Optional[str] = None
+    box_count: int = 0
+    packed_box_count: int = 0
+    total_items: int = 0
+    packed_items: int = 0
+
+class BoxCreate(BaseModel):
+    move_id: Optional[int] = None
+    number: Optional[int] = None
+    label: str
+    destination: Optional[str] = None
+    destination_location_id: Optional[int] = None
+    colour: Optional[str] = None
+    notes: Optional[str] = None
+
+class BoxUpdate(BaseModel):
+    label: Optional[str] = None
+    destination: Optional[str] = None
+    destination_location_id: Optional[int] = None
+    colour: Optional[str] = None
+    notes: Optional[str] = None
+    status: Optional[BoxStatus] = None
+
+class BoxItemOut(BaseModel):
+    id: int
+    name: str
+    category_name: Optional[str] = None
+    location_path: Optional[str] = None
+
+class BoxOut(BaseModel):
+    id: int
+    move_id: int
+    number: int
+    label: str
+    destination: Optional[str] = None
+    destination_location_id: Optional[int] = None
+    destination_location_name: Optional[str] = None
+    colour: Optional[str] = None
+    notes: Optional[str] = None
+    status: BoxStatus
+    items_count: int = 0
+    items: List[BoxItemOut] = []
+
+class BoxUnpackRequest(BaseModel):
+    item_ids: List[int]
+    location_id: int
+
+# --- Label Templates ---
+
+LabelKind = Literal["item", "location", "box"]
+
+class LabelTemplateCreate(BaseModel):
+    name: str
+    kind: LabelKind
+    width_mm: float
+    height_mm: float
+    page_json: Optional[str] = None
+    layout: str = "qr_left"
+    fields_json: str = "[]"
+    style_json: Optional[str] = None
+    is_default: bool = False
+
+class LabelTemplateUpdate(BaseModel):
+    name: Optional[str] = None
+    width_mm: Optional[float] = None
+    height_mm: Optional[float] = None
+    page_json: Optional[str] = None
+    layout: Optional[str] = None
+    fields_json: Optional[str] = None
+    style_json: Optional[str] = None
+    is_default: Optional[bool] = None
+
+class LabelTemplateOut(BaseModel):
+    id: int
+    name: str
+    kind: LabelKind
+    width_mm: float
+    height_mm: float
+    page_json: Optional[str] = None
+    layout: str
+    fields_json: str
+    style_json: Optional[str] = None
+    is_default: bool
+    owner_id: Optional[int] = None
+    created_at: str
+    updated_at: str
+
+# --- Wall Display ---
+
+class WallItemOut(BaseModel):
+    id: int
+    name: str
+    since: Optional[str] = None
+    due_date: Optional[str] = None
+    borrower_name: Optional[str] = None
+    is_overdue: bool = False
+    thumb_url: Optional[str] = None
+
+class WallResponse(BaseModel):
+    overdue: List[ReminderOut] = []
+    due_soon: List[ReminderOut] = []
+    taken_out: List[WallItemOut] = []
+    generated_at: str
+    household_name: Optional[str] = None
+
+# --- Second Copy Backup ---
+
+class SecondCopyConfig(BaseModel):
+    enabled: bool
+    path: Optional[str] = None
+    keep: int = 14
+
+class SecondCopyStatus(BaseModel):
+    enabled: bool
+    path: Optional[str] = None
+    keep: int = 14
+    last_ok: Optional[str] = None
+    last_error: Optional[str] = None
+    last_file: Optional[str] = None
+    free_space_bytes: Optional[int] = None
+
+class SecondCopyFileOut(BaseModel):
+    file_name: str
+    size_bytes: int
+    modified_at: str
+
+# --- Offline Mode ---
+
+class OfflineSnapshotOut(BaseModel):
+    schema_version: int = 10
+    timestamp: str
+    categories: List[CategoryOut] = []
+    locations: List[LocationOut] = []
+    items: List[ItemOut] = []
+    tags: List[TagOut] = []
+    field_defs: List[FieldDefOut] = []
+    reminders: List[ReminderOut] = []
+    contacts: List[ContactOut] = []
+
+class OfflineChangesOut(BaseModel):
+    timestamp: str
+    items_changed: List[ItemOut] = []
+    items_removed: List[int] = []

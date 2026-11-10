@@ -6,7 +6,7 @@ from backend.app.core.security import (
     hash_pin, verify_pin, create_session_token, verify_session_token,
     is_rate_limited, record_failed_attempt, clear_failed_attempts
 )
-from backend.app.models import Setting
+from backend.app.models import Setting, Profile
 from backend.app.schemas import (
     AuthStatusResponse, AuthSetupRequest, AuthLoginRequest,
     AuthChangePinRequest, SuccessResponse
@@ -34,7 +34,7 @@ def get_current_user_authenticated(request: Request, db: Session = Depends(get_d
     if not cookie:
         return False
     data = verify_session_token(cookie)
-    return data is not None and data.get("authenticated") is True
+    return data is not None and (data.get("authenticated") is True or data.get("profile_id") is not None)
 
 @router.get("/status", response_model=AuthStatusResponse)
 def get_auth_status(request: Request, db: Session = Depends(get_db)):
@@ -79,7 +79,12 @@ def setup_pin(payload: AuthSetupRequest, response: Response, db: Session = Depen
         pin_row.value_json = val_json
     db.commit()
 
-    token = create_session_token({"authenticated": True})
+    admin_prof = db.query(Profile).filter(Profile.role == "admin", Profile.is_active == 1).first()
+    token = create_session_token({
+        "authenticated": True,
+        "profile_id": admin_prof.id if admin_prof else 1,
+        "role": admin_prof.role if admin_prof else "admin"
+    })
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=token,
@@ -119,7 +124,12 @@ def login(payload: AuthLoginRequest, request: Request, response: Response, db: S
         )
 
     clear_failed_attempts(client_ip)
-    token = create_session_token({"authenticated": True})
+    admin_prof = db.query(Profile).filter(Profile.role == "admin", Profile.is_active == 1).first()
+    token = create_session_token({
+        "authenticated": True,
+        "profile_id": admin_prof.id if admin_prof else 1,
+        "role": admin_prof.role if admin_prof else "admin"
+    })
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=token,
@@ -164,7 +174,12 @@ def change_pin(payload: AuthChangePinRequest, request: Request, response: Respon
         pin_row.value_json = val_json
     db.commit()
 
-    token = create_session_token({"authenticated": True})
+    admin_prof = db.query(Profile).filter(Profile.role == "admin", Profile.is_active == 1).first()
+    token = create_session_token({
+        "authenticated": True,
+        "profile_id": admin_prof.id if admin_prof else 1,
+        "role": admin_prof.role if admin_prof else "admin"
+    })
     response.set_cookie(
         key=SESSION_COOKIE_NAME,
         value=token,

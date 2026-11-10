@@ -15,6 +15,9 @@ export interface Item {
   taken_out: boolean;
   taken_by?: string | null;
   taken_at?: string | null;
+  taken_due?: string | null;
+  taken_by_profile_id?: number | null;
+  taken_by_contact_id?: number | null;
   expiry_date?: string | null;
   expiry_status?: "expired" | "soon" | "ok" | "none" | null;
   notes?: string | null;
@@ -26,4 +29,12 @@ export interface Item {
   breadcrumbs?: BreadcrumbItem[];
   photos?: Photo[];
   field_defs?: FieldDef[];
+  status?: "active" | "inbox" | "retired";
+  retired_reason?: "sold" | "donated" | "thrown_away" | "broken" | string | null;
+  retired_on?: string | null;
+  retired_note?: string | null;
+  retired_by?: number | null;
+  captured_at?: string | null;
+  tags?: Array<{ id: number; name: string; color?: string }>;
+  attachments?: any[];
 }

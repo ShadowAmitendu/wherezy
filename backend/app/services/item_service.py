@@ -49,6 +49,8 @@ def map_item(item: Item, db: Session, warn_days: int = 30) -> ItemOut:
     cover_id = cover_photo.id if cover_photo else None
     cover_thumb = f"/api/photos/{cover_photo.id}/thumb" if cover_photo else None
 
+    tags_out = [{"id": t.id, "name": t.name, "color": t.color} for t in item.tags] if item.tags else []
+
     return ItemOut(
         id=item.id,
         name=item.name,
@@ -62,10 +64,18 @@ def map_item(item: Item, db: Session, warn_days: int = 30) -> ItemOut:
         taken_out=bool(item.taken_out),
         taken_by=item.taken_by,
         taken_at=item.taken_at,
+        taken_due=item.taken_due,
+        taken_by_profile_id=item.taken_by_profile_id,
+        taken_by_contact_id=item.taken_by_contact_id,
         expiry_date=item.expiry_date,
         expiry_status=exp_status,
         notes=item.notes,
         values=values,
+        tags=tags_out,
+        status=item.status or "active",
+        retired_reason=item.retired_reason,
+        retired_on=item.retired_on,
+        retired_note=item.retired_note,
         cover_photo_id=cover_id,
         cover_thumb_url=cover_thumb,
         created_at=item.created_at,

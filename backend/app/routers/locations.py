@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from backend.app.core.db import get_db
-from backend.app.models import Location, Item, Photo, utc_now_iso
+from backend.app.models import Location, Item, Photo, Profile, utc_now_iso
 from backend.app.schemas import (
     LocationOut, LocationTreeOut, LocationDetailOut, LocationCreate,
     LocationUpdate, LocationMoveRequest, ItemOut, SuccessResponse
@@ -13,6 +13,9 @@ from backend.app.services.location_service import (
     get_location_breadcrumbs, get_location_path_str
 )
 from backend.app.routers.photos import map_photo
+from backend.app.services.visibility import items_visible
+from backend.app.services.permissions import require
+from backend.app.services.activity import record
 
 router = APIRouter(prefix="/locations", tags=["Locations"])
 
@@ -47,8 +50,7 @@ def get_locations_tree(db: Session = Depends(get_db)):
     all_locs = db.query(Location).filter(Location.deleted_at.is_(None)).all()
     # Count active items per location
     counts = (
-        db.query(Item.location_id, func.count(Item.id))
-        .filter(Item.deleted_at.is_(None))
+        items_visible(db, db.query(Item.location_id, func.count(Item.id)))
         .group_by(Item.location_id)
         .all()
     )
@@ -56,7 +58,11 @@ def get_locations_tree(db: Session = Depends(get_db)):
     return build_tree(all_locs, None, counts_map, db)
 
 @router.post("", response_model=LocationOut)
-def create_location(payload: LocationCreate, db: Session = Depends(get_db)):
+def create_location(
+    payload: LocationCreate,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("admin"))
+):
     if payload.parent_id:
         parent = db.query(Location).filter(Location.id == payload.parent_id, Location.deleted_at.is_(None)).first()
         if not parent:
@@ -78,6 +84,10 @@ def create_location(payload: LocationCreate, db: Session = Depends(get_db)):
     db.add(loc)
     db.commit()
     db.refresh(loc)
+
+    record(db, "location", "created", f"Created location '{loc.name}'", entity_id=loc.id, actor=current)
+    db.commit()
+
     return map_location(loc, db, 0)
 
 @router.get("/{id}", response_model=LocationDetailOut)
@@ -88,10 +98,10 @@ def get_location(id: int, db: Session = Depends(get_db)):
 
     crumbs = get_location_breadcrumbs(db, id)
     photos = db.query(Photo).filter(Photo.owner_type == "location", Photo.owner_id == id).order_by(Photo.sort_order).all()
-    items_count = db.query(Item).filter(Item.location_id == id, Item.deleted_at.is_(None)).count()
+    items_count = items_visible(db).filter(Item.location_id == id).count()
 
     child_locs = db.query(Location).filter(Location.parent_id == id, Location.deleted_at.is_(None)).order_by(Location.sort_order).all()
-    child_outs = [map_location(c, db, db.query(Item).filter(Item.location_id == c.id, Item.deleted_at.is_(None)).count()) for c in child_locs]
+    child_outs = [map_location(c, db, items_visible(db).filter(Item.location_id == c.id).count()) for c in child_locs]
 
     base_out = map_location(loc, db, items_count)
     return LocationDetailOut(
@@ -102,7 +112,12 @@ def get_location(id: int, db: Session = Depends(get_db)):
     )
 
 @router.put("/{id}", response_model=LocationOut)
-def update_location(id: int, payload: LocationUpdate, db: Session = Depends(get_db)):
+def update_location(
+    id: int,
+    payload: LocationUpdate,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("admin"))
+):
     loc = db.query(Location).filter(Location.id == id, Location.deleted_at.is_(None)).first()
     if not loc:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Location not found"}})
@@ -128,11 +143,19 @@ def update_location(id: int, payload: LocationUpdate, db: Session = Depends(get_
     loc.updated_at = utc_now_iso()
     db.commit()
     db.refresh(loc)
-    items_count = db.query(Item).filter(Item.location_id == id, Item.deleted_at.is_(None)).count()
+
+    record(db, "location", "updated", f"Updated location '{loc.name}'", entity_id=loc.id, actor=current)
+    db.commit()
+
+    items_count = items_visible(db).filter(Item.location_id == id).count()
     return map_location(loc, db, items_count)
 
 @router.delete("/{id}", response_model=SuccessResponse)
-def delete_location(id: int, db: Session = Depends(get_db)):
+def delete_location(
+    id: int,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("admin"))
+):
     loc = db.query(Location).filter(Location.id == id, Location.deleted_at.is_(None)).first()
     if not loc:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Location not found"}})
@@ -150,8 +173,8 @@ def delete_location(id: int, db: Session = Depends(get_db)):
             }
         )
 
-    # Check items
-    items_count = db.query(Item).filter(Item.location_id == id, Item.deleted_at.is_(None)).count()
+    # Check active items
+    items_count = items_visible(db).filter(Item.location_id == id).count()
     if items_count > 0:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -164,11 +187,21 @@ def delete_location(id: int, db: Session = Depends(get_db)):
         )
 
     loc.deleted_at = utc_now_iso()
+    loc.deleted_by = current.id if current else None
     db.commit()
+
+    record(db, "location", "deleted", f"Moved location '{loc.name}' to trash", entity_id=loc.id, actor=current)
+    db.commit()
+
     return SuccessResponse(ok=True, message=f"Location '{loc.name}' deleted")
 
 @router.post("/{id}/move", response_model=LocationOut)
-def move_location(id: int, payload: LocationMoveRequest, db: Session = Depends(get_db)):
+def move_location(
+    id: int,
+    payload: LocationMoveRequest,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("admin"))
+):
     loc = db.query(Location).filter(Location.id == id, Location.deleted_at.is_(None)).first()
     if not loc:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Location not found"}})
@@ -183,7 +216,9 @@ def move_location(id: int, payload: LocationMoveRequest, db: Session = Depends(g
     loc.updated_at = utc_now_iso()
     db.commit()
     db.refresh(loc)
-    items_count = db.query(Item).filter(Item.location_id == id, Item.deleted_at.is_(None)).count()
-    return map_location(loc, db, items_count)
 
-# Circular import safe items getter is placed in items.py
+    record(db, "location", "moved", f"Moved location '{loc.name}'", entity_id=loc.id, actor=current)
+    db.commit()
+
+    items_count = items_visible(db).filter(Item.location_id == id).count()
+    return map_location(loc, db, items_count)

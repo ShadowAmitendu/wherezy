@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { createTheme, ThemeProvider as MuiThemeProvider, CssBaseline } from "@mui/material";
+import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
+import { createTheme, ThemeProvider as MuiThemeProvider, CssBaseline, alpha } from "@mui/material";
 import "@fontsource/inter/400.css";
 import "@fontsource/inter/500.css";
 import "@fontsource/inter/600.css";
@@ -7,25 +7,59 @@ import "@fontsource/inter/700.css";
 import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/600.css";
 
-type ThemeMode = "system" | "light" | "dark";
+export type ThemePreset = "theme1" | "theme2";
+export type ThemeMode = "system" | "light" | "dark";
+
+export interface ThemePresetConfig {
+  id: ThemePreset;
+  name: string;
+  description: string;
+  colors: [string, string, string, string, string];
+}
+
+export const THEME_PRESETS: Record<ThemePreset, ThemePresetConfig> = {
+  theme1: {
+    id: "theme1",
+    name: "Theme One",
+    description: "Obsidian Slate & Aqua Mist",
+    colors: ["#020608", "#1C252B", "#486B85", "#93B4BC", "#CAD2CB"],
+  },
+  theme2: {
+    id: "theme2",
+    name: "Theme 2",
+    description: "Abyss Navy & Vibrant Cyan",
+    colors: ["#001C2E", "#02435C", "#57B5C3", "#E0E6E5", "#98A7AE"],
+  },
+};
 
 interface ThemeContextType {
   mode: ThemeMode;
   setMode: (mode: ThemeMode) => void;
+  preset: ThemePreset;
+  setPreset: (preset: ThemePreset) => void;
   resolvedMode: "light" | "dark";
+  presetConfig: ThemePresetConfig;
 }
 
 const ThemeContext = createContext<ThemeContextType>({
-  mode: "system",
+  mode: "dark",
   setMode: () => {},
-  resolvedMode: "light",
+  preset: "theme1",
+  setPreset: () => {},
+  resolvedMode: "dark",
+  presetConfig: THEME_PRESETS.theme1,
 });
 
 export const useAppTheme = () => useContext(ThemeContext);
 
 export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [preset, setPresetState] = useState<ThemePreset>(() => {
+    const saved = localStorage.getItem("hi_theme_preset") as ThemePreset;
+    return saved === "theme2" ? "theme2" : "theme1";
+  });
+
   const [mode, setModeState] = useState<ThemeMode>(() => {
-    return (localStorage.getItem("hi_theme") as ThemeMode) || "system";
+    return (localStorage.getItem("hi_theme") as ThemeMode) || "dark";
   });
 
   const [systemPrefersDark, setSystemPrefersDark] = useState<boolean>(() => {
@@ -44,43 +78,141 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     localStorage.setItem("hi_theme", newMode);
   };
 
+  const setPreset = (newPreset: ThemePreset) => {
+    setPresetState(newPreset);
+    localStorage.setItem("hi_theme_preset", newPreset);
+  };
+
   const resolvedMode: "light" | "dark" =
     mode === "system" ? (systemPrefersDark ? "dark" : "light") : mode;
 
-  const theme = React.useMemo(() => {
+  const presetConfig = THEME_PRESETS[preset] || THEME_PRESETS.theme1;
+
+  const theme = useMemo(() => {
     const isDark = resolvedMode === "dark";
+    const colors = presetConfig.colors;
+
+    // Mapping colors by preset
+    let defaultBg: string;
+    let paperBg: string;
+    let primaryMain: string;
+    let primaryLight: string;
+    let primaryDark: string;
+    let primaryContrast: string;
+    let secondaryMain: string;
+    let secondaryLight: string;
+    let secondaryDark: string;
+    let textPrimary: string;
+    let textSecondary: string;
+    let textDisabled: string;
+    let dividerColor: string;
+
+    if (preset === "theme1") {
+      // Theme One: #020608, #1C252B, #486B85, #93B4BC, #CAD2CB
+      if (isDark) {
+        defaultBg = colors[0]; // #020608 Deep Obsidian
+        paperBg = colors[1];   // #1C252B Slate Charcoal
+        primaryMain = colors[3]; // #93B4BC Aqua Mist
+        primaryLight = colors[4]; // #CAD2CB Soft Mist
+        primaryDark = colors[2];  // #486B85 Steel Blue
+        primaryContrast = colors[0]; // #020608
+        secondaryMain = colors[2];   // #486B85
+        secondaryLight = colors[3];  // #93B4BC
+        secondaryDark = colors[1];   // #1C252B
+        textPrimary = colors[4];     // #CAD2CB
+        textSecondary = colors[3];   // #93B4BC
+        textDisabled = alpha(colors[4], 0.45);
+        dividerColor = alpha(colors[2], 0.35);
+      } else {
+        defaultBg = "#f2f5f4";
+        paperBg = "#ffffff";
+        primaryMain = colors[2]; // #486B85 Steel Blue
+        primaryLight = colors[3]; // #93B4BC
+        primaryDark = colors[1];  // #1C252B
+        primaryContrast = "#ffffff";
+        secondaryMain = colors[1]; // #1C252B
+        secondaryLight = colors[2];
+        secondaryDark = colors[0];
+        textPrimary = colors[0];   // #020608
+        textSecondary = colors[1]; // #1C252B
+        textDisabled = "rgba(0, 0, 0, 0.38)";
+        dividerColor = alpha(colors[1], 0.12);
+      }
+    } else {
+      // Theme Two: #001C2E, #02435C, #57B5C3, #E0E6E5, #98A7AE
+      if (isDark) {
+        defaultBg = colors[0]; // #001C2E Midnight Abyss
+        paperBg = colors[1];   // #02435C Ocean Teal
+        primaryMain = colors[2]; // #57B5C3 Vibrant Cyan
+        primaryLight = colors[3]; // #E0E6E5 Alabaster Ice
+        primaryDark = colors[1];  // #02435C
+        primaryContrast = colors[0]; // #001C2E
+        secondaryMain = colors[4];   // #98A7AE Slate Fog
+        secondaryLight = colors[3];  // #E0E6E5
+        secondaryDark = colors[1];   // #02435C
+        textPrimary = colors[3];     // #E0E6E5
+        textSecondary = colors[4];   // #98A7AE
+        textDisabled = alpha(colors[3], 0.45);
+        dividerColor = alpha(colors[2], 0.22);
+      } else {
+        defaultBg = "#f0f5f6";
+        paperBg = "#ffffff";
+        primaryMain = colors[1]; // #02435C Deep Ocean
+        primaryLight = colors[2]; // #57B5C3
+        primaryDark = colors[0];  // #001C2E
+        primaryContrast = "#ffffff";
+        secondaryMain = colors[2]; // #57B5C3
+        secondaryLight = colors[4];
+        secondaryDark = colors[1];
+        textPrimary = colors[0];   // #001C2E
+        textSecondary = colors[1]; // #02435C
+        textDisabled = "rgba(0, 0, 0, 0.38)";
+        dividerColor = alpha(colors[1], 0.12);
+      }
+    }
+
     return createTheme({
       palette: {
         mode: resolvedMode,
         primary: {
-          main: isDark ? "#90caf9" : "#1976d2",
-          light: isDark ? "#e3f2fd" : "#42a5f5",
-          dark: isDark ? "#42a5f5" : "#1565c0",
-          contrastText: isDark ? "rgba(0, 0, 0, 0.87)" : "#ffffff",
+          main: primaryMain,
+          light: primaryLight,
+          dark: primaryDark,
+          contrastText: primaryContrast,
         },
         secondary: {
-          main: isDark ? "#80cbc4" : "#00897b",
-          light: isDark ? "#b2dfdb" : "#4ebaaa",
-          dark: isDark ? "#4db6ac" : "#005b4f",
-          contrastText: "#ffffff",
+          main: secondaryMain,
+          light: secondaryLight,
+          dark: secondaryDark,
+          contrastText: isDark ? primaryContrast : "#ffffff",
         },
         background: {
-          default: isDark ? "#121212" : "#f5f5f5",
-          paper: isDark ? "#1e1e1e" : "#ffffff",
+          default: defaultBg,
+          paper: paperBg,
+        },
+        text: {
+          primary: textPrimary,
+          secondary: textSecondary,
+          disabled: textDisabled,
         },
         error: {
-          main: isDark ? "#f48fb1" : "#d32f2f",
+          main: isDark ? "#ff6b81" : "#d32f2f",
         },
         warning: {
-          main: isDark ? "#ffe082" : "#ed6c02",
+          main: isDark ? "#ffa726" : "#ed6c02",
         },
         info: {
-          main: isDark ? "#81d4fa" : "#0288d1",
+          main: isDark ? primaryMain : "#0288d1",
         },
         success: {
-          main: isDark ? "#a5d6a7" : "#2e7d32",
+          main: isDark ? "#66bb6a" : "#2e7d32",
         },
-        divider: isDark ? "rgba(255, 255, 255, 0.12)" : "rgba(0, 0, 0, 0.12)",
+        divider: dividerColor,
+        action: {
+          hover: alpha(primaryMain, 0.08),
+          selected: alpha(primaryMain, 0.18),
+          focus: alpha(primaryMain, 0.22),
+        },
       },
       typography: {
         fontFamily: "'Roboto', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
@@ -122,6 +254,50 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         borderRadius: 4, // Authentic Material Design 2 4px border radius
       },
       components: {
+        MuiCssBaseline: {
+          styleOverrides: {
+            body: {
+              backgroundColor: defaultBg,
+              color: textPrimary,
+              scrollbarColor: isDark ? `${alpha(primaryMain, 0.3)} ${defaultBg}` : undefined,
+              "&::-webkit-scrollbar": {
+                width: 8,
+                height: 8,
+              },
+              "&::-webkit-scrollbar-track": {
+                backgroundColor: defaultBg,
+              },
+              "&::-webkit-scrollbar-thumb": {
+                backgroundColor: alpha(primaryMain, 0.3),
+                borderRadius: 4,
+                "&:hover": {
+                  backgroundColor: alpha(primaryMain, 0.5),
+                },
+              },
+            },
+          },
+        },
+        MuiAppBar: {
+          defaultProps: {
+            elevation: 0,
+          },
+          styleOverrides: {
+            root: {
+              backgroundColor: isDark ? paperBg : "#ffffff",
+              color: textPrimary,
+              borderBottom: `1px solid ${dividerColor}`,
+            },
+          },
+        },
+        MuiDrawer: {
+          styleOverrides: {
+            paper: {
+              backgroundColor: isDark ? paperBg : "#ffffff",
+              color: textPrimary,
+              borderRight: `1px solid ${dividerColor}`,
+            },
+          },
+        },
         MuiButton: {
           styleOverrides: {
             root: {
@@ -150,15 +326,19 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           styleOverrides: {
             root: {
               borderRadius: 4,
+              backgroundColor: isDark ? paperBg : "#ffffff",
               boxShadow: isDark
                 ? "0px 2px 1px -1px rgba(0,0,0,0.5), 0px 1px 1px 0px rgba(0,0,0,0.35), 0px 1px 3px 0px rgba(0,0,0,0.3)"
-                : "0px 2px 1px -1px rgba(0,0,0,0.2), 0px 1px 1px 0px rgba(0,0,0,0.14), 0px 1px 3px 0px rgba(0,0,0,0.12)",
-              transition: "box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1) 0ms",
+                : "0px 2px 1px -1px rgba(0,0,0,0.12), 0px 1px 1px 0px rgba(0,0,0,0.08), 0px 1px 3px 0px rgba(0,0,0,0.06)",
+              transition: "box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1) 0ms, transform 150ms ease",
             },
           },
         },
         MuiPaper: {
           styleOverrides: {
+            root: {
+              backgroundColor: isDark ? paperBg : "#ffffff",
+            },
             rounded: {
               borderRadius: 4,
             },
@@ -171,6 +351,7 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           styleOverrides: {
             paper: {
               borderRadius: 4,
+              backgroundColor: isDark ? paperBg : "#ffffff",
               boxShadow: isDark
                 ? "0px 11px 15px -7px rgba(0,0,0,0.6), 0px 24px 38px 3px rgba(0,0,0,0.45), 0px 9px 46px 8px rgba(0,0,0,0.4)"
                 : "0px 11px 15px -7px rgba(0,0,0,0.2), 0px 24px 38px 3px rgba(0,0,0,0.14), 0px 9px 46px 8px rgba(0,0,0,0.12)",
@@ -206,6 +387,26 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             },
           },
         },
+        MuiListItemButton: {
+          styleOverrides: {
+            root: {
+              borderRadius: 4,
+              "&.Mui-selected": {
+                backgroundColor: `${alpha(primaryMain, isDark ? 0.16 : 0.12)} !important`,
+                color: `${primaryMain} !important`,
+                "& .MuiListItemIcon-root": {
+                  color: `${primaryMain} !important`,
+                },
+                "& .MuiTypography-root": {
+                  color: `${primaryMain} !important`,
+                },
+                "&:hover": {
+                  backgroundColor: `${alpha(primaryMain, isDark ? 0.24 : 0.18)} !important`,
+                },
+              },
+            },
+          },
+        },
         MuiChip: {
           styleOverrides: {
             root: {
@@ -218,6 +419,10 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           styleOverrides: {
             root: {
               borderRadius: 4,
+              backgroundColor: isDark ? alpha(paperBg, 0.7) : "#ffffff",
+              "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
+                borderColor: primaryMain,
+              },
             },
           },
         },
@@ -267,10 +472,10 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         },
       },
     });
-  }, [resolvedMode]);
+  }, [resolvedMode, preset, presetConfig]);
 
   return (
-    <ThemeContext.Provider value={{ mode, setMode, resolvedMode }}>
+    <ThemeContext.Provider value={{ mode, setMode, preset, setPreset, resolvedMode, presetConfig }}>
       <MuiThemeProvider theme={theme}>
         <CssBaseline />
         {children}
