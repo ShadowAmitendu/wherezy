@@ -39,20 +39,8 @@ import { PageHeader } from "../../components/shared/PageHeader";
 import { api, ApiException, ProfileOut, ProfileRole } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
 import { AlertDialog } from "../../components/shared/AlertDialog";
-
-const EMOJI_OPTIONS = ["👤", "🧑‍💻", "🦊", "🐱", "🏡", "📦", "⭐", "🔑", "🎨", "🛠️", "🌸", "⚡", "🍎", "🚀"];
-const COLOR_OPTIONS = [
-  "#1976d2",
-  "#486B85",
-  "#02435C",
-  "#57B5C3",
-  "#2e7d32",
-  "#388e3c",
-  "#ed6c02",
-  "#9c27b0",
-  "#d32f2f",
-  "#455a64",
-];
+import { EmojiPicker } from "../../components/shared/EmojiPicker";
+import { ColorSwatchPicker } from "../../components/shared/ColorSwatchPicker";
 
 const CUSTOM_PERM_OPTIONS = [
   { key: "items:write", label: "Create & Edit Items", category: "Inventory" },
@@ -512,58 +500,20 @@ export const UsersPage: React.FC = () => {
 
               {/* Avatar Emoji Selector */}
               <Grid size={{ xs: 12, sm: 6 }}>
-                <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
-                  Avatar Emoji: {avatarEmoji}
-                </Typography>
-                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                  {EMOJI_OPTIONS.map((emoji) => (
-                    <Box
-                      key={emoji}
-                      onClick={() => setAvatarEmoji(emoji)}
-                      sx={{
-                        width: 36,
-                        height: 36,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
-                        borderRadius: 1,
-                        bgcolor: avatarEmoji === emoji ? "primary.main" : "action.hover",
-                        color: avatarEmoji === emoji ? "primary.contrastText" : "inherit",
-                        fontSize: "1.2rem",
-                        transition: "all 0.15s ease",
-                        "&:hover": { transform: "scale(1.15)" },
-                      }}
-                    >
-                      {emoji}
-                    </Box>
-                  ))}
-                </Box>
+                <EmojiPicker
+                  value={avatarEmoji}
+                  onChange={setAvatarEmoji}
+                  label={`Avatar Emoji: ${avatarEmoji}`}
+                />
               </Grid>
 
               {/* Accent Color Selector */}
               <Grid size={{ xs: 12, sm: 6 }}>
-                <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
-                  User Color
-                </Typography>
-                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-                  {COLOR_OPTIONS.map((c) => (
-                    <Box
-                      key={c}
-                      onClick={() => setColor(c)}
-                      sx={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: "50%",
-                        bgcolor: c,
-                        cursor: "pointer",
-                        border: color === c ? "3px solid #ffffff" : "2px solid transparent",
-                        boxShadow: color === c ? "0 0 0 2px #1976d2" : "none",
-                        transition: "all 0.15s ease",
-                      }}
-                    />
-                  ))}
-                </Box>
+                <ColorSwatchPicker
+                  value={color}
+                  onChange={setColor}
+                  label="User Color"
+                />
               </Grid>
 
               {/* Role Selection */}

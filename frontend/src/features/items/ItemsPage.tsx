@@ -3,25 +3,16 @@ import { useSearchParams } from "react-router-dom";
 import {
   Box,
   Card,
-  CardContent,
-  CardActionArea,
   Typography,
   Button,
-  TextField,
-  InputAdornment,
   ToggleButtonGroup,
   ToggleButton,
   Chip,
   IconButton,
   Tooltip,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   Grid,
 } from "@mui/material";
 import { DataGrid, GridColDef, GridRenderCellParams, GridPaginationModel, GridSortModel } from "@mui/x-data-grid";
-import SearchIcon from "@mui/icons-material/Search";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import AddIcon from "@mui/icons-material/Add";
@@ -40,7 +31,8 @@ import { ItemDetailDialog } from "./ItemDetailDialog";
 import { ItemFormDialog } from "./ItemFormDialog";
 import { ItemMoveDialog } from "./ItemMoveDialog";
 import { BulkMoveDialog } from "./BulkMoveDialog";
-import { LocationPicker } from "../locations/LocationPicker";
+import { ItemCard } from "./ItemCard";
+import { ItemsFilterToolbar } from "./ItemsFilterToolbar";
 import { api } from "../../api/client";
 import { Item } from "./types";
 import { Category } from "../forms/types";
@@ -367,113 +359,19 @@ export const ItemsPage: React.FC = () => {
       />
 
       {/* Filter & Search Toolbar */}
-      <Card sx={{ mb: 3 }}>
-        <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-          <Grid container spacing={2} sx={{ alignItems: "center" }}>
-            {/* Search Query */}
-            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-              <TextField
-                fullWidth
-                label="Search"
-                placeholder="Search name, notes, serials..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                slotProps={{
-                  inputLabel: { shrink: true },
-                  input: {
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchIcon fontSize="small" />
-                      </InputAdornment>
-                    ),
-                  },
-                }}
-              />
-            </Grid>
-
-            {/* Category Filter */}
-            <Grid size={{ xs: 6, sm: 3, md: 2 }}>
-              <FormControl fullWidth>
-                <InputLabel shrink id="category-filter-label">Category</InputLabel>
-                <Select
-                  labelId="category-filter-label"
-                  id="category-filter-select"
-                  value={selectedCategory}
-                  label="Category"
-                  notched
-                  displayEmpty
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  renderValue={(selected) => {
-                    if (!selected) {
-                      return <span style={{ opacity: 0.75 }}>All Categories</span>;
-                    }
-                    const cat = categories.find((c) => String(c.id) === selected);
-                    return cat ? cat.name : selected;
-                  }}
-                >
-                  <MenuItem value="">
-                    <em>All Categories</em>
-                  </MenuItem>
-                  {categories.map((c) => (
-                    <MenuItem key={c.id} value={String(c.id)}>
-                      {c.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-
-            {/* Location Filter */}
-            <Grid size={{ xs: 6, sm: 3, md: 3 }}>
-              <LocationPicker
-                value={selectedLocation}
-                onChange={(locId) => setSelectedLocation(locId)}
-                label="Location"
-                emptyLabel="All Locations"
-              />
-            </Grid>
-
-            {/* Taken Out Filter */}
-            <Grid size={{ xs: 6, sm: 3, md: 2 }}>
-              <FormControl fullWidth>
-                <InputLabel shrink id="status-filter-label">Status</InputLabel>
-                <Select
-                  labelId="status-filter-label"
-                  id="status-filter-select"
-                  value={takenOutFilter}
-                  label="Status"
-                  notched
-                  onChange={(e) => setTakenOutFilter(e.target.value)}
-                >
-                  <MenuItem value="all">All Items</MenuItem>
-                  <MenuItem value="in">In Place Only</MenuItem>
-                  <MenuItem value="out">Taken Out Only</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-
-            {/* Expiry Filter */}
-            <Grid size={{ xs: 6, sm: 3, md: 2 }}>
-              <FormControl fullWidth>
-                <InputLabel shrink id="expiry-filter-label">Expiry</InputLabel>
-                <Select
-                  labelId="expiry-filter-label"
-                  id="expiry-filter-select"
-                  value={expiryFilter}
-                  label="Expiry"
-                  notched
-                  onChange={(e) => setExpiryFilter(e.target.value)}
-                >
-                  <MenuItem value="all">All</MenuItem>
-                  <MenuItem value="expired">Expired</MenuItem>
-                  <MenuItem value="soon">Expiring Soon</MenuItem>
-                  <MenuItem value="ok">Valid</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-          </Grid>
-        </CardContent>
-      </Card>
+      <ItemsFilterToolbar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        categories={categories}
+        selectedCategory={selectedCategory}
+        onCategoryChange={setSelectedCategory}
+        selectedLocation={selectedLocation}
+        onLocationChange={setSelectedLocation}
+        takenOutFilter={takenOutFilter}
+        onTakenOutChange={setTakenOutFilter}
+        expiryFilter={expiryFilter}
+        onExpiryChange={setExpiryFilter}
+      />
 
       {/* Main View: Table vs Cards */}
       {items.length === 0 && !isLoading ? (
@@ -526,84 +424,7 @@ export const ItemsPage: React.FC = () => {
         <Grid container spacing={2.5}>
           {items.map((item) => (
             <Grid key={item.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
-              <Card
-                sx={{
-                  height: "100%",
-                  display: "flex",
-                  flexDirection: "column",
-                  transition: "transform 0.15s, box-shadow 0.15s",
-                  "&:hover": {
-                    transform: "translateY(-2px)",
-                    boxShadow: 4,
-                  },
-                }}
-              >
-                <CardActionArea onClick={() => setDetailItemId(item.id)} sx={{ flexGrow: 1 }}>
-                  <Box
-                    sx={{
-                      height: 160,
-                      bgcolor: "action.hover",
-                      position: "relative",
-                      overflow: "hidden",
-                    }}
-                  >
-                    {item.cover_thumb_url ? (
-                      <img
-                        src={item.cover_thumb_url}
-                        alt={item.name}
-                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                      />
-                    ) : (
-                      <Box
-                        sx={{
-                          height: "100%",
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "center",
-                          color: "text.secondary",
-                        }}
-                      >
-                        <CoverThumb size={60} />
-                      </Box>
-                    )}
-
-                    <Chip
-                      label={`I${item.id}`}
-                      size="small"
-                      sx={{
-                        position: "absolute",
-                        top: 8,
-                        left: 8,
-                        bgcolor: "background.paper",
-                        fontFamily: "monospace",
-                        fontWeight: 700,
-                      }}
-                    />
-
-                    {item.taken_out && (
-                      <Chip
-                        label="Taken Out"
-                        size="small"
-                        color="secondary"
-                        sx={{ position: "absolute", top: 8, right: 8, fontWeight: 600 }}
-                      />
-                    )}
-                  </Box>
-
-                  <CardContent sx={{ p: 2 }}>
-                    <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>
-                      {item.name}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ display: "block" }} noWrap>
-                      {item.category_name} • {item.location_path || "No location"}
-                    </Typography>
-
-                    <Box sx={{ mt: 1.5, display: "flex", gap: 1, flexWrap: "wrap" }}>
-                      <ExpiryChip status={item.expiry_status} dateStr={item.expiry_date} />
-                    </Box>
-                  </CardContent>
-                </CardActionArea>
-              </Card>
+              <ItemCard item={item} onClick={(it) => setDetailItemId(it.id)} />
             </Grid>
           ))}
         </Grid>

@@ -31,20 +31,10 @@ import { EmptyState } from "../../components/shared/EmptyState";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { IconPicker, renderMuiIcon } from "../../components/shared/IconPicker";
 import { AlertDialog } from "../../components/shared/AlertDialog";
+import { ColorSwatchPicker } from "../../components/shared/ColorSwatchPicker";
+import { CategoryCard } from "./CategoryCard";
 import { api, ApiException } from "../../api/client";
 import { Category } from "./types";
-
-const COLOR_PRESETS = [
-  "#1976d2",
-  "#e53935",
-  "#f57c00",
-  "#388e3c",
-  "#8e24aa",
-  "#00897b",
-  "#d81b60",
-  "#3949ab",
-  "#546e7a",
-];
 
 export const CategoriesPage: React.FC = () => {
   const navigate = useNavigate();
@@ -231,99 +221,12 @@ export const CategoriesPage: React.FC = () => {
         <Grid container spacing={2.5}>
           {categories.map((cat) => (
             <Grid key={cat.id} size={{ xs: 12, sm: 6, md: 4 }} sx={{ display: "flex" }}>
-              <Card
-                sx={{
-                  width: "100%",
-                  height: "100%",
-                  minHeight: 124,
-                  display: "flex",
-                  flexDirection: "column",
-                  borderLeft: `6px solid ${cat.color || "#1976d2"}`,
-                  transition: "transform 0.15s, box-shadow 0.15s",
-                  "&:hover": {
-                    transform: "translateY(-2px)",
-                    boxShadow: 4,
-                  },
-                }}
-              >
-                <CardActionArea
-                  onClick={() => navigate(`/categories/${cat.id}`)}
-                  sx={{
-                    height: "100%",
-                    display: "flex",
-                    flexDirection: "column",
-                    alignItems: "stretch",
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <CardContent sx={{ p: 2, flexGrow: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", minHeight: 110, "&:last-child": { pb: 2 } }}>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                        <Box
-                          sx={{
-                            width: 44,
-                            height: 44,
-                            borderRadius: 2,
-                            bgcolor: `${cat.color}20`,
-                            color: cat.color,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            flexShrink: 0,
-                          }}
-                        >
-                          {renderMuiIcon(cat.icon, "medium")}
-                        </Box>
-                        <Box>
-                          <Typography variant="h6" sx={{ fontWeight: 700 }} noWrap>
-                            {cat.name}
-                          </Typography>
-                          <Typography variant="body2" color="text.secondary">
-                            {cat.items_count || 0} items
-                          </Typography>
-                        </Box>
-                      </Box>
-                      <Box sx={{ display: "flex" }}>
-                        <Tooltip title="Edit Category Details">
-                          <IconButton size="small" onClick={(e) => handleOpenEdit(cat, e)}>
-                            <EditOutlinedIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete Category">
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteTarget(cat);
-                            }}
-                          >
-                            <DeleteOutlinedIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </Box>
-                    </Box>
-
-                    <Box sx={{ mt: 1.5, minHeight: 24, display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-                      {cat.track_expiry ? (
-                        <Chip
-                          label={cat.expiry_label || "Expiry date"}
-                          size="small"
-                          color="warning"
-                          variant="outlined"
-                        />
-                      ) : (
-                        <Chip
-                          label="Standard items"
-                          size="small"
-                          variant="outlined"
-                          sx={{ opacity: 0.65, borderColor: "divider" }}
-                        />
-                      )}
-                    </Box>
-                  </CardContent>
-                </CardActionArea>
-              </Card>
+              <CategoryCard
+                category={cat}
+                onClick={(c) => navigate(`/categories/${c.id}`)}
+                onEdit={handleOpenEdit}
+                onDelete={(c) => setDeleteTarget(c)}
+              />
             </Grid>
           ))}
         </Grid>
@@ -434,26 +337,12 @@ export const CategoriesPage: React.FC = () => {
             </Box>
 
             <Box sx={{ flexGrow: 1 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
-                Accent Colour
-              </Typography>
-              <Box sx={{ display: "flex", gap: 0.75, flexWrap: "wrap" }}>
-                {COLOR_PRESETS.map((c) => (
-                  <Box
-                    key={c}
-                    onClick={() => setColor(c)}
-                    sx={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: "50%",
-                      bgcolor: c,
-                      cursor: "pointer",
-                      border: color === c ? "2px solid #fff" : "none",
-                      boxShadow: color === c ? "0 0 0 2px #000" : "none",
-                    }}
-                  />
-                ))}
-              </Box>
+              <ColorSwatchPicker
+                value={color}
+                onChange={setColor}
+                label="Accent Colour"
+                size={26}
+              />
             </Box>
           </Box>
 
