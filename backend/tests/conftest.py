@@ -1,3 +1,13 @@
+import os
+import tempfile
+import shutil
+from pathlib import Path
+
+# Configure isolated temporary data directory for all tests so live data/inventory.db is NEVER touched
+TEST_DATA_DIR = Path(tempfile.gettempdir()) / "homeinventory_test_data"
+TEST_DATA_DIR.mkdir(parents=True, exist_ok=True)
+os.environ["DATA_DIR"] = str(TEST_DATA_DIR)
+
 import pytest
 from sqlalchemy import text
 from backend.app.core.db import engine
@@ -6,6 +16,11 @@ from backend.app.core.migrations import run_migrations
 @pytest.fixture(scope="session", autouse=True)
 def init_db():
     run_migrations()
+    yield
+    try:
+        shutil.rmtree(TEST_DATA_DIR, ignore_errors=True)
+    except Exception:
+        pass
 
 @pytest.fixture(autouse=True)
 def clean_tables():

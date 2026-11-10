@@ -98,7 +98,6 @@ def get_location(id: int, db: Session = Depends(get_db)):
         **base_out.model_dump(),
         breadcrumbs=crumbs,
         photos=[map_photo(p) for p in photos],
-        items_count=items_count,
         children=child_outs
     )
 

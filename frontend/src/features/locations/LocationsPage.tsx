@@ -123,6 +123,8 @@ export const LocationsPage: React.FC = () => {
       setLocationItems(items);
     } catch (err) {
       console.error(err);
+      setSelectedDetail(null);
+      setLocationItems([]);
     }
   };
 
