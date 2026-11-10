@@ -35,6 +35,7 @@ import UnarchiveOutlinedIcon from "@mui/icons-material/UnarchiveOutlined";
 import { api, ApiException } from "../../api/client";
 import { LocationPicker } from "../locations/LocationPicker";
 import { AlertDialog } from "../../components/shared/AlertDialog";
+import { PageHeader } from "../../components/shared/PageHeader";
 
 export const MovesPage: React.FC = () => {
   const theme = useTheme();
@@ -197,28 +198,22 @@ export const MovesPage: React.FC = () => {
   return (
     <Box sx={{ width: "100%" }}>
       {/* Page Header */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, flexWrap: "wrap", gap: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-          <LocalShippingOutlinedIcon color="primary" sx={{ fontSize: 32 }} />
-          <Box>
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              Moving House Mode
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Organize packing into numbered boxes, track progress, and unpack room by room
-            </Typography>
-          </Box>
-        </Box>
-        {activeMove ? (
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setBoxDialogOpen(true)}>
-            New Box
-          </Button>
-        ) : (
-          <Button variant="contained" startIcon={<AddIcon />} onClick={() => setMoveDialogOpen(true)}>
-            Start New Move
-          </Button>
-        )}
-      </Box>
+      <PageHeader
+        title="Moving House Mode"
+        subtitle="Organize packing into numbered boxes, track progress, and unpack room by room"
+        icon={<LocalShippingOutlinedIcon />}
+        action={
+          activeMove ? (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setBoxDialogOpen(true)}>
+              New Box
+            </Button>
+          ) : (
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setMoveDialogOpen(true)}>
+              Start New Move
+            </Button>
+          )
+        }
+      />
 
       <AlertDialog
         open={Boolean(errorMsg)}

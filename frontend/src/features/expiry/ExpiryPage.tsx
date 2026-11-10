@@ -15,6 +15,7 @@ import {
   TableHead,
   TableRow,
 } from "@mui/material";
+import EventNoteOutlinedIcon from "@mui/icons-material/EventNoteOutlined";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { EmptyState } from "../../components/shared/EmptyState";
 import { ExpiryChip } from "../../components/shared/ExpiryChip";
@@ -58,6 +59,7 @@ export const ExpiryPage: React.FC = () => {
       <PageHeader
         title="Expiry Tracking"
         subtitle="Keep track of expiration dates on medicines, consumables, warranties, and documents"
+        icon={<EventNoteOutlinedIcon />}
         action={
           <ToggleButtonGroup
             size="small"

@@ -378,7 +378,7 @@ class ProfileCreate(BaseModel):
     name: str
     username: Optional[str] = None
     color: str = "#1976d2"
-    avatar_emoji: str = "👤"
+    avatar_emoji: str = "Person"
     role: ProfileRole = "member"
     pin: Optional[str] = None
     password: Optional[str] = None

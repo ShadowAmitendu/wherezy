@@ -68,11 +68,12 @@ import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import { useAppTheme, THEME_PRESETS, ThemePreset } from "../theme";
 import { useAuth } from "../auth/AuthContext";
+import { AccountIcon } from "../components/shared/AccountIcon";
 import { CommandPalette } from "../features/palette/CommandPalette";
 import { api } from "../api/client";
 
 const DRAWER_WIDTH = 240;
-const MINI_DRAWER_WIDTH = 68;
+const MINI_DRAWER_WIDTH = 80;
 
 interface NavItem {
   label: string;
@@ -109,7 +110,7 @@ export const AppLayout: React.FC = () => {
   const { pinSet, logout, selectProfile, currentProfile: authProfile } = useAuth();
 
   // Desktop/Tablet sidebar state: expanded (text + icons) or collapsed (only icons)
-  // On tablets, default to mini rail (68px) to maximize content width
+  // On tablets, default to mini rail (80px) to maximize content width
   const [desktopOpen, setDesktopOpen] = useState<boolean>(() => {
     const saved = localStorage.getItem("hi_sidebar_open");
     if (saved !== null) return saved === "true";
@@ -263,8 +264,8 @@ export const AppLayout: React.FC = () => {
             }}
             sx={{
               minHeight: 48,
-              justifyContent: isMini ? "center" : "initial",
-              px: isMini ? 1.5 : 2.5,
+              justifyContent: "initial",
+              px: 2.5,
               mx: 1,
               borderRadius: 1,
               "&.Mui-selected": {
@@ -338,7 +339,13 @@ export const AppLayout: React.FC = () => {
           color: "text.primary",
         }}
       >
-        <Toolbar sx={{ justifyContent: "space-between", px: { xs: 1, sm: 2 }, minHeight: { xs: 56, sm: 64 } }}>
+        <Toolbar
+          sx={{
+            justifyContent: "space-between",
+            px: { xs: 1.5, sm: 2.5 },
+            minHeight: { xs: 56, sm: 64 },
+          }}
+        >
           <Box sx={{ display: "flex", alignItems: "center" }}>
             {/* Hamburger Button */}
             <Tooltip title={isMobile ? "Open menu" : desktopOpen ? "Collapse sidebar" : "Expand sidebar"}>
@@ -346,9 +353,11 @@ export const AppLayout: React.FC = () => {
                 color="inherit"
                 aria-label="toggle navigation menu"
                 onClick={handleDrawerToggle}
-                edge="start"
                 size={isMobile ? "small" : "medium"}
-                sx={{ mr: { xs: 0.5, sm: 1.5 } }}
+                sx={{
+                  ml: { xs: -0.5, sm: 0 },
+                  mr: { xs: 1, sm: 2 },
+                }}
               >
                 <MenuIcon />
               </IconButton>
@@ -684,14 +693,17 @@ export const AppLayout: React.FC = () => {
                   >
                     <Avatar
                       sx={{
-                        width: 30,
-                        height: 30,
+                        width: 32,
+                        height: 32,
                         bgcolor: currentProfile.color || "primary.main",
-                        fontSize: "0.85rem",
-                        fontWeight: 700,
                       }}
                     >
-                      {currentProfile.avatar_emoji || currentProfile.name.charAt(0).toUpperCase()}
+                      <AccountIcon
+                        icon={currentProfile.avatar_emoji}
+                        name={currentProfile.name}
+                        fontSize="small"
+                        sx={{ color: "#ffffff" }}
+                      />
                     </Avatar>
                     {!isMobile && (
                       <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
@@ -730,13 +742,16 @@ export const AppLayout: React.FC = () => {
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
                         <Avatar
                           sx={{
-                            width: 24,
-                            height: 24,
+                            width: 26,
+                            height: 26,
                             bgcolor: p.color || "primary.main",
-                            fontSize: "0.75rem",
                           }}
                         >
-                          {p.avatar_emoji || p.name.charAt(0).toUpperCase()}
+                          <AccountIcon
+                            icon={p.avatar_emoji}
+                            name={p.name}
+                            sx={{ fontSize: 16, color: "#ffffff" }}
+                          />
                         </Avatar>
                         <Typography variant="body2">{p.name}</Typography>
                       </Box>
@@ -1011,11 +1026,15 @@ export const AppLayout: React.FC = () => {
                       width: 48,
                       height: 48,
                       bgcolor: p.color || "primary.main",
-                      fontSize: "1.25rem",
-                      fontWeight: 700,
+                      boxShadow: 1,
                     }}
                   >
-                    {p.avatar_emoji || p.name.charAt(0).toUpperCase()}
+                    <AccountIcon
+                      icon={p.avatar_emoji}
+                      name={p.name}
+                      fontSize="medium"
+                      sx={{ color: "#ffffff" }}
+                    />
                   </Avatar>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>

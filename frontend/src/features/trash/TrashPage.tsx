@@ -25,6 +25,7 @@ import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { api, ApiException } from "../../api/client";
 import { AlertDialog } from "../../components/shared/AlertDialog";
+import { PageHeader } from "../../components/shared/PageHeader";
 
 export const TrashPage: React.FC = () => {
   const [tabIndex, setTabIndex] = useState<number>(0);
@@ -85,35 +86,29 @@ export const TrashPage: React.FC = () => {
   return (
     <Box sx={{ width: "100%" }}>
       {/* Page Header */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, flexWrap: "wrap", gap: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-          <DeleteOutlinedIcon color="error" sx={{ fontSize: 32 }} />
-          <Box>
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              Trash & Recycle Bin
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Deleted items, locations, and categories can be restored here within 30 days
-            </Typography>
-          </Box>
-        </Box>
-        <Box sx={{ display: "flex", gap: 1 }}>
-          <Button variant="outlined" startIcon={<RefreshIcon />} onClick={loadTrash} disabled={loading}>
-            Refresh
-          </Button>
-          {totalTrashed > 0 && (
-            <Button
-              variant="contained"
-              color="error"
-              startIcon={<DeleteForeverIcon />}
-              onClick={handleEmptyTrash}
-              disabled={loading}
-            >
-              Empty Trash
+      <PageHeader
+        title="Trash & Recycle Bin"
+        subtitle="Deleted items, locations, and categories can be restored here within 30 days"
+        icon={<DeleteOutlinedIcon />}
+        action={
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Button variant="outlined" startIcon={<RefreshIcon />} onClick={loadTrash} disabled={loading}>
+              Refresh
             </Button>
-          )}
-        </Box>
-      </Box>
+            {totalTrashed > 0 && (
+              <Button
+                variant="contained"
+                color="error"
+                startIcon={<DeleteForeverIcon />}
+                onClick={handleEmptyTrash}
+                disabled={loading}
+              >
+                Empty Trash
+              </Button>
+            )}
+          </Box>
+        }
+      />
 
       <AlertDialog
         open={Boolean(errorMsg)}

@@ -143,7 +143,7 @@ class Profile(Base):
     name = Column(String, unique=True, nullable=False)
     username = Column(String, unique=True, nullable=True)
     color = Column(String, nullable=False, default="#1976d2")
-    avatar_emoji = Column(String, nullable=False, default="👤")
+    avatar_emoji = Column(String, nullable=False, default="Person")
     role = Column(String, nullable=False)  # admin, co_admin, member, viewer, custom
     pin_hash = Column(String, nullable=True)
     must_change_password = Column(Integer, nullable=False, default=0)

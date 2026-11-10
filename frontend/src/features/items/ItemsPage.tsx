@@ -21,6 +21,7 @@ import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import DriveFileMoveOutlinedIcon from "@mui/icons-material/DriveFileMoveOutlined";
 import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 import RemoveCircleOutlinedIcon from "@mui/icons-material/RemoveCircleOutlined";
+import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { EmptyState } from "../../components/shared/EmptyState";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
@@ -319,6 +320,7 @@ export const ItemsPage: React.FC = () => {
       <PageHeader
         title="Items"
         subtitle="Browse, search, and manage items in your home inventory"
+        icon={<Inventory2OutlinedIcon />}
         action={
           <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
             {selectedItemIds.length > 0 && (

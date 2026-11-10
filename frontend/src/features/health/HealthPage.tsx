@@ -33,6 +33,7 @@ import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
 import PhotoCameraOutlinedIcon from "@mui/icons-material/PhotoCameraOutlined";
 import EventBusyOutlinedIcon from "@mui/icons-material/EventBusyOutlined";
 import { AlertDialog } from "../../components/shared/AlertDialog";
+import { PageHeader } from "../../components/shared/PageHeader";
 import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import MoveToInboxOutlinedIcon from "@mui/icons-material/MoveToInboxOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
@@ -176,27 +177,21 @@ export const HealthPage: React.FC = () => {
   return (
     <Box sx={{ width: "100%" }}>
       {/* Page Title */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-          <HealingOutlinedIcon color="primary" sx={{ fontSize: 32 }} />
-          <Box>
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              Data Health
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Review and tidy up items missing details, duplicates, or long-expired stock
-            </Typography>
-          </Box>
-        </Box>
-        <Button
-          variant="outlined"
-          startIcon={<RefreshIcon />}
-          onClick={() => loadData()}
-          disabled={loading}
-        >
-          Refresh
-        </Button>
-      </Box>
+      <PageHeader
+        title="Data Health"
+        subtitle="Review and tidy up items missing details, duplicates, or long-expired stock"
+        icon={<HealingOutlinedIcon />}
+        action={
+          <Button
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={() => loadData()}
+            disabled={loading}
+          >
+            Refresh
+          </Button>
+        }
+      />
 
       <AlertDialog
         open={Boolean(errorMsg)}

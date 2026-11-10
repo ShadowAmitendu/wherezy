@@ -24,12 +24,14 @@ import PersonOutlinedIcon from "@mui/icons-material/PersonOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import CheckIcon from "@mui/icons-material/Check";
+import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { useAuth } from "../../auth/AuthContext";
 import { useAppTheme, THEME_PRESETS, ThemePreset } from "../../theme";
 import { api, ApiException } from "../../api/client";
 import { AlertDialog } from "../../components/shared/AlertDialog";
-import { EmojiPicker } from "../../components/shared/EmojiPicker";
+import { AccountIcon } from "../../components/shared/AccountIcon";
+import { AccountIconPicker } from "../../components/shared/AccountIconPicker";
 import { ColorSwatchPicker } from "../../components/shared/ColorSwatchPicker";
 
 export const AccountProfilePage: React.FC = () => {
@@ -38,7 +40,7 @@ export const AccountProfilePage: React.FC = () => {
 
   // Profile details state
   const [displayName, setDisplayName] = useState(currentProfile?.name || "");
-  const [avatarEmoji, setAvatarEmoji] = useState(currentProfile?.avatar_emoji || "👤");
+  const [avatarEmoji, setAvatarEmoji] = useState(currentProfile?.avatar_emoji || "Person");
   const [userColor, setUserColor] = useState(currentProfile?.color || "#486B85");
   const [profileMsg, setProfileMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
@@ -57,7 +59,7 @@ export const AccountProfilePage: React.FC = () => {
   useEffect(() => {
     if (currentProfile) {
       setDisplayName(currentProfile.name);
-      setAvatarEmoji(currentProfile.avatar_emoji || "👤");
+      setAvatarEmoji(currentProfile.avatar_emoji || "Person");
       setUserColor(currentProfile.color || "#486B85");
       setHighContrast(Boolean(currentProfile.high_contrast));
       setTextScale(currentProfile.text_scale || 100);
@@ -135,6 +137,7 @@ export const AccountProfilePage: React.FC = () => {
       <PageHeader
         title="Account & Profile"
         subtitle="Manage your personal credentials, appearance, and household preferences"
+        icon={<AccountCircleOutlinedIcon />}
       />
 
       {/* Profile Overview Card */}
@@ -145,11 +148,10 @@ export const AccountProfilePage: React.FC = () => {
               width: 76,
               height: 76,
               bgcolor: userColor,
-              fontSize: "2.5rem",
               boxShadow: 2,
             }}
           >
-            {avatarEmoji || displayName.charAt(0).toUpperCase()}
+            <AccountIcon icon={avatarEmoji} name={displayName} sx={{ fontSize: 44, color: "#ffffff" }} />
           </Avatar>
           <Box sx={{ flex: 1, minWidth: 200 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
@@ -204,10 +206,10 @@ export const AccountProfilePage: React.FC = () => {
                 />
 
                 <Box sx={{ mt: 2, mb: 2 }}>
-                  <EmojiPicker
+                  <AccountIconPicker
                     value={avatarEmoji}
                     onChange={setAvatarEmoji}
-                    label={`Avatar Emoji: ${avatarEmoji}`}
+                    label="Account Icon"
                   />
                 </Box>
 

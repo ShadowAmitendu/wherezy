@@ -26,6 +26,7 @@ import SnoozeOutlinedIcon from "@mui/icons-material/SnoozeOutlined";
 import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import { PageHeader } from "../../components/shared/PageHeader";
 import { api } from "../../api/client";
 
 export const RemindersPage: React.FC = () => {
@@ -97,17 +98,11 @@ export const RemindersPage: React.FC = () => {
 
   return (
     <Box sx={{ width: "100%" }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
-        <NotificationsActiveOutlinedIcon color="primary" sx={{ fontSize: 32 }} />
-        <Box>
-          <Typography variant="h5" sx={{ fontWeight: 700 }}>
-            Reminder Centre
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Automatic tracking for expiry dates, warranties, service intervals, and borrowed loans.
-          </Typography>
-        </Box>
-      </Box>
+      <PageHeader
+        title="Reminder Centre"
+        subtitle="Automatic tracking for expiry dates, warranties, service intervals, and borrowed loans."
+        icon={<NotificationsActiveOutlinedIcon />}
+      />
 
       {overdueCount > 0 && (
         <Box

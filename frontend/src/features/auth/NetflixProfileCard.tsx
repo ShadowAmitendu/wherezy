@@ -8,6 +8,7 @@ import {
 } from "@mui/material";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import { ProfileOut } from "../../api/client";
+import { AccountIcon } from "../../components/shared/AccountIcon";
 
 export interface NetflixProfileCardProps {
   profile: ProfileOut;
@@ -65,9 +66,11 @@ export const NetflixProfileCard: React.FC<NetflixProfileCardProps> = ({
             },
           }}
         >
-          <Typography sx={{ fontSize: { xs: "2.8rem", sm: "3.8rem" }, userSelect: "none" }}>
-            {profile.avatar_emoji || profile.name.charAt(0).toUpperCase()}
-          </Typography>
+          <AccountIcon
+            icon={profile.avatar_emoji}
+            name={profile.name}
+            sx={{ fontSize: { xs: 44, sm: 60 }, color: "#ffffff" }}
+          />
 
           {profile.has_pin && (
             <Box

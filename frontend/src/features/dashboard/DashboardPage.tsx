@@ -20,6 +20,7 @@ import WarningAmberIcon from "@mui/icons-material/WarningAmber";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutlineOutlined";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import AddIcon from "@mui/icons-material/Add";
+import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { ExpiryChip } from "../../components/shared/ExpiryChip";
 import { CoverThumb } from "../photos/CoverThumb";
@@ -54,6 +55,7 @@ export const DashboardPage: React.FC = () => {
       <PageHeader
         title="Dashboard"
         subtitle="Household inventory summary, items out of place, and upcoming expiries"
+        icon={<DashboardOutlinedIcon />}
         action={
           <Button
             variant="contained"

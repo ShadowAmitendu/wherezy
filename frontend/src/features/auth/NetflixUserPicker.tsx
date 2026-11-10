@@ -26,6 +26,7 @@ import { api, ApiException, ProfileOut } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { NetflixProfileCard } from "./NetflixProfileCard";
+import { AccountIcon } from "../../components/shared/AccountIcon";
 
 interface NetflixUserPickerProps {
   onSelectSuccess?: (profile: ProfileOut) => void;
@@ -253,13 +254,16 @@ export const NetflixUserPicker: React.FC<NetflixUserPickerProps> = ({
                 width: 68,
                 height: 68,
                 bgcolor: selectedProfile?.color || "primary.main",
-                fontSize: "2rem",
                 mx: "auto",
                 mb: 1.5,
                 boxShadow: 3,
               }}
             >
-              {selectedProfile?.avatar_emoji || selectedProfile?.name.charAt(0).toUpperCase()}
+              <AccountIcon
+                icon={selectedProfile?.avatar_emoji}
+                name={selectedProfile?.name}
+                sx={{ fontSize: 36, color: "#ffffff" }}
+              />
             </Avatar>
             <Typography variant="h5" sx={{ fontWeight: 700, color: "#ffffff" }}>
               {selectedProfile?.name}

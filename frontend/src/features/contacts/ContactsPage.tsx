@@ -35,6 +35,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import AssignmentReturnOutlinedIcon from "@mui/icons-material/AssignmentReturnOutlined";
 import { AlertDialog } from "../../components/shared/AlertDialog";
+import { PageHeader } from "../../components/shared/PageHeader";
 import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
 import { api, ApiException } from "../../api/client";
 import { ItemDetailDialog } from "../items/ItemDetailDialog";
@@ -179,22 +180,16 @@ export const ContactsPage: React.FC = () => {
   return (
     <Box sx={{ width: "100%" }}>
       {/* Page Header */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, flexWrap: "wrap", gap: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-          <PeopleOutlinedIcon color="primary" sx={{ fontSize: 32 }} />
-          <Box>
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              Contacts & Lending
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Keep track of friends, neighbors, and contacts who borrow household tools and items
-            </Typography>
-          </Box>
-        </Box>
-        <Button variant="contained" startIcon={<PersonAddOutlinedIcon />} onClick={handleOpenAdd}>
-          Add Contact
-        </Button>
-      </Box>
+      <PageHeader
+        title="Contacts & Lending"
+        subtitle="Keep track of friends, neighbors, and contacts who borrow household tools and items"
+        icon={<PeopleOutlinedIcon />}
+        action={
+          <Button variant="contained" startIcon={<PersonAddOutlinedIcon />} onClick={handleOpenAdd}>
+            Add Contact
+          </Button>
+        }
+      />
 
       <AlertDialog
         open={Boolean(errorMsg)}

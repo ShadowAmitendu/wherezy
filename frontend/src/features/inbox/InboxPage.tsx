@@ -23,6 +23,7 @@ import {
   useTheme,
 } from "@mui/material";
 import { AlertDialog } from "../../components/shared/AlertDialog";
+import { PageHeader } from "../../components/shared/PageHeader";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import MoveToInboxIcon from "@mui/icons-material/MoveToInbox";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
@@ -140,29 +141,11 @@ export const InboxPage: React.FC = () => {
         onChange={handleFilesSelected}
       />
 
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 2,
-          mb: 3,
-        }}
-      >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-          <MoveToInboxIcon color="primary" sx={{ fontSize: 36 }} />
-          <Box>
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              Quick Capture Inbox
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Snap photos instantly. Assign names, categories, and storage locations when you are ready.
-            </Typography>
-          </Box>
-        </Box>
-
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+      <PageHeader
+        title="Quick Capture Inbox"
+        subtitle="Snap photos instantly. Assign names, categories, and storage locations when you are ready."
+        icon={<MoveToInboxIcon />}
+        action={
           <Button
             variant="contained"
             size="large"
@@ -172,8 +155,8 @@ export const InboxPage: React.FC = () => {
           >
             {uploading ? "Uploading..." : "Snap / Upload Photo"}
           </Button>
-        </Box>
-      </Box>
+        }
+      />
 
       {/* Sticky location option */}
       <Card sx={{ p: 2, mb: 3, display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>

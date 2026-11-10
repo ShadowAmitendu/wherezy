@@ -25,6 +25,7 @@ import FilterListIcon from "@mui/icons-material/FilterList";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { api, ApiException } from "../../api/client";
 import { AlertDialog } from "../../components/shared/AlertDialog";
+import { PageHeader } from "../../components/shared/PageHeader";
 
 export const ActivityPage: React.FC = () => {
   const [events, setEvents] = useState<any[]>([]);
@@ -92,23 +93,16 @@ export const ActivityPage: React.FC = () => {
 
   return (
     <Box sx={{ width: "100%" }}>
-      {/* Header */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, flexWrap: "wrap", gap: 2 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-          <HistoryOutlinedIcon color="primary" sx={{ fontSize: 32 }} />
-          <Box>
-            <Typography variant="h5" sx={{ fontWeight: 700 }}>
-              Activity History
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Household audit trail of item creations, movements, loans, and updates
-            </Typography>
-          </Box>
-        </Box>
-        <Button variant="outlined" startIcon={<RefreshIcon />} onClick={loadActivity} disabled={loading}>
-          Refresh
-        </Button>
-      </Box>
+      <PageHeader
+        title="Activity History"
+        subtitle="Household audit trail of item creations, movements, loans, and updates"
+        icon={<HistoryOutlinedIcon />}
+        action={
+          <Button variant="outlined" startIcon={<RefreshIcon />} onClick={loadActivity} disabled={loading}>
+            Refresh
+          </Button>
+        }
+      />
 
       <AlertDialog
         open={Boolean(errorMsg)}

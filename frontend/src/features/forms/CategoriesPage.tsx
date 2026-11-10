@@ -26,6 +26,7 @@ import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
+import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { EmptyState } from "../../components/shared/EmptyState";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
@@ -182,6 +183,7 @@ export const CategoriesPage: React.FC = () => {
       <PageHeader
         title="Categories"
         subtitle="Organize items and configure custom fields for each category"
+        icon={<CategoryOutlinedIcon />}
         action={
           <>
             <Button

@@ -351,6 +351,7 @@ export const LocationsPage: React.FC = () => {
       <PageHeader
         title="Storage Locations"
         subtitle="Hierarchy of Rooms, Cupboards, Shelves, and Boxes in your home"
+        icon={<PlaceOutlinedIcon />}
         action={
           <Button
             variant="contained"

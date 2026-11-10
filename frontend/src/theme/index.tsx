@@ -7,7 +7,14 @@ import "@fontsource/inter/700.css";
 import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/600.css";
 
-export type ThemePreset = "theme1" | "theme2";
+export type ThemePreset =
+  | "material"
+  | "theme1"
+  | "theme2"
+  | "dracula"
+  | "emerald"
+  | "nord"
+  | "sunset";
 export type ThemeMode = "system" | "light" | "dark";
 
 export interface ThemePresetConfig {
@@ -18,17 +25,47 @@ export interface ThemePresetConfig {
 }
 
 export const THEME_PRESETS: Record<ThemePreset, ThemePresetConfig> = {
+  material: {
+    id: "material",
+    name: "Material (Default)",
+    description: "Classic Material Blue & Surfaces",
+    colors: ["#121212", "#1E1E1E", "#1976D2", "#42A5F5", "#FFFFFF"],
+  },
   theme1: {
     id: "theme1",
-    name: "Theme One",
+    name: "Theme One (Slate)",
     description: "Obsidian Slate & Aqua Mist",
     colors: ["#020608", "#1C252B", "#486B85", "#93B4BC", "#CAD2CB"],
   },
   theme2: {
     id: "theme2",
-    name: "Theme 2",
+    name: "Theme Two (Cyan)",
     description: "Abyss Navy & Vibrant Cyan",
     colors: ["#001C2E", "#02435C", "#57B5C3", "#E0E6E5", "#98A7AE"],
+  },
+  dracula: {
+    id: "dracula",
+    name: "Dracula Purple",
+    description: "Vampire Midnight & Electric Violet",
+    colors: ["#181528", "#221E38", "#BD93F9", "#FF79C6", "#F8F8F2"],
+  },
+  emerald: {
+    id: "emerald",
+    name: "Emerald Forest",
+    description: "Deep Pine & Radiant Emerald",
+    colors: ["#061A12", "#0E2B1F", "#10B981", "#6EE7B7", "#ECFDF5"],
+  },
+  nord: {
+    id: "nord",
+    name: "Nordic Frost",
+    description: "Polar Night & Frost Blue",
+    colors: ["#1A1E24", "#242933", "#88C0D0", "#81A1C1", "#ECEFF4"],
+  },
+  sunset: {
+    id: "sunset",
+    name: "Sunset Amber",
+    description: "Charcoal & Radiant Amber",
+    colors: ["#18120C", "#261D15", "#F59E0B", "#FBBF24", "#FEF3C7"],
   },
 };
 
@@ -44,10 +81,10 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType>({
   mode: "dark",
   setMode: () => {},
-  preset: "theme1",
+  preset: "material",
   setPreset: () => {},
   resolvedMode: "dark",
-  presetConfig: THEME_PRESETS.theme1,
+  presetConfig: THEME_PRESETS.material,
 });
 
 export const useAppTheme = () => useContext(ThemeContext);
@@ -55,7 +92,7 @@ export const useAppTheme = () => useContext(ThemeContext);
 export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [preset, setPresetState] = useState<ThemePreset>(() => {
     const saved = localStorage.getItem("hi_theme_preset") as ThemePreset;
-    return saved === "theme2" ? "theme2" : "theme1";
+    return saved && THEME_PRESETS[saved] ? saved : "material";
   });
 
   const [mode, setModeState] = useState<ThemeMode>(() => {
@@ -86,7 +123,7 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const resolvedMode: "light" | "dark" =
     mode === "system" ? (systemPrefersDark ? "dark" : "light") : mode;
 
-  const presetConfig = THEME_PRESETS[preset] || THEME_PRESETS.theme1;
+  const presetConfig = THEME_PRESETS[preset] || THEME_PRESETS.material;
 
   const theme = useMemo(() => {
     const isDark = resolvedMode === "dark";
@@ -107,7 +144,162 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     let textDisabled: string;
     let dividerColor: string;
 
-    if (preset === "theme1") {
+    if (preset === "material") {
+      // Classic Material Design
+      if (isDark) {
+        defaultBg = "#121212";
+        paperBg = "#1E1E1E";
+        primaryMain = "#90CAF9";
+        primaryLight = "#E3F2FD";
+        primaryDark = "#42A5F5";
+        primaryContrast = "#000000";
+        secondaryMain = "#CE93D8";
+        secondaryLight = "#F3E5F5";
+        secondaryDark = "#AB47BC";
+        textPrimary = "#FFFFFF";
+        textSecondary = "rgba(255, 255, 255, 0.7)";
+        textDisabled = "rgba(255, 255, 255, 0.38)";
+        dividerColor = "rgba(255, 255, 255, 0.12)";
+      } else {
+        defaultBg = "#F5F5F5";
+        paperBg = "#FFFFFF";
+        primaryMain = "#1976D2";
+        primaryLight = "#42A5F5";
+        primaryDark = "#1565C0";
+        primaryContrast = "#FFFFFF";
+        secondaryMain = "#9C27B0";
+        secondaryLight = "#BA68C8";
+        secondaryDark = "#7B1FA2";
+        textPrimary = "rgba(0, 0, 0, 0.87)";
+        textSecondary = "rgba(0, 0, 0, 0.6)";
+        textDisabled = "rgba(0, 0, 0, 0.38)";
+        dividerColor = "rgba(0, 0, 0, 0.12)";
+      }
+    } else if (preset === "dracula") {
+      // Dracula Purple
+      if (isDark) {
+        defaultBg = "#181528";
+        paperBg = "#221E38";
+        primaryMain = "#BD93F9";
+        primaryLight = "#FF79C6";
+        primaryDark = "#8BE9FD";
+        primaryContrast = "#181528";
+        secondaryMain = "#FF79C6";
+        secondaryLight = "#50FA7B";
+        secondaryDark = "#FF5555";
+        textPrimary = "#F8F8F2";
+        textSecondary = "#8BE9FD";
+        textDisabled = alpha("#F8F8F2", 0.45);
+        dividerColor = alpha("#BD93F9", 0.25);
+      } else {
+        defaultBg = "#F6F3FC";
+        paperBg = "#FFFFFF";
+        primaryMain = "#7B2CBF";
+        primaryLight = "#9D4EDD";
+        primaryDark = "#5A189A";
+        primaryContrast = "#FFFFFF";
+        secondaryMain = "#C77DFF";
+        secondaryLight = "#E0AAFF";
+        secondaryDark = "#3C096C";
+        textPrimary = "#181528";
+        textSecondary = "#4A3B69";
+        textDisabled = "rgba(0, 0, 0, 0.38)";
+        dividerColor = alpha("#7B2CBF", 0.15);
+      }
+    } else if (preset === "emerald") {
+      // Emerald Forest
+      if (isDark) {
+        defaultBg = "#061A12";
+        paperBg = "#0E2B1F";
+        primaryMain = "#10B981";
+        primaryLight = "#6EE7B7";
+        primaryDark = "#047857";
+        primaryContrast = "#061A12";
+        secondaryMain = "#34D399";
+        secondaryLight = "#A7F3D0";
+        secondaryDark = "#059669";
+        textPrimary = "#ECFDF5";
+        textSecondary = "#6EE7B7";
+        textDisabled = alpha("#ECFDF5", 0.45);
+        dividerColor = alpha("#10B981", 0.25);
+      } else {
+        defaultBg = "#F0FDF4";
+        paperBg = "#FFFFFF";
+        primaryMain = "#059669";
+        primaryLight = "#10B981";
+        primaryDark = "#047857";
+        primaryContrast = "#FFFFFF";
+        secondaryMain = "#10B981";
+        secondaryLight = "#34D399";
+        secondaryDark = "#065F46";
+        textPrimary = "#061A12";
+        textSecondary = "#065F46";
+        textDisabled = "rgba(0, 0, 0, 0.38)";
+        dividerColor = alpha("#059669", 0.15);
+      }
+    } else if (preset === "nord") {
+      // Nordic Frost
+      if (isDark) {
+        defaultBg = "#1A1E24";
+        paperBg = "#242933";
+        primaryMain = "#88C0D0";
+        primaryLight = "#8FBCBB";
+        primaryDark = "#81A1C1";
+        primaryContrast = "#1A1E24";
+        secondaryMain = "#5E81AC";
+        secondaryLight = "#81A1C1";
+        secondaryDark = "#4C566A";
+        textPrimary = "#ECEFF4";
+        textSecondary = "#D8DEE9";
+        textDisabled = alpha("#ECEFF4", 0.45);
+        dividerColor = alpha("#88C0D0", 0.22);
+      } else {
+        defaultBg = "#F4F6F9";
+        paperBg = "#FFFFFF";
+        primaryMain = "#5E81AC";
+        primaryLight = "#81A1C1";
+        primaryDark = "#4C566A";
+        primaryContrast = "#FFFFFF";
+        secondaryMain = "#88C0D0";
+        secondaryLight = "#8FBCBB";
+        secondaryDark = "#3B4252";
+        textPrimary = "#2E3440";
+        textSecondary = "#4C566A";
+        textDisabled = "rgba(0, 0, 0, 0.38)";
+        dividerColor = alpha("#5E81AC", 0.15);
+      }
+    } else if (preset === "sunset") {
+      // Sunset Amber
+      if (isDark) {
+        defaultBg = "#18120C";
+        paperBg = "#261D15";
+        primaryMain = "#F59E0B";
+        primaryLight = "#FBBF24";
+        primaryDark = "#D97706";
+        primaryContrast = "#18120C";
+        secondaryMain = "#FB923C";
+        secondaryLight = "#FDE047";
+        secondaryDark = "#B45309";
+        textPrimary = "#FEF3C7";
+        textSecondary = "#FBBF24";
+        textDisabled = alpha("#FEF3C7", 0.45);
+        dividerColor = alpha("#F59E0B", 0.25);
+      } else {
+        defaultBg = "#FFFAEB";
+        paperBg = "#FFFFFF";
+        primaryMain = "#D97706";
+        primaryLight = "#F59E0B";
+        primaryDark = "#B45309";
+        primaryContrast = "#FFFFFF";
+        secondaryMain = "#EA580C";
+        secondaryLight = "#F97316";
+        secondaryDark = "#C2410C";
+        textPrimary = "#18120C";
+        textSecondary = "#78350F";
+        textDisabled = "rgba(0, 0, 0, 0.38)";
+        dividerColor = alpha("#D97706", 0.15);
+      }
+    } else if (preset === "theme1") {
       // Theme One: #020608, #1C252B, #486B85, #93B4BC, #CAD2CB
       if (isDark) {
         defaultBg = colors[0]; // #020608 Deep Obsidian

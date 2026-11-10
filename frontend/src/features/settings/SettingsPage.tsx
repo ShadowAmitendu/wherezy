@@ -30,6 +30,7 @@ import DnsOutlinedIcon from "@mui/icons-material/DnsOutlined";
 import StorageOutlinedIcon from "@mui/icons-material/StorageOutlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
+import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { AlertDialog } from "../../components/shared/AlertDialog";
@@ -168,6 +169,7 @@ export const SettingsPage: React.FC = () => {
       <PageHeader
         title="Settings & Administration"
         subtitle="Household security, network addresses, backup/restore, and export options"
+        icon={<SettingsOutlinedIcon />}
       />
 
       <AlertDialog

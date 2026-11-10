@@ -124,6 +124,7 @@ export const ScanPage: React.FC = () => {
       <PageHeader
         title="Scan QR or Barcode"
         subtitle="Quickly locate items and storage shelves by scanning labels"
+        icon={<QrCodeScannerIcon />}
       />
 
       <Box sx={{ maxWidth: 680, mx: "auto" }}>

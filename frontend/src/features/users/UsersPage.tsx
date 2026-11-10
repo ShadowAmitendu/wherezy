@@ -35,11 +35,13 @@ import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import LockOpenOutlinedIcon from "@mui/icons-material/LockOpenOutlined";
 import SecurityOutlinedIcon from "@mui/icons-material/SecurityOutlined";
+import PeopleOutlinedIcon from "@mui/icons-material/PeopleOutlined";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { api, ApiException, ProfileOut, ProfileRole } from "../../api/client";
 import { useAuth } from "../../auth/AuthContext";
 import { AlertDialog } from "../../components/shared/AlertDialog";
-import { EmojiPicker } from "../../components/shared/EmojiPicker";
+import { AccountIcon } from "../../components/shared/AccountIcon";
+import { AccountIconPicker } from "../../components/shared/AccountIconPicker";
 import { ColorSwatchPicker } from "../../components/shared/ColorSwatchPicker";
 
 const CUSTOM_PERM_OPTIONS = [
@@ -72,7 +74,7 @@ export const UsersPage: React.FC = () => {
   const [editingProfile, setEditingProfile] = useState<ProfileOut | null>(null);
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
-  const [avatarEmoji, setAvatarEmoji] = useState("👤");
+  const [avatarEmoji, setAvatarEmoji] = useState("Person");
   const [color, setColor] = useState("#486B85");
   const [role, setRole] = useState<ProfileRole>("member");
   const [password, setPassword] = useState("");
@@ -107,7 +109,7 @@ export const UsersPage: React.FC = () => {
     setEditingProfile(null);
     setName("");
     setUsername("");
-    setAvatarEmoji("👤");
+    setAvatarEmoji("Person");
     setColor("#486B85");
     setRole("member");
     setPassword("");
@@ -120,7 +122,7 @@ export const UsersPage: React.FC = () => {
     setEditingProfile(p);
     setName(p.name);
     setUsername(p.username || "");
-    setAvatarEmoji(p.avatar_emoji || "👤");
+    setAvatarEmoji(p.avatar_emoji || "Person");
     setColor(p.color || "#486B85");
     setRole(p.role);
     setPassword("");
@@ -260,6 +262,7 @@ export const UsersPage: React.FC = () => {
       <PageHeader
         title="Users & Roles"
         subtitle="Manage household members, access control, and customizable permission roles"
+        icon={<PeopleOutlinedIcon />}
         action={
           <Button
             variant="contained"
@@ -320,11 +323,10 @@ export const UsersPage: React.FC = () => {
                         width: 52,
                         height: 52,
                         bgcolor: p.color || "primary.main",
-                        fontSize: "1.6rem",
                         boxShadow: 1,
                       }}
                     >
-                      {p.avatar_emoji || p.name.charAt(0).toUpperCase()}
+                      <AccountIcon icon={p.avatar_emoji} name={p.name} fontSize="medium" sx={{ color: "#ffffff" }} />
                     </Avatar>
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -498,12 +500,12 @@ export const UsersPage: React.FC = () => {
                 />
               </Grid>
 
-              {/* Avatar Emoji Selector */}
+              {/* Account Icon Selector */}
               <Grid size={{ xs: 12, sm: 6 }}>
-                <EmojiPicker
+                <AccountIconPicker
                   value={avatarEmoji}
                   onChange={setAvatarEmoji}
-                  label={`Avatar Emoji: ${avatarEmoji}`}
+                  label="Account Icon"
                 />
               </Grid>
 

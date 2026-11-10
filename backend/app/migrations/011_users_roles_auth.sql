@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS profiles_new (
     name TEXT NOT NULL UNIQUE,
     username TEXT NULL UNIQUE,
     color TEXT NOT NULL DEFAULT '#1976d2',
-    avatar_emoji TEXT NOT NULL DEFAULT '👤',
+    avatar_emoji TEXT NOT NULL DEFAULT 'Person',
     role TEXT NOT NULL CHECK (role IN ('admin', 'co_admin', 'member', 'viewer', 'custom')),
     pin_hash TEXT NULL,
     must_change_password INTEGER NOT NULL DEFAULT 0,
