@@ -14,6 +14,7 @@ import {
   Alert,
   Divider,
   Grid,
+  Typography,
 } from "@mui/material";
 import { useForm } from "react-hook-form";
 import { Item } from "./types";
@@ -147,73 +148,116 @@ export const ItemFormDialog: React.FC<ItemFormDialogProps> = ({
         <DialogContent sx={{ pt: "20px !important" }}>
           {errorMsg && <Alert severity="error" sx={{ mb: 2 }}>{errorMsg}</Alert>}
 
-          <Grid container spacing={2} sx={{ mt: 0.5 }}>
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <TextField
-                label="Item Name"
-                placeholder="e.g. Paracetamol 500mg, Phillips LED Bulb"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                fullWidth
-                required
-                autoFocus
-              />
-            </Grid>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3, mt: 0.5 }}>
+            {/* Section 1: Basic Information */}
+            <Box>
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  color: "primary.main",
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  fontSize: "0.75rem",
+                  mb: 1.5,
+                }}
+              >
+                Basic Information
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    label="Item Name"
+                    placeholder="e.g. Paracetamol 500mg, Phillips LED Bulb"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    fullWidth
+                    required
+                    autoFocus
+                  />
+                </Grid>
 
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <FormControl fullWidth required>
-                <InputLabel id="item-category-select-label">Category</InputLabel>
-                <Select
-                  labelId="item-category-select-label"
-                  value={selectedCategoryId ? String(selectedCategoryId) : ""}
-                  label="Category"
-                  onChange={(e) => setSelectedCategoryId(Number(e.target.value))}
-                >
-                  {categories.map((c) => (
-                    <MenuItem key={c.id} value={String(c.id)}>
-                      {c.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FormControl fullWidth required>
+                    <InputLabel id="item-category-select-label">Category</InputLabel>
+                    <Select
+                      labelId="item-category-select-label"
+                      value={selectedCategoryId ? String(selectedCategoryId) : ""}
+                      label="Category"
+                      onChange={(e) => setSelectedCategoryId(Number(e.target.value))}
+                    >
+                      {categories.map((c) => (
+                        <MenuItem key={c.id} value={String(c.id)}>
+                          {c.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
 
-            <Grid size={{ xs: 12, sm: activeCategory?.track_expiry ? 6 : 12 }}>
-              <LocationPicker
-                value={selectedLocationId}
-                onChange={(newLoc) => setSelectedLocationId(newLoc)}
-              />
-            </Grid>
+                <Grid size={{ xs: 12, sm: activeCategory?.track_expiry ? 6 : 12 }}>
+                  <LocationPicker
+                    value={selectedLocationId}
+                    onChange={(newLoc) => setSelectedLocationId(newLoc)}
+                  />
+                </Grid>
 
-            {activeCategory?.track_expiry && (
-              <Grid size={{ xs: 12, sm: 6 }}>
-                <TextField
-                  label={activeCategory.expiry_label || "Expiry Date"}
-                  type="date"
-                  value={expiryDate}
-                  onChange={(e) => setExpiryDate(e.target.value)}
-                  fullWidth
-                  slotProps={{
-                    inputLabel: {
-                      shrink: true,
-                    },
-                  }}
-                />
+                {activeCategory?.track_expiry && (
+                  <Grid size={{ xs: 12, sm: 6 }}>
+                    <TextField
+                      label={activeCategory.expiry_label || "Expiry Date"}
+                      type="date"
+                      value={expiryDate}
+                      onChange={(e) => setExpiryDate(e.target.value)}
+                      fullWidth
+                      slotProps={{
+                        inputLabel: {
+                          shrink: true,
+                        },
+                      }}
+                    />
+                  </Grid>
+                )}
               </Grid>
-            )}
+            </Box>
 
+            {/* Section 2: Category Attributes (when fields exist) */}
             {categoryFields.length > 0 && (
-              <Grid size={{ xs: 12 }}>
-                <Divider sx={{ my: 1 }}>
-                  <Box sx={{ typography: "caption", color: "text.secondary", fontWeight: 500, textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                    Category Custom Fields
-                  </Box>
-                </Divider>
+              <Box>
+                <Divider sx={{ mb: 2 }} />
+                <Typography
+                  variant="subtitle2"
+                  sx={{
+                    color: "primary.main",
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    fontSize: "0.75rem",
+                    mb: 1.5,
+                  }}
+                >
+                  {activeCategory?.name ? `${activeCategory.name} Details` : "Properties"}
+                </Typography>
                 <DynamicFields fields={categoryFields} control={control} />
-              </Grid>
+              </Box>
             )}
 
-            <Grid size={{ xs: 12 }}>
+            {/* Section 3: Notes & Documentation */}
+            <Box>
+              <Divider sx={{ mb: 2 }} />
+              <Typography
+                variant="subtitle2"
+                sx={{
+                  color: "text.secondary",
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.08em",
+                  fontSize: "0.75rem",
+                  mb: 1.5,
+                }}
+              >
+                Notes & Additional Details
+              </Typography>
               <TextField
                 label="Notes (Optional)"
                 placeholder="Any extra details, serial numbers, warranty notes..."
@@ -223,8 +267,8 @@ export const ItemFormDialog: React.FC<ItemFormDialogProps> = ({
                 rows={3}
                 fullWidth
               />
-            </Grid>
-          </Grid>
+            </Box>
+          </Box>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={onClose} disabled={isSubmitting}>

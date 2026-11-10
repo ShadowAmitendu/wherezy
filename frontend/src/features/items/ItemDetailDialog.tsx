@@ -248,10 +248,10 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
               )}
             </Box>
 
-            {/* Custom Fields & Notes */}
+            {/* Item Specific Properties & Notes */}
             <Box>
               <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1.5, letterSpacing: "0.01em" }}>
-                Item Details
+                {item?.category_name ? `${item.category_name} Attributes` : "Item Attributes"}
               </Typography>
 
               <Grid container spacing={2}>
@@ -285,7 +285,7 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
                 ) : (
                   <Grid size={{ xs: 12 }}>
                     <Typography variant="body2" color="text.secondary">
-                      No custom fields defined for this category.
+                      No specific properties defined for this category.
                     </Typography>
                   </Grid>
                 )}
