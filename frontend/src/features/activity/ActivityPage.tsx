@@ -91,7 +91,7 @@ export const ActivityPage: React.FC = () => {
   };
 
   return (
-    <Box sx={{ maxWidth: 1000, mx: "auto" }}>
+    <Box sx={{ width: "100%" }}>
       {/* Header */}
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, flexWrap: "wrap", gap: 2 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>

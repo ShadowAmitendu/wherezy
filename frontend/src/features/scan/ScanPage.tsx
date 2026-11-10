@@ -120,13 +120,14 @@ export const ScanPage: React.FC = () => {
   }, []);
 
   return (
-    <Box sx={{ maxWidth: 640, mx: "auto" }}>
+    <Box sx={{ width: "100%" }}>
       <PageHeader
         title="Scan QR or Barcode"
         subtitle="Quickly locate items and storage shelves by scanning labels"
       />
 
-      {/* Error & Warning Dialogs */}
+      <Box sx={{ maxWidth: 680, mx: "auto" }}>
+        {/* Error & Warning Dialogs */}
       <AlertDialog
         open={Boolean(errorMsg)}
         onClose={() => setErrorMsg(null)}
@@ -265,6 +266,7 @@ export const ScanPage: React.FC = () => {
           </form>
         </CardContent>
       </Card>
+      </Box>
     </Box>
   );
 };

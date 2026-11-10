@@ -96,7 +96,7 @@ export const RemindersPage: React.FC = () => {
   const dueSoonCount = reminders.filter((r) => r.status === "due_soon").length;
 
   return (
-    <Box sx={{ p: { xs: 2, md: 3 }, maxWidth: 1000, mx: "auto" }}>
+    <Box sx={{ width: "100%" }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 2 }}>
         <NotificationsActiveOutlinedIcon color="primary" sx={{ fontSize: 32 }} />
         <Box>

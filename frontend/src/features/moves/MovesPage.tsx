@@ -195,7 +195,7 @@ export const MovesPage: React.FC = () => {
   };
 
   return (
-    <Box sx={{ maxWidth: 1200, mx: "auto" }}>
+    <Box sx={{ width: "100%" }}>
       {/* Page Header */}
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, flexWrap: "wrap", gap: 2 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>

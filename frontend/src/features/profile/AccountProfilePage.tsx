@@ -143,7 +143,7 @@ export const AccountProfilePage: React.FC = () => {
   };
 
   return (
-    <Box sx={{ maxWidth: 900, mx: "auto" }}>
+    <Box sx={{ width: "100%" }}>
       <PageHeader
         title="Account & Profile"
         subtitle="Manage your personal credentials, appearance, and household preferences"

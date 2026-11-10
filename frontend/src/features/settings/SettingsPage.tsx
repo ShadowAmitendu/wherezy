@@ -164,7 +164,7 @@ export const SettingsPage: React.FC = () => {
   };
 
   return (
-    <Box sx={{ maxWidth: 840, mx: "auto" }}>
+    <Box sx={{ width: "100%" }}>
       <PageHeader
         title="Settings & Administration"
         subtitle="Household security, network addresses, backup/restore, and export options"

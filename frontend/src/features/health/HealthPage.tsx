@@ -174,7 +174,7 @@ export const HealthPage: React.FC = () => {
   ];
 
   return (
-    <Box sx={{ maxWidth: 1200, mx: "auto" }}>
+    <Box sx={{ width: "100%" }}>
       {/* Page Title */}
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>

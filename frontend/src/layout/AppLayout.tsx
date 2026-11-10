@@ -31,6 +31,7 @@ import {
   Grid,
   BottomNavigation,
   BottomNavigationAction,
+  CircularProgress,
 } from "@mui/material";
 import { AlertDialog } from "../components/shared/AlertDialog";
 import MenuIcon from "@mui/icons-material/Menu";
@@ -38,6 +39,11 @@ import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import MoveToInboxOutlinedIcon from "@mui/icons-material/MoveToInboxOutlined";
 import NotificationsOutlinedIcon from "@mui/icons-material/NotificationsOutlined";
+import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
+import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
+import ScheduleOutlinedIcon from "@mui/icons-material/ScheduleOutlined";
+import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
 import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
 import HealingOutlinedIcon from "@mui/icons-material/HealingOutlined";
@@ -118,6 +124,29 @@ export const AppLayout: React.FC = () => {
 
   // Reminders badge state
   const [remindersCount, setRemindersCount] = useState<number>(0);
+
+  // Notification dropdown popover state
+  const [notifAnchorEl, setNotifAnchorEl] = useState<null | HTMLElement>(null);
+  const [topNotifications, setTopNotifications] = useState<any[]>([]);
+  const [loadingNotifications, setLoadingNotifications] = useState<boolean>(false);
+
+  const handleOpenNotifications = async (event: React.MouseEvent<HTMLElement>) => {
+    setNotifAnchorEl(event.currentTarget);
+    setLoadingNotifications(true);
+    try {
+      const data = await api.getReminders();
+      const active = (data || []).filter((r: any) => r.status === "overdue" || r.status === "due_soon");
+      setTopNotifications(active.slice(0, 5));
+    } catch (err) {
+      console.error("Failed to load notifications", err);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+  const handleCloseNotifications = () => {
+    setNotifAnchorEl(null);
+  };
 
   // Profile switcher state
   const [allProfiles, setAllProfiles] = useState<any[]>([]);
@@ -352,14 +381,185 @@ export const AppLayout: React.FC = () => {
               </IconButton>
             </Tooltip>
 
-            {/* Reminder Bell */}
-            <Tooltip title="Reminders">
-              <IconButton onClick={() => navigate("/reminders")} color="inherit" size={isMobile ? "small" : "medium"}>
+            {/* Notification Bell with Dropdown Menu */}
+            <Tooltip title="Notifications">
+              <IconButton
+                onClick={handleOpenNotifications}
+                color="inherit"
+                size={isMobile ? "small" : "medium"}
+                aria-label="notifications"
+              >
                 <Badge badgeContent={remindersCount} color="error" max={99}>
                   <NotificationsOutlinedIcon fontSize={isMobile ? "small" : "medium"} />
                 </Badge>
               </IconButton>
             </Tooltip>
+
+            {/* Notification Dropdown Menu Box */}
+            <Menu
+              anchorEl={notifAnchorEl}
+              open={Boolean(notifAnchorEl)}
+              onClose={handleCloseNotifications}
+              transformOrigin={{ horizontal: "right", vertical: "top" }}
+              anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+              slotProps={{
+                paper: {
+                  sx: {
+                    width: { xs: 320, sm: 380 },
+                    maxWidth: "92vw",
+                    maxHeight: 480,
+                    borderRadius: 2,
+                    boxShadow: 8,
+                    overflow: "hidden",
+                    p: 0,
+                    mt: 1,
+                  },
+                },
+              }}
+            >
+              {/* Header */}
+              <Box
+                sx={{
+                  px: 2,
+                  py: 1.5,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  bgcolor: "background.paper",
+                  borderBottom: 1,
+                  borderColor: "divider",
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <NotificationsActiveOutlinedIcon fontSize="small" color="primary" />
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                    Notifications
+                  </Typography>
+                </Box>
+                {remindersCount > 0 ? (
+                  <Chip
+                    label={`${remindersCount} New`}
+                    size="small"
+                    color="error"
+                    sx={{ height: 20, fontSize: "0.65rem", fontWeight: 700 }}
+                  />
+                ) : (
+                  <Chip
+                    label="All Clear"
+                    size="small"
+                    color="success"
+                    variant="outlined"
+                    sx={{ height: 20, fontSize: "0.65rem", fontWeight: 600 }}
+                  />
+                )}
+              </Box>
+
+              {/* Notifications List */}
+              <Box sx={{ maxHeight: 320, overflowY: "auto" }}>
+                {loadingNotifications ? (
+                  <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
+                    <CircularProgress size={28} />
+                  </Box>
+                ) : topNotifications.length === 0 ? (
+                  <Box sx={{ py: 4, px: 2, textAlign: "center" }}>
+                    <CheckCircleOutlinedIcon sx={{ fontSize: 40, color: "success.main", mb: 1, opacity: 0.8 }} />
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      All caught up!
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      No overdue or pending inventory reminders right now.
+                    </Typography>
+                  </Box>
+                ) : (
+                  <List disablePadding>
+                    {topNotifications.map((n, i) => {
+                      const isOverdue = n.status === "overdue";
+                      return (
+                        <ListItemButton
+                          key={n.id || i}
+                          divider={i < topNotifications.length - 1}
+                          onClick={() => {
+                            handleCloseNotifications();
+                            if (n.item_id) {
+                              navigate(`/items?selected=${n.item_id}`);
+                            } else {
+                              navigate("/reminders");
+                            }
+                          }}
+                          sx={{
+                            px: 2,
+                            py: 1.25,
+                            gap: 1.5,
+                            alignItems: "flex-start",
+                            "&:hover": { bgcolor: "action.hover" },
+                          }}
+                        >
+                          <ListItemIcon sx={{ minWidth: 28, mt: 0.5 }}>
+                            {isOverdue ? (
+                              <WarningAmberOutlinedIcon fontSize="small" color="error" />
+                            ) : (
+                              <ScheduleOutlinedIcon fontSize="small" color="warning" />
+                            )}
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={
+                              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
+                                <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
+                                  {n.item_name}
+                                </Typography>
+                                <Chip
+                                  label={isOverdue ? "OVERDUE" : "SOON"}
+                                  size="small"
+                                  color={isOverdue ? "error" : "warning"}
+                                  sx={{ height: 18, fontSize: "0.6rem", fontWeight: 800 }}
+                                />
+                              </Box>
+                            }
+                            secondary={
+                              <Box sx={{ mt: 0.25 }}>
+                                <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                                  {n.source_type ? `${n.source_type.toUpperCase()}: ` : ""}
+                                  {isOverdue ? `Expired on ${n.due_date}` : `Due on ${n.due_date}`}
+                                </Typography>
+                                {n.borrower_name && (
+                                  <Typography variant="caption" color="info.main" sx={{ display: "block", fontWeight: 600 }}>
+                                    Loaned to: {n.borrower_name}
+                                  </Typography>
+                                )}
+                              </Box>
+                            }
+                          />
+                        </ListItemButton>
+                      );
+                    })}
+                  </List>
+                )}
+              </Box>
+
+              {/* Footer */}
+              <Box
+                sx={{
+                  p: 1,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  bgcolor: "background.paper",
+                  borderTop: 1,
+                  borderColor: "divider",
+                }}
+              >
+                <Button
+                  size="small"
+                  onClick={() => {
+                    handleCloseNotifications();
+                    navigate("/reminders");
+                  }}
+                  endIcon={<OpenInNewIcon fontSize="small" />}
+                  sx={{ textTransform: "none", fontWeight: 600, width: "100%" }}
+                >
+                  Open Reminder Centre
+                </Button>
+              </Box>
+            </Menu>
 
             {/* Theme & Palette Switcher */}
             <Tooltip title={`Theme: ${presetConfig.name} (${resolvedMode})`}>
@@ -667,7 +867,9 @@ export const AppLayout: React.FC = () => {
           overflowX: "hidden",
         }}
       >
-        <Outlet />
+        <Box sx={{ width: "100%", maxWidth: 1400, mx: "auto" }}>
+          <Outlet />
+        </Box>
       </Box>
 
       {/* Mobile Bottom Navigation Bar */}
