@@ -235,6 +235,7 @@ export const CategoriesPage: React.FC = () => {
                 sx={{
                   width: "100%",
                   height: "100%",
+                  minHeight: 124,
                   display: "flex",
                   flexDirection: "column",
                   borderLeft: `6px solid ${cat.color || "#1976d2"}`,
@@ -312,7 +313,12 @@ export const CategoriesPage: React.FC = () => {
                           variant="outlined"
                         />
                       ) : (
-                        <Box sx={{ height: 24 }} />
+                        <Chip
+                          label="Standard items"
+                          size="small"
+                          variant="outlined"
+                          sx={{ opacity: 0.65, borderColor: "divider" }}
+                        />
                       )}
                     </Box>
                   </CardContent>

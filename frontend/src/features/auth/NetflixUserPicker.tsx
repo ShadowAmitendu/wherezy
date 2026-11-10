@@ -13,6 +13,9 @@ import {
   Avatar,
   IconButton,
   InputAdornment,
+  ButtonBase,
+  Grow,
+  Fade,
 } from "@mui/material";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import LockOpenOutlinedIcon from "@mui/icons-material/LockOpenOutlined";
@@ -142,30 +145,32 @@ export const NetflixUserPicker: React.FC<NetflixUserPickerProps> = ({
       )}
 
       {/* Main Netflix-style header */}
-      <Box sx={{ textAlign: "center", mb: { xs: 4, sm: 6 } }}>
-        <Typography
-          variant="h3"
-          sx={{
-            fontWeight: 800,
-            letterSpacing: "-0.02em",
-            fontSize: { xs: "2rem", sm: "3.2rem" },
-            mb: 1,
-            color: "#ffffff",
-            textShadow: "0 2px 16px rgba(0,0,0,0.6)",
-          }}
-        >
-          Who is using?
-        </Typography>
-        <Typography
-          variant="body1"
-          sx={{
-            color: "rgba(255,255,255,0.65)",
-            fontSize: { xs: "0.95rem", sm: "1.15rem" },
-          }}
-        >
-          Select your household profile to enter HomeInventory
-        </Typography>
-      </Box>
+      <Fade in={!loading} timeout={400}>
+        <Box sx={{ textAlign: "center", mb: { xs: 4, sm: 6 } }}>
+          <Typography
+            variant="h3"
+            sx={{
+              fontWeight: 800,
+              letterSpacing: "-0.02em",
+              fontSize: { xs: "2rem", sm: "3.2rem" },
+              mb: 1,
+              color: "#ffffff",
+              textShadow: "0 2px 16px rgba(0,0,0,0.6)",
+            }}
+          >
+            Who is using?
+          </Typography>
+          <Typography
+            variant="body1"
+            sx={{
+              color: "rgba(255,255,255,0.65)",
+              fontSize: { xs: "0.95rem", sm: "1.15rem" },
+            }}
+          >
+            Select your household profile to enter HomeInventory
+          </Typography>
+        </Box>
+      </Fade>
 
       {/* User Profiles Grid */}
       <Box
@@ -179,130 +184,148 @@ export const NetflixUserPicker: React.FC<NetflixUserPickerProps> = ({
           mb: 6,
         }}
       >
-        {profiles.map((p) => {
+        {profiles.map((p, index) => {
           const profileColor = p.color || "#486B85";
           return (
-            <Box
+            <Grow
+              in={!loading}
+              timeout={300 + index * 80}
               key={p.id}
-              onClick={() => handleCardClick(p)}
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                cursor: "pointer",
-                transition: "all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1)",
-                "&:hover": {
-                  transform: "scale(1.08)",
-                  "& .avatar-box": {
-                    borderColor: "#ffffff",
-                    boxShadow: `0 0 25px ${profileColor}`,
-                  },
-                  "& .user-name": {
-                    color: "#ffffff",
-                  },
-                },
-              }}
             >
               <Box
-                className="avatar-box"
                 sx={{
-                  width: { xs: 100, sm: 135 },
-                  height: { xs: 100, sm: 135 },
-                  borderRadius: 3,
-                  bgcolor: profileColor,
                   display: "flex",
+                  flexDirection: "column",
                   alignItems: "center",
-                  justifyContent: "center",
-                  border: "3px solid transparent",
-                  transition: "all 0.2s ease",
-                  position: "relative",
-                  boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
                 }}
               >
-                <Typography sx={{ fontSize: { xs: "2.8rem", sm: "3.8rem" }, userSelect: "none" }}>
-                  {p.avatar_emoji || p.name.charAt(0).toUpperCase()}
+                <ButtonBase
+                  focusRipple
+                  onClick={() => handleCardClick(p)}
+                  sx={{
+                    width: { xs: 100, sm: 135 },
+                    height: { xs: 100, sm: 135 },
+                    borderRadius: 2,
+                    bgcolor: profileColor,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    border: "3px solid transparent",
+                    position: "relative",
+                    overflow: "hidden",
+                    boxShadow: 2,
+                    transition: (theme) =>
+                      theme.transitions.create(["transform", "box-shadow", "border-color"], {
+                        duration: theme.transitions.duration.shorter,
+                        easing: theme.transitions.easing.easeInOut,
+                      }),
+                    "&:hover, &:focus-visible": {
+                      transform: "translateY(-4px)",
+                      boxShadow: 8,
+                      borderColor: "#ffffff",
+                    },
+                    "&:active": {
+                      transform: "translateY(-1px)",
+                      boxShadow: 4,
+                    },
+                  }}
+                >
+                  <Typography sx={{ fontSize: { xs: "2.8rem", sm: "3.8rem" }, userSelect: "none" }}>
+                    {p.avatar_emoji || p.name.charAt(0).toUpperCase()}
+                  </Typography>
+
+                  {p.has_pin && (
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        bottom: 8,
+                        right: 8,
+                        bgcolor: "rgba(0,0,0,0.65)",
+                        borderRadius: "50%",
+                        p: 0.5,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                    >
+                      <LockOutlinedIcon sx={{ fontSize: 16, color: "#CAD2CB" }} />
+                    </Box>
+                  )}
+                </ButtonBase>
+
+                <Typography
+                  className="user-name"
+                  variant="h6"
+                  sx={{
+                    mt: 1.5,
+                    fontWeight: 600,
+                    fontSize: { xs: "1rem", sm: "1.2rem" },
+                    color: "rgba(255,255,255,0.8)",
+                    textAlign: "center",
+                    maxWidth: 140,
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                    transition: (theme) =>
+                      theme.transitions.create("color", {
+                        duration: theme.transitions.duration.shorter,
+                        easing: theme.transitions.easing.easeInOut,
+                      }),
+                  }}
+                >
+                  {p.name}
                 </Typography>
 
-                {p.has_pin && (
-                  <Box
-                    sx={{
-                      position: "absolute",
-                      bottom: 8,
-                      right: 8,
-                      bgcolor: "rgba(0,0,0,0.65)",
-                      borderRadius: "50%",
-                      p: 0.5,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <LockOutlinedIcon sx={{ fontSize: 16, color: "#CAD2CB" }} />
-                  </Box>
-                )}
+                <Chip
+                  label={p.role.replace("_", " ")}
+                  size="small"
+                  sx={{
+                    mt: 0.5,
+                    height: 22,
+                    fontSize: "0.7rem",
+                    textTransform: "capitalize",
+                    fontWeight: 600,
+                    bgcolor: "rgba(255,255,255,0.12)",
+                    color: "#CAD2CB",
+                  }}
+                />
               </Box>
-
-              <Typography
-                className="user-name"
-                variant="h6"
-                sx={{
-                  mt: 1.5,
-                  fontWeight: 600,
-                  fontSize: { xs: "1rem", sm: "1.2rem" },
-                  color: "rgba(255,255,255,0.75)",
-                  transition: "color 0.2s ease",
-                  textAlign: "center",
-                  maxWidth: 140,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {p.name}
-              </Typography>
-
-              <Chip
-                label={p.role.replace("_", " ")}
-                size="small"
-                sx={{
-                  mt: 0.5,
-                  height: 22,
-                  fontSize: "0.7rem",
-                  textTransform: "capitalize",
-                  fontWeight: 600,
-                  bgcolor: "rgba(255,255,255,0.12)",
-                  color: "#CAD2CB",
-                }}
-              />
-            </Box>
+            </Grow>
           );
         })}
       </Box>
 
       {/* Bottom Switch to Normal Login */}
       {showBackToLogin && (
-        <Box sx={{ mt: 2 }}>
-          <Button
-            variant="outlined"
-            onClick={() => navigate("/login")}
-            sx={{
-              borderColor: "rgba(255,255,255,0.25)",
-              color: "rgba(255,255,255,0.8)",
-              px: 3,
-              py: 1,
-              textTransform: "none",
-              fontSize: "0.95rem",
-              borderRadius: 1,
-              "&:hover": {
-                borderColor: "#ffffff",
-                color: "#ffffff",
-                bgcolor: "rgba(255,255,255,0.06)",
-              },
-            }}
-          >
-            Sign in with Username & Password
-          </Button>
-        </Box>
+        <Fade in={!loading} timeout={500}>
+          <Box sx={{ mt: 2 }}>
+            <Button
+              variant="outlined"
+              onClick={() => navigate("/login")}
+              sx={{
+                borderColor: "rgba(255,255,255,0.25)",
+                color: "rgba(255,255,255,0.8)",
+                px: 3,
+                py: 1,
+                textTransform: "none",
+                fontSize: "0.95rem",
+                borderRadius: 1,
+                transition: (theme) =>
+                  theme.transitions.create(["border-color", "color", "background-color"], {
+                    duration: theme.transitions.duration.shorter,
+                    easing: theme.transitions.easing.easeInOut,
+                  }),
+                "&:hover": {
+                  borderColor: "#ffffff",
+                  color: "#ffffff",
+                  bgcolor: "rgba(255,255,255,0.06)",
+                },
+              }}
+            >
+              Sign in with Username & Password
+            </Button>
+          </Box>
+        </Fade>
       )}
 
       {/* Password Prompt Modal for Protected Users */}
