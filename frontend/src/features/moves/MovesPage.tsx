@@ -25,6 +25,8 @@ import {
   ListItem,
   ListItemText,
   LinearProgress,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 import AddIcon from "@mui/icons-material/Add";
@@ -35,6 +37,8 @@ import { LocationPicker } from "../locations/LocationPicker";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 
 export const MovesPage: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [activeMove, setActiveMove] = useState<any | null>(null);
   const [boxes, setBoxes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -346,7 +350,7 @@ export const MovesPage: React.FC = () => {
       )}
 
       {/* Start Move Dialog */}
-      <Dialog open={moveDialogOpen} onClose={() => setMoveDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={moveDialogOpen} onClose={() => setMoveDialogOpen(false)} maxWidth="sm" fullWidth fullScreen={isMobile}>
         <DialogTitle>Start Moving House Project</DialogTitle>
         <DialogContent sx={{ pt: "24px !important", display: "flex", flexDirection: "column", gap: 2.5 }}>
           <TextField
@@ -377,7 +381,7 @@ export const MovesPage: React.FC = () => {
       </Dialog>
 
       {/* Create Box Dialog */}
-      <Dialog open={boxDialogOpen} onClose={() => setBoxDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={boxDialogOpen} onClose={() => setBoxDialogOpen(false)} maxWidth="sm" fullWidth fullScreen={isMobile}>
         <DialogTitle>Add New Box</DialogTitle>
         <DialogContent sx={{ pt: "24px !important", display: "flex", flexDirection: "column", gap: 2.5 }}>
           <TextField
@@ -421,7 +425,7 @@ export const MovesPage: React.FC = () => {
       </Dialog>
 
       {/* Box Contents & Packing Modal */}
-      <Dialog open={Boolean(selectedBox)} onClose={() => setSelectedBox(null)} maxWidth="md" fullWidth>
+      <Dialog open={Boolean(selectedBox)} onClose={() => setSelectedBox(null)} maxWidth="md" fullWidth fullScreen={isMobile}>
         <DialogTitle>
           Box #{selectedBox?.number}: {selectedBox?.label}
         </DialogTitle>

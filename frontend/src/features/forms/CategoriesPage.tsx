@@ -19,6 +19,8 @@ import {
   Snackbar,
   Tooltip,
   Grid,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -46,6 +48,8 @@ const COLOR_PRESETS = [
 
 export const CategoriesPage: React.FC = () => {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [categories, setCategories] = useState<Category[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -325,6 +329,7 @@ export const CategoriesPage: React.FC = () => {
         onClose={() => setTemplateDialogOpen(false)}
         maxWidth="md"
         fullWidth
+        fullScreen={isMobile}
       >
         <DialogTitle>Starter Templates</DialogTitle>
         <DialogContent>
@@ -382,7 +387,7 @@ export const CategoriesPage: React.FC = () => {
       </Dialog>
 
       {/* Create / Edit Category Dialog */}
-      <Dialog open={categoryDialogOpen} onClose={() => setCategoryDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={categoryDialogOpen} onClose={() => setCategoryDialogOpen(false)} maxWidth="sm" fullWidth fullScreen={isMobile}>
         <DialogTitle>{editingCategory ? "Edit Category" : "New Category"}</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: "24px !important" }}>
           <AlertDialog

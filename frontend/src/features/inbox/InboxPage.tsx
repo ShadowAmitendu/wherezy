@@ -19,6 +19,8 @@ import {
   Select,
   MenuItem,
   CircularProgress,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
@@ -29,6 +31,8 @@ import { api } from "../../api/client";
 import { LocationPicker } from "../locations/LocationPicker";
 
 export const InboxPage: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [inboxItems, setInboxItems] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -262,7 +266,7 @@ export const InboxPage: React.FC = () => {
       )}
 
       {/* Sort Item Dialog */}
-      <Dialog open={Boolean(sortingItem)} onClose={() => setSortingItem(null)} maxWidth="sm" fullWidth>
+      <Dialog open={Boolean(sortingItem)} onClose={() => setSortingItem(null)} maxWidth="sm" fullWidth fullScreen={isMobile}>
         <DialogTitle>Sort Item into Inventory</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: 3 }}>
           <AlertDialog

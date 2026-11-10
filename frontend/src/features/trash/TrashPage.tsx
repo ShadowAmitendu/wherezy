@@ -138,6 +138,9 @@ export const TrashPage: React.FC = () => {
           onChange={(_, val) => setTabIndex(val)}
           indicatorColor="primary"
           textColor="primary"
+          variant="scrollable"
+          scrollButtons="auto"
+          allowScrollButtonsMobile
           sx={{ borderBottom: 1, borderColor: "divider" }}
         >
           <Tab label={`Items (${items.length})`} sx={{ fontWeight: 600 }} />

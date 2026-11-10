@@ -231,7 +231,7 @@ export const SettingsPage: React.FC = () => {
             This URL is encoded into QR codes so mobile cameras open the app directly. We recommend setting a static IP or DHCP reservation on your home router.
           </Typography>
 
-          <Box sx={{ display: "flex", gap: 1.5, mb: 1 }}>
+          <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 1.5, mb: 1 }}>
             <TextField
               label="Base URL"
               placeholder="e.g. http://192.168.1.100:8000"
@@ -239,7 +239,7 @@ export const SettingsPage: React.FC = () => {
               onChange={(e) => setBaseUrl(e.target.value)}
               fullWidth
             />
-            <Button variant="outlined" onClick={handleAutoDetectBaseUrl} sx={{ whiteSpace: "nowrap" }}>
+            <Button variant="outlined" onClick={handleAutoDetectBaseUrl} sx={{ whiteSpace: "nowrap", flexShrink: 0 }}>
               Use Current Origin
             </Button>
           </Box>

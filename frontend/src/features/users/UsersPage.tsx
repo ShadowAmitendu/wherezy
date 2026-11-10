@@ -24,6 +24,8 @@ import {
   Tooltip,
   Divider,
   Stack,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -69,6 +71,8 @@ const CUSTOM_PERM_OPTIONS = [
 ];
 
 export const UsersPage: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { currentProfile } = useAuth();
   const [profiles, setProfiles] = useState<ProfileOut[]>([]);
   const [loading, setLoading] = useState(true);
@@ -468,7 +472,7 @@ export const UsersPage: React.FC = () => {
       </Grid>
 
       {/* Add / Edit User Dialog */}
-      <Dialog open={userDialogOpen} onClose={() => setUserDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={userDialogOpen} onClose={() => setUserDialogOpen(false)} maxWidth="sm" fullWidth fullScreen={isMobile}>
         <form onSubmit={handleSaveUser}>
           <DialogTitle sx={{ fontWeight: 700 }}>
             {editingProfile ? `Edit User: ${editingProfile.name}` : "Create New Household User"}

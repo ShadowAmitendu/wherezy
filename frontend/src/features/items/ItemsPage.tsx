@@ -48,9 +48,11 @@ import { Category } from "../forms/types";
 export const ItemsPage: React.FC = () => {
   const [searchParams] = useSearchParams();
 
-  // View mode: 'table' or 'card', remembered in localStorage
+  // View mode: 'table' or 'card', remembered in localStorage; defaults to 'card' on mobile
   const [viewMode, setViewMode] = useState<"table" | "card">(() => {
-    return (localStorage.getItem("hi_items_view") as "table" | "card") || "table";
+    const saved = localStorage.getItem("hi_items_view") as "table" | "card" | null;
+    if (saved) return saved;
+    return typeof window !== "undefined" && window.innerWidth < 768 ? "card" : "table";
   });
 
   const [items, setItems] = useState<Item[]>([]);

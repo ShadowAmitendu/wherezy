@@ -64,6 +64,7 @@ export const ExpiryPage: React.FC = () => {
             value={filter}
             exclusive
             onChange={(_, val) => val && setFilter(val)}
+            sx={{ flexWrap: "wrap" }}
           >
             <ToggleButton value="all">All ({items.length})</ToggleButton>
             <ToggleButton value="expired" color="error">

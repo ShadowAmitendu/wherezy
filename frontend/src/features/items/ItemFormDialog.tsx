@@ -14,7 +14,11 @@ import {
   Divider,
   Grid,
   Typography,
+  IconButton,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 import { useForm } from "react-hook-form";
 import { Item } from "./types";
 import { Category, FieldDef } from "../forms/types";
@@ -40,6 +44,8 @@ export const ItemFormDialog: React.FC<ItemFormDialogProps> = ({
   onClose,
   onSaved,
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | "">("");
   const [categoryFields, setCategoryFields] = useState<FieldDef[]>([]);
@@ -142,10 +148,17 @@ export const ItemFormDialog: React.FC<ItemFormDialogProps> = ({
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <form onSubmit={handleSubmit}>
-        <DialogTitle>{item ? "Edit Item" : "Add New Item"}</DialogTitle>
-        <DialogContent sx={{ pt: "20px !important" }}>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth fullScreen={isMobile}>
+      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", height: isMobile ? "100%" : "auto" }}>
+        <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", px: { xs: 2, sm: 3 } }}>
+          <span>{item ? "Edit Item" : "Add New Item"}</span>
+          {isMobile && (
+            <IconButton onClick={onClose} size="small" edge="end">
+              <CloseIcon />
+            </IconButton>
+          )}
+        </DialogTitle>
+        <DialogContent sx={{ pt: "20px !important", px: { xs: 2, sm: 3 }, flexGrow: 1, overflowY: "auto" }}>
           <AlertDialog
             open={Boolean(errorMsg)}
             onClose={() => setErrorMsg(null)}
@@ -276,7 +289,7 @@ export const ItemFormDialog: React.FC<ItemFormDialogProps> = ({
             </Box>
           </Box>
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
+        <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: 1.5, borderTop: 1, borderColor: "divider" }}>
           <Button onClick={onClose} disabled={isSubmitting}>
             Cancel
           </Button>

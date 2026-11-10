@@ -29,6 +29,8 @@ import {
   Switch,
   FormControlLabel,
   Grid,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import AddIcon from "@mui/icons-material/Add";
@@ -67,6 +69,8 @@ const SUGGESTED_KINDS = [
 
 export const LocationsPage: React.FC = () => {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [tree, setTree] = useState<any[]>([]);
   const [selectedLocationId, setSelectedLocationId] = useState<number | null>(null);
   const [selectedDetail, setSelectedDetail] = useState<any | null>(null);
@@ -521,7 +525,7 @@ export const LocationsPage: React.FC = () => {
       )}
 
       {/* Add / Edit Dialog */}
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth fullScreen={isMobile}>
         <DialogTitle>{editingLoc ? "Edit Location" : "New Location"}</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: "24px !important" }}>
           <AlertDialog
@@ -578,7 +582,7 @@ export const LocationsPage: React.FC = () => {
       </Dialog>
 
       {/* Move Dialog */}
-      <Dialog open={moveDialogOpen} onClose={() => setMoveDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={moveDialogOpen} onClose={() => setMoveDialogOpen(false)} maxWidth="sm" fullWidth fullScreen={isMobile}>
         <DialogTitle>Move Location</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: "24px !important" }}>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>

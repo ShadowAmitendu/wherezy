@@ -21,6 +21,8 @@ import {
   List,
   ListItem,
   ListItemText,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import PeopleOutlinedIcon from "@mui/icons-material/PeopleOutlined";
 import PersonAddOutlinedIcon from "@mui/icons-material/PersonAddOutlined";
@@ -38,6 +40,8 @@ import { api, ApiException } from "../../api/client";
 import { ItemDetailDialog } from "../items/ItemDetailDialog";
 
 export const ContactsPage: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [contacts, setContacts] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -325,7 +329,7 @@ export const ContactsPage: React.FC = () => {
       )}
 
       {/* Add / Edit Contact Dialog */}
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
+      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth fullScreen={isMobile}>
         <DialogTitle>{editingContact ? "Edit Contact" : "Add New Contact"}</DialogTitle>
         <DialogContent sx={{ pt: "24px !important", display: "flex", flexDirection: "column", gap: 2.5 }}>
           <TextField
@@ -364,7 +368,7 @@ export const ContactsPage: React.FC = () => {
       </Dialog>
 
       {/* Loans History Dialog */}
-      <Dialog open={Boolean(loansContact)} onClose={() => setLoansContact(null)} maxWidth="md" fullWidth>
+      <Dialog open={Boolean(loansContact)} onClose={() => setLoansContact(null)} maxWidth="md" fullWidth fullScreen={isMobile}>
         <DialogTitle>
           Loans for {loansContact?.name}
         </DialogTitle>

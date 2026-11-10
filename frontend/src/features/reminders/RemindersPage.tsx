@@ -130,7 +130,14 @@ export const RemindersPage: React.FC = () => {
         </Box>
       )}
 
-      <Tabs value={tab} onChange={(_, val) => setTab(val)} sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}>
+      <Tabs
+        value={tab}
+        onChange={(_, val) => setTab(val)}
+        variant="scrollable"
+        scrollButtons="auto"
+        allowScrollButtonsMobile
+        sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}
+      >
         <Tab label={`Active (${overdueCount + dueSoonCount})`} value="all" />
         <Tab label={`Overdue (${overdueCount})`} value="overdue" />
         <Tab label={`Due Soon (${dueSoonCount})`} value="due_soon" />

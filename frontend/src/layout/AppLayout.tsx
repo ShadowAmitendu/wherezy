@@ -29,6 +29,8 @@ import {
   Divider,
   Paper,
   Grid,
+  BottomNavigation,
+  BottomNavigationAction,
 } from "@mui/material";
 import { AlertDialog } from "../components/shared/AlertDialog";
 import MenuIcon from "@mui/icons-material/Menu";
@@ -95,14 +97,17 @@ export const AppLayout: React.FC = () => {
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isTablet = useMediaQuery(theme.breakpoints.between("sm", "md"));
   const { mode, setMode, preset, setPreset, resolvedMode, presetConfig } = useAppTheme();
   const [themeAnchorEl, setThemeAnchorEl] = useState<null | HTMLElement>(null);
   const { pinSet, logout, selectProfile, currentProfile: authProfile } = useAuth();
 
-  // Desktop sidebar state: expanded (text + icons) or collapsed (only icons)
+  // Desktop/Tablet sidebar state: expanded (text + icons) or collapsed (only icons)
+  // On tablets, default to mini rail (68px) to maximize content width
   const [desktopOpen, setDesktopOpen] = useState<boolean>(() => {
     const saved = localStorage.getItem("hi_sidebar_open");
-    return saved !== null ? saved === "true" : true;
+    if (saved !== null) return saved === "true";
+    return typeof window !== "undefined" ? window.innerWidth >= 960 : true;
   });
 
   // Mobile temporary drawer state
@@ -304,16 +309,17 @@ export const AppLayout: React.FC = () => {
           color: "text.primary",
         }}
       >
-        <Toolbar sx={{ justifyContent: "space-between" }}>
+        <Toolbar sx={{ justifyContent: "space-between", px: { xs: 1, sm: 2 }, minHeight: { xs: 56, sm: 64 } }}>
           <Box sx={{ display: "flex", alignItems: "center" }}>
             {/* Hamburger Button */}
-            <Tooltip title={desktopOpen ? "Collapse sidebar" : "Expand sidebar"}>
+            <Tooltip title={isMobile ? "Open menu" : desktopOpen ? "Collapse sidebar" : "Expand sidebar"}>
               <IconButton
                 color="inherit"
                 aria-label="toggle navigation menu"
                 onClick={handleDrawerToggle}
                 edge="start"
-                sx={{ mr: 1.5 }}
+                size={isMobile ? "small" : "medium"}
+                sx={{ mr: { xs: 0.5, sm: 1.5 } }}
               >
                 <MenuIcon />
               </IconButton>
@@ -324,37 +330,45 @@ export const AppLayout: React.FC = () => {
               onClick={() => navigate("/")}
             >
               <Inventory2OutlinedIcon color="primary" />
-              <Typography variant="h6" sx={{ fontWeight: 700 }} noWrap>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 700,
+                  fontSize: { xs: "1rem", sm: "1.25rem" },
+                  display: { xs: "none", sm: "block" },
+                }}
+                noWrap
+              >
                 HomeInventory
               </Typography>
             </Box>
           </Box>
 
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: { xs: 0.5, sm: 1 } }}>
             {/* Quick Command Palette Launcher */}
             <Tooltip title="Quick Search (Ctrl+K)">
-              <IconButton onClick={() => setPaletteOpen(true)} color="inherit">
-                <SearchIcon />
+              <IconButton onClick={() => setPaletteOpen(true)} color="inherit" size={isMobile ? "small" : "medium"}>
+                <SearchIcon fontSize={isMobile ? "small" : "medium"} />
               </IconButton>
             </Tooltip>
 
             {/* Reminder Bell */}
             <Tooltip title="Reminders">
-              <IconButton onClick={() => navigate("/reminders")} color="inherit">
+              <IconButton onClick={() => navigate("/reminders")} color="inherit" size={isMobile ? "small" : "medium"}>
                 <Badge badgeContent={remindersCount} color="error" max={99}>
-                  <NotificationsOutlinedIcon />
+                  <NotificationsOutlinedIcon fontSize={isMobile ? "small" : "medium"} />
                 </Badge>
               </IconButton>
             </Tooltip>
 
             {/* Theme & Palette Switcher */}
             <Tooltip title={`Theme: ${presetConfig.name} (${resolvedMode})`}>
-              <IconButton onClick={(e) => setThemeAnchorEl(e.currentTarget)} color="inherit">
-                <PaletteOutlinedIcon />
+              <IconButton onClick={(e) => setThemeAnchorEl(e.currentTarget)} color="inherit" size={isMobile ? "small" : "medium"}>
+                <PaletteOutlinedIcon fontSize={isMobile ? "small" : "medium"} />
               </IconButton>
             </Tooltip>
 
-            {/* Lock / Switch User Button */}
+            {/* Lock / Switch User Button - visible on sm+ to prevent toolbar crowding on mobile */}
             <Tooltip title="Lock Session / Switch User">
               <IconButton
                 onClick={() => {
@@ -362,8 +376,10 @@ export const AppLayout: React.FC = () => {
                   navigate("/lock");
                 }}
                 color="inherit"
+                size={isMobile ? "small" : "medium"}
+                sx={{ display: { xs: "none", sm: "inline-flex" } }}
               >
-                <LockOutlinedIcon />
+                <LockOutlinedIcon fontSize={isMobile ? "small" : "medium"} />
               </IconButton>
             </Tooltip>
             <Menu
@@ -614,14 +630,21 @@ export const AppLayout: React.FC = () => {
           ModalProps={{ keepMounted: true }}
           sx={{
             [`& .MuiDrawer-paper`]: {
-              width: DRAWER_WIDTH,
+              width: 280,
+              maxWidth: "80vw",
               boxSizing: "border-box",
               bgcolor: "background.paper",
             },
           }}
         >
-          <Toolbar />
-          <Box sx={{ overflow: "auto", py: 1 }}>
+          <Toolbar sx={{ display: "flex", alignItems: "center", px: 2, gap: 1 }}>
+            <Inventory2OutlinedIcon color="primary" />
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              HomeInventory
+            </Typography>
+          </Toolbar>
+          <Divider />
+          <Box sx={{ overflowY: "auto", py: 1 }}>
             {renderNavList(false)}
           </Box>
         </Drawer>
@@ -632,19 +655,79 @@ export const AppLayout: React.FC = () => {
         component="main"
         sx={{
           flexGrow: 1,
-          p: { xs: 2, sm: 3 },
-          width: { sm: `calc(100% - ${currentDesktopWidth}px)` },
+          p: { xs: 1.5, sm: 2.5, md: 3 },
+          width: { xs: "100%", sm: `calc(100% - ${currentDesktopWidth}px)` },
           transition: (t) =>
             t.transitions.create(["width", "margin"], {
               easing: t.transitions.easing.sharp,
               duration: t.transitions.duration.enteringScreen,
             }),
-          mt: 8,
-          mb: 0,
+          mt: { xs: 7, sm: 8 },
+          mb: { xs: 8, sm: 0 },
+          overflowX: "hidden",
         }}
       >
         <Outlet />
       </Box>
+
+      {/* Mobile Bottom Navigation Bar */}
+      {isMobile && (
+        <Paper
+          elevation={8}
+          sx={{
+            position: "fixed",
+            bottom: 0,
+            left: 0,
+            right: 0,
+            zIndex: (t) => t.zIndex.appBar,
+            display: { xs: "block", sm: "none" },
+            borderTop: 1,
+            borderColor: "divider",
+          }}
+        >
+          <BottomNavigation
+            showLabels
+            value={
+              location.pathname === "/"
+                ? "/"
+                : location.pathname.startsWith("/items")
+                ? "/items"
+                : location.pathname.startsWith("/inbox")
+                ? "/inbox"
+                : location.pathname.startsWith("/scan")
+                ? "/scan"
+                : ""
+            }
+            onChange={(_, newValue) => {
+              if (newValue === "more") {
+                setMobileOpen(true);
+              } else if (newValue) {
+                navigate(newValue);
+              }
+            }}
+            sx={{
+              height: 58,
+              bgcolor: "background.paper",
+              "& .MuiBottomNavigationAction-root": {
+                minWidth: "auto",
+                px: 1,
+                py: 0.5,
+                color: "text.secondary",
+                "&.Mui-selected": {
+                  color: "primary.main",
+                  fontWeight: 700,
+                },
+              },
+            }}
+          >
+            <BottomNavigationAction label="Home" value="/" icon={<DashboardOutlinedIcon fontSize="small" />} />
+            <BottomNavigationAction label="Items" value="/items" icon={<Inventory2OutlinedIcon fontSize="small" />} />
+            <BottomNavigationAction label="Inbox" value="/inbox" icon={<MoveToInboxOutlinedIcon fontSize="small" />} />
+            <BottomNavigationAction label="Scan" value="/scan" icon={<QrCodeScannerOutlinedIcon fontSize="small" />} />
+            <BottomNavigationAction label="More" value="more" icon={<MenuIcon fontSize="small" />} />
+          </BottomNavigation>
+        </Paper>
+      )}
 
       {/* Global Command Palette */}
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />

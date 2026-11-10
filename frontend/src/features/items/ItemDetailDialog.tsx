@@ -28,6 +28,8 @@ import {
   FormControl,
   InputLabel,
   Card,
+  useMediaQuery,
+  useTheme,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -76,6 +78,8 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
   onDeleted,
 }) => {
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [item, setItem] = useState<Item | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [tabIndex, setTabIndex] = useState<number>(0);
@@ -275,7 +279,7 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
 
   return (
     <>
-      <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+      <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth fullScreen={isMobile}>
         <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", pb: 1 }}>
           <Box>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 0.5, flexWrap: "wrap" }}>
@@ -337,16 +341,24 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
         )}
 
         {/* Tabs */}
-        <Box sx={{ borderBottom: 1, borderColor: "divider", px: 3 }}>
-          <Tabs value={tabIndex} onChange={(_, val) => setTabIndex(val)} textColor="primary" indicatorColor="primary">
-            <Tab icon={<InfoOutlinedIcon />} iconPosition="start" label="Details" sx={{ fontWeight: 600 }} />
+        <Box sx={{ borderBottom: 1, borderColor: "divider", px: { xs: 1, sm: 3 } }}>
+          <Tabs
+            value={tabIndex}
+            onChange={(_, val) => setTabIndex(val)}
+            textColor="primary"
+            indicatorColor="primary"
+            variant="scrollable"
+            scrollButtons="auto"
+            allowScrollButtonsMobile
+          >
+            <Tab icon={<InfoOutlinedIcon />} iconPosition="start" label="Details" sx={{ fontWeight: 600, minHeight: 48 }} />
             <Tab
               icon={<AttachFileIcon />}
               iconPosition="start"
               label={`Attachments (${attachments.length})`}
-              sx={{ fontWeight: 600 }}
+              sx={{ fontWeight: 600, minHeight: 48 }}
             />
-            <Tab icon={<HistoryOutlinedIcon />} iconPosition="start" label="History" sx={{ fontWeight: 600 }} />
+            <Tab icon={<HistoryOutlinedIcon />} iconPosition="start" label="History" sx={{ fontWeight: 600, minHeight: 48 }} />
           </Tabs>
         </Box>
 
@@ -649,7 +661,16 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
           )}
         </DialogContent>
 
-        <DialogActions sx={{ px: 3, py: 2, justifyContent: "space-between", flexWrap: "wrap", gap: 1 }}>
+        <DialogActions
+          sx={{
+            px: { xs: 2, sm: 3 },
+            py: 2,
+            justifyContent: "space-between",
+            flexDirection: { xs: "column-reverse", sm: "row" },
+            alignItems: { xs: "stretch", sm: "center" },
+            gap: 1.5,
+          }}
+        >
           <Box sx={{ display: "flex", gap: 1 }}>
             <Tooltip title="Move to trash">
               <IconButton color="error" onClick={handleDelete}>
