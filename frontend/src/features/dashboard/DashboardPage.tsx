@@ -66,28 +66,55 @@ export const DashboardPage: React.FC = () => {
       />
 
       {/* Top Metric Cards */}
-      <Grid container spacing={2.5} sx={{ mb: 4 }}>
+      <Grid container spacing={{ xs: 1.5, sm: 2, md: 2.5 }} sx={{ mb: { xs: 2.5, sm: 4 } }}>
         {/* Total Items */}
         <Grid size={{ xs: 6, sm: 6, md: 3 }}>
           <Card
             sx={{
-              borderLeft: "6px solid #1976d2",
+              borderLeft: { xs: "4px solid #1976d2", sm: "6px solid #1976d2" },
               transition: "transform 0.15s",
               "&:hover": { transform: "translateY(-2px)" },
             }}
           >
             <CardActionArea onClick={() => navigate("/items")}>
-              <CardContent sx={{ p: 2.5 }}>
+              <CardContent sx={{ p: { xs: 1.25, sm: 2, md: 2.5 }, "&:last-child": { pb: { xs: 1.25, sm: 2, md: 2.5 } } }}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{
+                      fontWeight: 600,
+                      fontSize: { xs: "0.75rem", sm: "0.825rem", md: "0.875rem" },
+                    }}
+                    noWrap
+                  >
                     Total Items
                   </Typography>
-                  <Inventory2OutlinedIcon color="primary" />
+                  <Inventory2OutlinedIcon
+                    color="primary"
+                    sx={{ fontSize: { xs: 18, sm: 22, md: 24 }, flexShrink: 0 }}
+                  />
                 </Box>
-                <Typography variant="h3" sx={{ fontWeight: 800, mt: 1 }}>
+                <Typography
+                  sx={{
+                    fontWeight: 800,
+                    mt: { xs: 0.25, sm: 0.75, md: 1 },
+                    mb: { xs: 0.25, sm: 0.5 },
+                    fontSize: { xs: "1.5rem", sm: "2rem", md: "2.75rem" },
+                    lineHeight: 1.1,
+                  }}
+                >
                   {data?.total_items || 0}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{
+                    fontSize: { xs: "0.65rem", sm: "0.725rem", md: "0.75rem" },
+                    display: "block",
+                  }}
+                  noWrap
+                >
                   across {data?.category_counts?.length || 0} categories
                 </Typography>
               </CardContent>
@@ -99,24 +126,51 @@ export const DashboardPage: React.FC = () => {
         <Grid size={{ xs: 6, sm: 6, md: 3 }}>
           <Card
             sx={{
-              borderLeft: "6px solid #9c27b0",
+              borderLeft: { xs: "4px solid #9c27b0", sm: "6px solid #9c27b0" },
               transition: "transform 0.15s",
               "&:hover": { transform: "translateY(-2px)" },
             }}
           >
             <CardActionArea onClick={() => navigate("/items?taken_out=out")}>
-              <CardContent sx={{ p: 2.5 }}>
+              <CardContent sx={{ p: { xs: 1.25, sm: 2, md: 2.5 }, "&:last-child": { pb: { xs: 1.25, sm: 2, md: 2.5 } } }}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{
+                      fontWeight: 600,
+                      fontSize: { xs: "0.75rem", sm: "0.825rem", md: "0.875rem" },
+                    }}
+                    noWrap
+                  >
                     Taken Out
                   </Typography>
-                  <RemoveCircleOutlinedIcon color="secondary" />
+                  <RemoveCircleOutlinedIcon
+                    color="secondary"
+                    sx={{ fontSize: { xs: 18, sm: 22, md: 24 }, flexShrink: 0 }}
+                  />
                 </Box>
-                <Typography variant="h3" sx={{ fontWeight: 800, mt: 1 }}>
+                <Typography
+                  sx={{
+                    fontWeight: 800,
+                    mt: { xs: 0.25, sm: 0.75, md: 1 },
+                    mb: { xs: 0.25, sm: 0.5 },
+                    fontSize: { xs: "1.5rem", sm: "2rem", md: "2.75rem" },
+                    lineHeight: 1.1,
+                  }}
+                >
                   {data?.taken_out_count || 0}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  currently borrowed or in use
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{
+                    fontSize: { xs: "0.65rem", sm: "0.725rem", md: "0.75rem" },
+                    display: "block",
+                  }}
+                  noWrap
+                >
+                  currently in use
                 </Typography>
               </CardContent>
             </CardActionArea>
@@ -127,24 +181,55 @@ export const DashboardPage: React.FC = () => {
         <Grid size={{ xs: 6, sm: 6, md: 3 }}>
           <Card
             sx={{
-              borderLeft: "6px solid #f57c00",
+              borderLeft: { xs: "4px solid #f57c00", sm: "6px solid #f57c00" },
               transition: "transform 0.15s",
               "&:hover": { transform: "translateY(-2px)" },
             }}
           >
             <CardActionArea onClick={() => navigate("/expiry?filter=soon")}>
-              <CardContent sx={{ p: 2.5 }}>
+              <CardContent sx={{ p: { xs: 1.25, sm: 2, md: 2.5 }, "&:last-child": { pb: { xs: 1.25, sm: 2, md: 2.5 } } }}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{
+                      fontWeight: 600,
+                      fontSize: { xs: "0.75rem", sm: "0.825rem", md: "0.875rem" },
+                    }}
+                    noWrap
+                  >
                     Expiring Soon
                   </Typography>
-                  <WarningAmberIcon sx={{ color: "#f57c00" }} />
+                  <WarningAmberIcon
+                    sx={{
+                      color: "#f57c00",
+                      fontSize: { xs: 18, sm: 22, md: 24 },
+                      flexShrink: 0,
+                    }}
+                  />
                 </Box>
-                <Typography variant="h3" sx={{ fontWeight: 800, mt: 1, color: "#f57c00" }}>
+                <Typography
+                  sx={{
+                    fontWeight: 800,
+                    mt: { xs: 0.25, sm: 0.75, md: 1 },
+                    mb: { xs: 0.25, sm: 0.5 },
+                    fontSize: { xs: "1.5rem", sm: "2rem", md: "2.75rem" },
+                    lineHeight: 1.1,
+                    color: "#f57c00",
+                  }}
+                >
                   {data?.expiring_soon_count || 0}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  within warning window
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{
+                    fontSize: { xs: "0.65rem", sm: "0.725rem", md: "0.75rem" },
+                    display: "block",
+                  }}
+                  noWrap
+                >
+                  warning window
                 </Typography>
               </CardContent>
             </CardActionArea>
@@ -155,23 +240,51 @@ export const DashboardPage: React.FC = () => {
         <Grid size={{ xs: 6, sm: 6, md: 3 }}>
           <Card
             sx={{
-              borderLeft: "6px solid #e53935",
+              borderLeft: { xs: "4px solid #e53935", sm: "6px solid #e53935" },
               transition: "transform 0.15s",
               "&:hover": { transform: "translateY(-2px)" },
             }}
           >
             <CardActionArea onClick={() => navigate("/expiry?filter=expired")}>
-              <CardContent sx={{ p: 2.5 }}>
+              <CardContent sx={{ p: { xs: 1.25, sm: 2, md: 2.5 }, "&:last-child": { pb: { xs: 1.25, sm: 2, md: 2.5 } } }}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{
+                      fontWeight: 600,
+                      fontSize: { xs: "0.75rem", sm: "0.825rem", md: "0.875rem" },
+                    }}
+                    noWrap
+                  >
                     Expired
                   </Typography>
-                  <ErrorOutlineIcon color="error" />
+                  <ErrorOutlineIcon
+                    color="error"
+                    sx={{ fontSize: { xs: 18, sm: 22, md: 24 }, flexShrink: 0 }}
+                  />
                 </Box>
-                <Typography variant="h3" sx={{ fontWeight: 800, mt: 1, color: "#e53935" }}>
+                <Typography
+                  sx={{
+                    fontWeight: 800,
+                    mt: { xs: 0.25, sm: 0.75, md: 1 },
+                    mb: { xs: 0.25, sm: 0.5 },
+                    fontSize: { xs: "1.5rem", sm: "2rem", md: "2.75rem" },
+                    lineHeight: 1.1,
+                    color: "#e53935",
+                  }}
+                >
                   {data?.expired_count || 0}
                 </Typography>
-                <Typography variant="caption" color="text.secondary">
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{
+                    fontSize: { xs: "0.65rem", sm: "0.725rem", md: "0.75rem" },
+                    display: "block",
+                  }}
+                  noWrap
+                >
                   action needed
                 </Typography>
               </CardContent>
@@ -205,7 +318,7 @@ export const DashboardPage: React.FC = () => {
             </Button>
           </Card>
         ) : (
-          <Grid container spacing={2}>
+          <Grid container spacing={{ xs: 1.25, sm: 2 }}>
             {data?.category_counts?.map((cat: any) => (
               <Grid key={cat.id} size={{ xs: 6, sm: 4, md: 3 }}>
                 <Card
@@ -216,12 +329,21 @@ export const DashboardPage: React.FC = () => {
                   }}
                 >
                   <CardActionArea onClick={() => navigate(`/items?category_id=${cat.id}`)}>
-                    <CardContent sx={{ display: "flex", alignItems: "center", gap: 1.5, p: 2 }}>
+                    <CardContent
+                      sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: { xs: 1, sm: 1.5 },
+                        p: { xs: 1.25, sm: 1.75, md: 2 },
+                        "&:last-child": { pb: { xs: 1.25, sm: 1.75, md: 2 } },
+                      }}
+                    >
                       <Box
                         sx={{
-                          width: 38,
-                          height: 38,
-                          borderRadius: 2,
+                          width: { xs: 30, sm: 38 },
+                          height: { xs: 30, sm: 38 },
+                          minWidth: { xs: 30, sm: 38 },
+                          borderRadius: 1.5,
                           bgcolor: `${cat.color}20`,
                           color: cat.color,
                           display: "flex",
@@ -232,10 +354,25 @@ export const DashboardPage: React.FC = () => {
                         {renderMuiIcon(cat.icon, "small")}
                       </Box>
                       <Box sx={{ overflow: "hidden" }}>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }} noWrap>
+                        <Typography
+                          variant="subtitle2"
+                          sx={{
+                            fontWeight: 700,
+                            fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                          }}
+                          noWrap
+                        >
                           {cat.name}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary">
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{
+                            fontSize: { xs: "0.65rem", sm: "0.75rem" },
+                            display: "block",
+                          }}
+                          noWrap
+                        >
                           {cat.count} items
                         </Typography>
                       </Box>
