@@ -24,12 +24,23 @@ class HealthResponse(BaseModel):
 class AuthStatusResponse(BaseModel):
     pin_set: bool
     authenticated: bool
+    current_profile: Optional[Any] = None
 
 class AuthSetupRequest(BaseModel):
     pin: Optional[str] = None
 
 class AuthLoginRequest(BaseModel):
-    pin: str
+    pin: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+
+class UserLoginRequest(BaseModel):
+    username: str
+    password: str
+
+class UpdatePasswordRequest(BaseModel):
+    current_password: Optional[str] = None
+    new_password: str
 
 class AuthChangePinRequest(BaseModel):
     current_pin: Optional[str] = None
@@ -359,27 +370,37 @@ class ImportCsvResult(BaseModel):
 
 # --- Profiles & Roles ---
 
-ProfileRole = Literal["admin", "member", "viewer"]
+ProfileRole = Literal["admin", "co_admin", "member", "viewer", "custom"]
 ThemeMode = Literal["system", "light", "dark"]
 TextScale = Literal[100, 125, 150]
 
 class ProfileCreate(BaseModel):
     name: str
+    username: Optional[str] = None
     color: str = "#1976d2"
     avatar_emoji: str = "👤"
     role: ProfileRole = "member"
     pin: Optional[str] = None
+    password: Optional[str] = None
+    custom_permissions: Optional[List[str]] = None
     is_display: bool = False
 
 class ProfileUpdate(BaseModel):
     name: Optional[str] = None
+    username: Optional[str] = None
     color: Optional[str] = None
     avatar_emoji: Optional[str] = None
     role: Optional[ProfileRole] = None
     pin: Optional[str] = None
+    password: Optional[str] = None
+    must_change_password: Optional[bool] = None
+    custom_permissions: Optional[List[str]] = None
     is_active: Optional[bool] = None
 
 class ProfilePrefsUpdate(BaseModel):
+    name: Optional[str] = None
+    avatar_emoji: Optional[str] = None
+    color: Optional[str] = None
     accent_color: Optional[str] = None
     language: Optional[str] = None
     text_scale: Optional[TextScale] = None
@@ -389,10 +410,13 @@ class ProfilePrefsUpdate(BaseModel):
 class ProfileOut(BaseModel):
     id: int
     name: str
+    username: Optional[str] = None
     color: str
     avatar_emoji: str
     role: ProfileRole
     is_active: bool
+    must_change_password: bool = False
+    custom_permissions: Optional[List[str]] = None
     accent_color: Optional[str] = None
     language: Optional[str] = None
     text_scale: int = 100

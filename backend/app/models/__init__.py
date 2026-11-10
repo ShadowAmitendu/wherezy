@@ -141,10 +141,13 @@ class Profile(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String, unique=True, nullable=False)
+    username = Column(String, unique=True, nullable=True)
     color = Column(String, nullable=False, default="#1976d2")
     avatar_emoji = Column(String, nullable=False, default="👤")
-    role = Column(String, nullable=False)  # admin, member, viewer
+    role = Column(String, nullable=False)  # admin, co_admin, member, viewer, custom
     pin_hash = Column(String, nullable=True)
+    must_change_password = Column(Integer, nullable=False, default=0)
+    custom_permissions_json = Column(Text, nullable=True)
     is_active = Column(Integer, nullable=False, default=1)
     accent_color = Column(String, nullable=True)
     language = Column(String, nullable=True)
@@ -156,7 +159,7 @@ class Profile(Base):
     updated_at = Column(String, nullable=False, default=utc_now_iso, onupdate=utc_now_iso)
 
     __table_args__ = (
-        CheckConstraint("role IN ('admin', 'member', 'viewer')", name="chk_profile_role"),
+        CheckConstraint("role IN ('admin', 'co_admin', 'member', 'viewer', 'custom')", name="chk_profile_role"),
         CheckConstraint("text_scale IN (100, 125, 150)", name="chk_profile_text_scale"),
         CheckConstraint("theme_mode IN ('system', 'light', 'dark')", name="chk_profile_theme_mode"),
     )

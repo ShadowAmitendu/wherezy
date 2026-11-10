@@ -7,78 +7,69 @@ from backend.app.core.security import verify_session_token
 from backend.app.models import Profile, Setting
 
 ROLE_LEVELS = {
-    "admin": 3,
+    "admin": 4,
+    "co_admin": 3,
     "member": 2,
     "viewer": 1,
+    "custom": 2,
 }
 
 PERMISSIONS = {
     # Viewer actions:
-    "items:read": ["viewer", "member", "admin"],
-    "locations:read": ["viewer", "member", "admin"],
-    "categories:read": ["viewer", "member", "admin"],
-    "activity:read": ["viewer", "member", "admin"],
-    "reminders:read": ["viewer", "member", "admin"],
-    "attachments:read": ["viewer", "member", "admin"],
-    "audit:read": ["viewer", "member", "admin"],
-    "trash:read": ["viewer", "member", "admin"],
-    "health:read": ["viewer", "member", "admin"],
-    "contacts:read": ["viewer", "member", "admin"],
-    "labels:read": ["viewer", "member", "admin"],
-    "wall:read": ["viewer", "member", "admin"],
-    "offline:read": ["viewer", "member", "admin"],
-    "prefs:write_own": ["viewer", "member", "admin"],
-    "search:read": ["viewer", "member", "admin"],
+    "items:read": ["viewer", "member", "co_admin", "admin", "custom"],
+    "locations:read": ["viewer", "member", "co_admin", "admin", "custom"],
+    "categories:read": ["viewer", "member", "co_admin", "admin", "custom"],
+    "activity:read": ["viewer", "member", "co_admin", "admin", "custom"],
+    "reminders:read": ["viewer", "member", "co_admin", "admin", "custom"],
+    "attachments:read": ["viewer", "member", "co_admin", "admin", "custom"],
+    "audit:read": ["viewer", "member", "co_admin", "admin", "custom"],
+    "trash:read": ["viewer", "member", "co_admin", "admin", "custom"],
+    "health:read": ["viewer", "member", "co_admin", "admin", "custom"],
+    "contacts:read": ["viewer", "member", "co_admin", "admin", "custom"],
+    "labels:read": ["viewer", "member", "co_admin", "admin", "custom"],
+    "wall:read": ["viewer", "member", "co_admin", "admin", "custom"],
+    "offline:read": ["viewer", "member", "co_admin", "admin", "custom"],
+    "prefs:write_own": ["viewer", "member", "co_admin", "admin", "custom"],
+    "search:read": ["viewer", "member", "co_admin", "admin", "custom"],
 
     # Member actions:
-    "items:write": ["member", "admin"],
-    "items:delete": ["member", "admin"],
-    "photos:write": ["member", "admin"],
-    "attachments:write": ["member", "admin"],
-    "tags:write": ["member", "admin"],
-    "bulk:write": ["member", "admin"],
-    "audit:write": ["member", "admin"],
-    "trash:restore": ["member", "admin"],
-    "inbox:write": ["member", "admin"],
-    "lifecycle:write": ["member", "admin"],
-    "health:write": ["member", "admin"],
-    "contacts:write": ["member", "admin"],
-    "moves:write": ["member", "admin"],
-    "labels:write_own": ["member", "admin"],
-    "activity:revert": ["member", "admin"],
-    "reminders:write": ["member", "admin"],
+    "items:write": ["member", "co_admin", "admin", "custom"],
+    "items:delete": ["member", "co_admin", "admin", "custom"],
+    "photos:write": ["member", "co_admin", "admin", "custom"],
+    "attachments:write": ["member", "co_admin", "admin", "custom"],
+    "tags:write": ["member", "co_admin", "admin", "custom"],
+    "bulk:write": ["member", "co_admin", "admin", "custom"],
+    "audit:write": ["member", "co_admin", "admin", "custom"],
+    "trash:restore": ["member", "co_admin", "admin", "custom"],
+    "inbox:write": ["member", "co_admin", "admin", "custom"],
+    "lifecycle:write": ["member", "co_admin", "admin", "custom"],
+    "health:write": ["member", "co_admin", "admin", "custom"],
+    "contacts:write": ["member", "co_admin", "admin", "custom"],
+    "moves:write": ["member", "co_admin", "admin", "custom"],
+    "labels:write_own": ["member", "co_admin", "admin", "custom"],
+    "activity:revert": ["member", "co_admin", "admin", "custom"],
+    "reminders:write": ["member", "co_admin", "admin", "custom"],
 
-    # Admin actions:
-    "categories:write": ["admin"],
-    "locations:write": ["admin"],
-    "templates:write": ["admin"],
-    "trash:purge": ["admin"],
-    "profiles:write": ["admin"],
-    "admin:settings": ["admin"],
+    # Admin & Co-Admin actions:
+    "categories:write": ["co_admin", "admin"],
+    "locations:write": ["co_admin", "admin"],
+    "templates:write": ["co_admin", "admin"],
+    "trash:purge": ["co_admin", "admin"],
+    "profiles:write": ["co_admin", "admin"],
+    "admin:settings": ["co_admin", "admin"],
     "admin:backup": ["admin"],
-    "admin:export": ["admin"],
-    "admin:import": ["admin"],
-    "contacts:delete": ["admin"],
-    "labels:write_all": ["admin"],
-    "admin:book": ["admin"],
-    "prefs:write_all": ["admin"],
+    "admin:export": ["co_admin", "admin"],
+    "admin:import": ["co_admin", "admin"],
+    "contacts:delete": ["co_admin", "admin"],
+    "labels:write_all": ["co_admin", "admin"],
+    "admin:book": ["co_admin", "admin"],
+    "prefs:write_all": ["co_admin", "admin"],
     "admin:second_copy": ["admin"],
     "admin:webhook": ["admin"],
 }
 
 def get_current_profile(request: Request, db: Session = Depends(get_db)) -> Optional[Profile]:
-    # 1. Test header override
-    header_profile_id = request.headers.get("X-Profile-ID")
-    if header_profile_id:
-        try:
-            pid = int(header_profile_id)
-            prof = db.query(Profile).filter(Profile.id == pid, Profile.is_active == 1).first()
-            if prof:
-                return prof
-        except ValueError:
-            pass
-
-    # 2. Extract token from Cookie or Authorization header
+    # 1. Extract token from Cookie or Authorization header
     token = request.cookies.get("hi_session") or request.cookies.get("session")
     if not token:
         auth_header = request.headers.get("Authorization")
@@ -99,6 +90,17 @@ def get_current_profile(request: Request, db: Session = Depends(get_db)) -> Opti
                 prof = db.query(Profile).filter(Profile.role == "admin", Profile.is_active == 1).first()
                 if prof:
                     return prof
+
+    # 2. Test header override (fallback for tests without cookies)
+    header_profile_id = request.headers.get("X-Profile-ID")
+    if header_profile_id:
+        try:
+            pid = int(header_profile_id)
+            prof = db.query(Profile).filter(Profile.id == pid, Profile.is_active == 1).first()
+            if prof:
+                return prof
+        except ValueError:
+            pass
 
     # 3. Check if household requires PIN
     pin_row = db.query(Setting).filter(Setting.key == "household_pin_required").first()
@@ -163,6 +165,15 @@ def require(role_or_perm: str) -> Callable:
                     detail={"error": {"code": "FORBIDDEN", "message": f"Requires {role_or_perm} role"}}
                 )
             return profile
+
+        # Custom role permission check
+        if profile.role == "custom" and profile.custom_permissions_json:
+            try:
+                custom_perms = json.loads(profile.custom_permissions_json)
+                if role_or_perm in custom_perms or any(p.startswith(role_or_perm.split(":")[0]) for p in custom_perms):
+                    return profile
+            except Exception:
+                pass
 
         allowed_roles = PERMISSIONS.get(role_or_perm)
         if not allowed_roles:

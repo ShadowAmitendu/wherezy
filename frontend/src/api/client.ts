@@ -60,20 +60,56 @@ export async function apiFetch<T>(
   return (await response.text()) as unknown as T;
 }
 
+export type ProfileRole = "admin" | "co_admin" | "member" | "viewer" | "custom";
+
+export interface ProfileOut {
+  id: number;
+  name: string;
+  username?: string;
+  color: string;
+  avatar_emoji: string;
+  role: ProfileRole;
+  is_active: boolean;
+  must_change_password: boolean;
+  custom_permissions?: string[] | null;
+  accent_color?: string | null;
+  language?: string | null;
+  text_scale: number;
+  high_contrast: boolean;
+  theme_mode: string;
+  is_display: boolean;
+  has_pin: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AuthStatusResponse {
+  pin_set: boolean;
+  authenticated: boolean;
+  current_profile?: ProfileOut | null;
+}
+
 export const api = {
   // Health & Auth
   getHealth: () => apiFetch<{ status: string; time: string }>("/api/health"),
   getAuthStatus: () =>
-    apiFetch<{ pin_set: boolean; authenticated: boolean }>("/api/auth/status"),
+    apiFetch<AuthStatusResponse>("/api/auth/status"),
   setupPin: (pin?: string) =>
     apiFetch<{ ok: boolean; message?: string }>("/api/auth/setup", {
       method: "POST",
       body: JSON.stringify({ pin: pin || null }),
     }),
-  login: (pin: string) =>
-    apiFetch<{ ok: boolean; message?: string }>("/api/auth/login", {
+  login: (credentials: { username?: string; password?: string; pin?: string } | string) => {
+    const body = typeof credentials === "string" ? { pin: credentials } : credentials;
+    return apiFetch<{ ok: boolean; message?: string; must_change_password?: boolean; profile?: ProfileOut }>("/api/auth/login", {
       method: "POST",
-      body: JSON.stringify({ pin }),
+      body: JSON.stringify(body),
+    });
+  },
+  updatePassword: (data: { current_password?: string; new_password: string }) =>
+    apiFetch<{ ok: boolean; message?: string; profile?: ProfileOut }>("/api/auth/update-password", {
+      method: "POST",
+      body: JSON.stringify(data),
     }),
   logout: () =>
     apiFetch<{ ok: boolean; message?: string }>("/api/auth/logout", {
@@ -83,6 +119,35 @@ export const api = {
     apiFetch<{ ok: boolean; message?: string }>("/api/auth/change-pin", {
       method: "POST",
       body: JSON.stringify({ current_pin, new_pin }),
+    }),
+
+  // Profiles & Users
+  getProfiles: (includeInactive = false) =>
+    apiFetch<ProfileOut[]>(`/api/profiles?include_inactive=${includeInactive}`),
+  getMyProfile: () => apiFetch<ProfileOut>("/api/profiles/me"),
+  selectProfile: (profileId: number, pin?: string) =>
+    apiFetch<ProfileOut>("/api/profiles/select", {
+      method: "POST",
+      body: JSON.stringify({ profile_id: profileId, pin: pin || null }),
+    }),
+  createProfile: (data: any) =>
+    apiFetch<ProfileOut>("/api/profiles", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateProfile: (profileId: number, data: any) =>
+    apiFetch<ProfileOut>(`/api/profiles/${profileId}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  deactivateProfile: (profileId: number) =>
+    apiFetch<{ ok: boolean; message?: string }>(`/api/profiles/${profileId}`, {
+      method: "DELETE",
+    }),
+  updateMyPrefs: (data: any) =>
+    apiFetch<ProfileOut>("/api/profiles/me/prefs", {
+      method: "PUT",
+      body: JSON.stringify(data),
     }),
 
   // Settings
@@ -248,28 +313,6 @@ export const api = {
   },
 
   // --- v2 Additions ---
-
-  // Profiles
-  getProfiles: (include_inactive = false) =>
-    apiFetch<any[]>(`/api/profiles?include_inactive=${include_inactive}`),
-  createProfile: (data: any) =>
-    apiFetch<any>("/api/profiles", { method: "POST", body: JSON.stringify(data) }),
-  getMyProfile: () => apiFetch<any>("/api/profiles/me"),
-  selectProfile: (profile_id: number, pin?: string) =>
-    apiFetch<any>("/api/profiles/select", {
-      method: "POST",
-      body: JSON.stringify({ profile_id, pin }),
-    }),
-  logoutProfile: () =>
-    apiFetch<{ ok: boolean }>("/api/profiles/logout", { method: "POST" }),
-  updateMyPrefs: (prefs: any) =>
-    apiFetch<any>("/api/profiles/me/prefs", { method: "PUT", body: JSON.stringify(prefs) }),
-  updateProfilePrefs: (profileId: number, prefs: any) =>
-    apiFetch<any>(`/api/profiles/${profileId}/prefs`, { method: "PUT", body: JSON.stringify(prefs) }),
-  updateProfile: (profileId: number, data: any) =>
-    apiFetch<any>(`/api/profiles/${profileId}`, { method: "PUT", body: JSON.stringify(data) }),
-  deactivateProfile: (profileId: number) =>
-    apiFetch<{ ok: boolean; message: string }>(`/api/profiles/${profileId}`, { method: "DELETE" }),
 
   // Activity History
   getActivity: (params: Record<string, any> = {}) => {

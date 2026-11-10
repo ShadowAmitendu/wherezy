@@ -1,58 +1,58 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Button,
-  Typography,
-  Alert,
-  Box,
-} from "@mui/material";
-import { alpha } from "@mui/material/styles";
-import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
-import { api, ApiException } from "../api/client";
+import { api, ApiException, ProfileOut } from "../api/client";
+import { UpdatePasswordDialog } from "../features/auth/UpdatePasswordDialog";
 
 interface AuthContextType {
-  pinSet: boolean;
   authenticated: boolean;
+  pinSet: boolean;
+  currentProfile: ProfileOut | null;
   isLoading: boolean;
-  login: (pin: string) => Promise<void>;
+  mustChangePassword: boolean;
+  setMustChangePassword: (val: boolean) => void;
+  login: (usernameOrPin: string, password?: string) => Promise<any>;
   logout: () => Promise<void>;
-  setupPin: (pin?: string) => Promise<void>;
+  selectProfile: (profileId: number, pin?: string) => Promise<ProfileOut>;
   refreshAuth: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
-  pinSet: false,
-  authenticated: true,
+  authenticated: false,
+  pinSet: true,
+  currentProfile: null,
   isLoading: true,
+  mustChangePassword: false,
+  setMustChangePassword: () => {},
   login: async () => {},
   logout: async () => {},
-  setupPin: async () => {},
+  selectProfile: async () => { throw new Error("Not implemented"); },
   refreshAuth: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [pinSet, setPinSet] = useState(false);
-  const [authenticated, setAuthenticated] = useState(true);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Login dialog state
-  const [pinInput, setPinInput] = useState("");
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [authenticated, setAuthenticated] = useState<boolean>(false);
+  const [pinSet, setPinSet] = useState<boolean>(true);
+  const [currentProfile, setCurrentProfile] = useState<ProfileOut | null>(null);
+  const [mustChangePassword, setMustChangePassword] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const refreshAuth = async () => {
     try {
       const status = await api.getAuthStatus();
-      setPinSet(status.pin_set);
-      setAuthenticated(status.authenticated);
+      setPinSet(Boolean(status.pin_set));
+      if (status.authenticated && status.current_profile) {
+        setAuthenticated(true);
+        setCurrentProfile(status.current_profile);
+        setMustChangePassword(Boolean(status.current_profile.must_change_password));
+      } else {
+        setAuthenticated(false);
+        setCurrentProfile(null);
+        setMustChangePassword(false);
+      }
     } catch {
-      // Default to allowed if backend not ready or offline
+      setAuthenticated(false);
+      setCurrentProfile(null);
     } finally {
       setIsLoading(false);
     }
@@ -62,122 +62,75 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     refreshAuth();
   }, []);
 
-  const login = async (pin: string) => {
-    setIsSubmitting(true);
-    setErrorMsg(null);
+  const login = async (usernameOrPin: string, password?: string) => {
     try {
-      await api.login(pin);
-      setAuthenticated(true);
-      setPinInput("");
-    } catch (err) {
-      if (err instanceof ApiException) {
-        setErrorMsg(err.error.message || "Invalid PIN");
+      let res;
+      if (password !== undefined) {
+        res = await api.login({ username: usernameOrPin, password });
       } else {
-        setErrorMsg("Login failed");
+        res = await api.login({ pin: usernameOrPin });
       }
+
+      setAuthenticated(true);
+      if (res.profile) {
+        setCurrentProfile(res.profile);
+        setMustChangePassword(Boolean(res.must_change_password || res.profile.must_change_password));
+      } else {
+        await refreshAuth();
+      }
+      return res;
+    } catch (err) {
+      setAuthenticated(false);
       throw err;
-    } finally {
-      setIsSubmitting(false);
+    }
+  };
+
+  const selectProfile = async (profileId: number, pin?: string): Promise<ProfileOut> => {
+    try {
+      const prof = await api.selectProfile(profileId, pin);
+      setAuthenticated(true);
+      setCurrentProfile(prof);
+      setMustChangePassword(Boolean(prof.must_change_password));
+      return prof;
+    } catch (err) {
+      throw err;
     }
   };
 
   const logout = async () => {
-    await api.logout();
-    setAuthenticated(false);
-  };
-
-  const setupPin = async (pin?: string) => {
-    await api.setupPin(pin);
-    await refreshAuth();
-  };
-
-  const handleLoginSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!pinInput.trim()) return;
     try {
-      await login(pinInput.trim());
-    } catch {
-      // Handled in login
+      await api.logout();
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setAuthenticated(false);
+      setCurrentProfile(null);
+      setMustChangePassword(false);
     }
   };
 
   return (
     <AuthContext.Provider
       value={{
-        pinSet,
         authenticated,
+        pinSet,
+        currentProfile,
         isLoading,
+        mustChangePassword,
+        setMustChangePassword,
         login,
         logout,
-        setupPin,
+        selectProfile,
         refreshAuth,
       }}
     >
       {children}
 
-      {/* Login Dialog if PIN is set and unauthenticated */}
-      <Dialog open={!isLoading && pinSet && !authenticated} maxWidth="sm" fullWidth>
-        <form onSubmit={handleLoginSubmit}>
-          <DialogTitle sx={{ textAlign: "center", pt: 3 }}>
-            <Box
-              sx={{
-                width: 48,
-                height: 48,
-                borderRadius: "50%",
-                bgcolor: (t) =>
-                  t.palette.mode === "dark"
-                    ? alpha(t.palette.primary.main, 0.16)
-                    : alpha(t.palette.primary.main, 0.12),
-                color: "primary.main",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                mx: "auto",
-                mb: 1,
-              }}
-            >
-              <LockOutlinedIcon />
-            </Box>
-            Household PIN Required
-          </DialogTitle>
-          <DialogContent>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2, textAlign: "center" }}>
-              Please enter the household PIN to access HomeInventory.
-            </Typography>
-            {errorMsg && (
-              <Alert severity="error" variant="filled" onClose={() => setErrorMsg("")} sx={{ mb: 2 }}>
-                {errorMsg}
-              </Alert>
-            )}
-            <TextField
-              autoFocus
-              type="password"
-              label="Household PIN"
-              fullWidth
-              value={pinInput}
-              onChange={(e) => setPinInput(e.target.value)}
-              disabled={isSubmitting}
-              slotProps={{
-                htmlInput: {
-                  inputMode: "numeric",
-                  pattern: "[0-9]*",
-                },
-              }}
-            />
-          </DialogContent>
-          <DialogActions sx={{ pb: 3, px: 3 }}>
-            <Button
-              type="submit"
-              variant="contained"
-              fullWidth
-              size="large"
-              disabled={!pinInput.trim() || isSubmitting}
-            >
-              {isSubmitting ? "Unlocking..." : "Unlock"}
-            </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
+      {/* Global forced password update dialog on first login */}
+      <UpdatePasswordDialog
+        open={authenticated && mustChangePassword}
+        requireOldPassword={false}
+      />
     </AuthContext.Provider>
   );
 };

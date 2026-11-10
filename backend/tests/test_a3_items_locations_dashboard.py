@@ -5,7 +5,7 @@ from backend.app.main import app
 
 client = TestClient(app)
 
-def test_items_and_locations_flow():
+def test_items_and_locations_flow(client):
     # 1. Create category with track_expiry
     res = client.post("/api/categories", json={
         "name": "Pantry Test",

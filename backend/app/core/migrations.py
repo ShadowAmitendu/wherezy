@@ -7,7 +7,7 @@ from pathlib import Path
 from backend.app.core.config import DB_PATH, BACKUPS_DIR, PHOTOS_DIR
 
 MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "migrations"
-TARGET_V2_VERSION = 10
+TARGET_V2_VERSION = 11
 
 class MigrationError(Exception):
     def __init__(self, message: str, backup_path: str = ""):

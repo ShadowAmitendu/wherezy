@@ -32,7 +32,7 @@ def test_templates_and_categories():
     assert "Medicines" in cat_data["name"]
     assert len(cat_data["fields"]) >= 5
 
-def test_location_cycle_and_crud():
+def test_location_cycle_and_crud(client):
     # Create parent
     res = client.post("/api/locations", json={"name": "Garage", "kind": "Room"})
     assert res.status_code == 200
@@ -48,7 +48,7 @@ def test_location_cycle_and_crud():
     assert res.status_code == 400
     assert "CYCLE_DETECTED" in res.text
 
-def test_code_resolve():
+def test_code_resolve(client):
     # Create location
     res = client.post("/api/locations", json={"name": "Attic", "kind": "Room"})
     assert res.status_code == 200

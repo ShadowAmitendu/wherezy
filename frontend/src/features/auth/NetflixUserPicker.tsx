@@ -1,0 +1,406 @@
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Box,
+  Typography,
+  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Button,
+  Alert,
+  Avatar,
+  IconButton,
+  InputAdornment,
+} from "@mui/material";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
+import LockOpenOutlinedIcon from "@mui/icons-material/LockOpenOutlined";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { api, ApiException, ProfileOut } from "../../api/client";
+import { useAuth } from "../../auth/AuthContext";
+
+interface NetflixUserPickerProps {
+  onSelectSuccess?: (profile: ProfileOut) => void;
+  showBackToLogin?: boolean;
+}
+
+export const NetflixUserPicker: React.FC<NetflixUserPickerProps> = ({
+  onSelectSuccess,
+  showBackToLogin = true,
+}) => {
+  const navigate = useNavigate();
+  const { selectProfile, refreshAuth } = useAuth();
+  const [profiles, setProfiles] = useState<ProfileOut[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedProfile, setSelectedProfile] = useState<ProfileOut | null>(null);
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      setLoading(true);
+      try {
+        const list = await api.getProfiles();
+        setProfiles(list);
+      } catch (err) {
+        console.error("Failed to load profiles:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfiles();
+  }, []);
+
+  const handleCardClick = async (profile: ProfileOut) => {
+    if (profile.has_pin) {
+      setSelectedProfile(profile);
+      setPassword("");
+      setErrorMsg(null);
+    } else {
+      // Profile without password
+      setSubmitting(true);
+      try {
+        const p = await selectProfile(profile.id);
+        if (onSelectSuccess) {
+          onSelectSuccess(p);
+        } else {
+          navigate("/");
+        }
+      } catch (err: any) {
+        console.error(err);
+      } finally {
+        setSubmitting(false);
+      }
+    }
+  };
+
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProfile) return;
+    setSubmitting(true);
+    setErrorMsg(null);
+
+    try {
+      const p = await selectProfile(selectedProfile.id, password);
+      setSelectedProfile(null);
+      await refreshAuth();
+      if (onSelectSuccess) {
+        onSelectSuccess(p);
+      } else {
+        navigate("/");
+      }
+    } catch (err: any) {
+      if (err instanceof ApiException) {
+        setErrorMsg(err.error.message || "Incorrect password");
+      } else {
+        setErrorMsg("Failed to sign in");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Box
+      sx={{
+        minHeight: "100vh",
+        width: "100%",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        p: { xs: 2, sm: 4 },
+        bgcolor: "#020608",
+        backgroundImage: `radial-gradient(ellipse at 50% 25%, #1C252B 0%, #020608 100%)`,
+        color: "#ffffff",
+        position: "relative",
+        boxSizing: "border-box",
+      }}
+    >
+      {/* Top Left Back Button (if opened from login) */}
+      {showBackToLogin && (
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate("/login")}
+          sx={{
+            position: "absolute",
+            top: { xs: 16, sm: 24 },
+            left: { xs: 16, sm: 24 },
+            color: "rgba(255,255,255,0.7)",
+            "&:hover": { color: "#ffffff", bgcolor: "rgba(255,255,255,0.08)" },
+            textTransform: "none",
+          }}
+        >
+          Username Login
+        </Button>
+      )}
+
+      {/* Main Netflix-style header */}
+      <Box sx={{ textAlign: "center", mb: { xs: 4, sm: 6 } }}>
+        <Typography
+          variant="h3"
+          sx={{
+            fontWeight: 800,
+            letterSpacing: "-0.02em",
+            fontSize: { xs: "2rem", sm: "3.2rem" },
+            mb: 1,
+            color: "#ffffff",
+            textShadow: "0 2px 16px rgba(0,0,0,0.6)",
+          }}
+        >
+          Who is using?
+        </Typography>
+        <Typography
+          variant="body1"
+          sx={{
+            color: "rgba(255,255,255,0.65)",
+            fontSize: { xs: "0.95rem", sm: "1.15rem" },
+          }}
+        >
+          Select your household profile to enter HomeInventory
+        </Typography>
+      </Box>
+
+      {/* User Profiles Grid */}
+      <Box
+        sx={{
+          display: "flex",
+          flexWrap: "wrap",
+          justifyContent: "center",
+          alignItems: "center",
+          gap: { xs: 3, sm: 5 },
+          maxWidth: 960,
+          mb: 6,
+        }}
+      >
+        {profiles.map((p) => {
+          const profileColor = p.color || "#486B85";
+          return (
+            <Box
+              key={p.id}
+              onClick={() => handleCardClick(p)}
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                cursor: "pointer",
+                transition: "all 0.25s cubic-bezier(0.25, 0.8, 0.25, 1)",
+                "&:hover": {
+                  transform: "scale(1.08)",
+                  "& .avatar-box": {
+                    borderColor: "#ffffff",
+                    boxShadow: `0 0 25px ${profileColor}`,
+                  },
+                  "& .user-name": {
+                    color: "#ffffff",
+                  },
+                },
+              }}
+            >
+              <Box
+                className="avatar-box"
+                sx={{
+                  width: { xs: 100, sm: 135 },
+                  height: { xs: 100, sm: 135 },
+                  borderRadius: 3,
+                  bgcolor: profileColor,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: "3px solid transparent",
+                  transition: "all 0.2s ease",
+                  position: "relative",
+                  boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
+                }}
+              >
+                <Typography sx={{ fontSize: { xs: "2.8rem", sm: "3.8rem" }, userSelect: "none" }}>
+                  {p.avatar_emoji || p.name.charAt(0).toUpperCase()}
+                </Typography>
+
+                {p.has_pin && (
+                  <Box
+                    sx={{
+                      position: "absolute",
+                      bottom: 8,
+                      right: 8,
+                      bgcolor: "rgba(0,0,0,0.65)",
+                      borderRadius: "50%",
+                      p: 0.5,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <LockOutlinedIcon sx={{ fontSize: 16, color: "#CAD2CB" }} />
+                  </Box>
+                )}
+              </Box>
+
+              <Typography
+                className="user-name"
+                variant="h6"
+                sx={{
+                  mt: 1.5,
+                  fontWeight: 600,
+                  fontSize: { xs: "1rem", sm: "1.2rem" },
+                  color: "rgba(255,255,255,0.75)",
+                  transition: "color 0.2s ease",
+                  textAlign: "center",
+                  maxWidth: 140,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {p.name}
+              </Typography>
+
+              <Chip
+                label={p.role.replace("_", " ")}
+                size="small"
+                sx={{
+                  mt: 0.5,
+                  height: 22,
+                  fontSize: "0.7rem",
+                  textTransform: "capitalize",
+                  fontWeight: 600,
+                  bgcolor: "rgba(255,255,255,0.12)",
+                  color: "#CAD2CB",
+                }}
+              />
+            </Box>
+          );
+        })}
+      </Box>
+
+      {/* Bottom Switch to Normal Login */}
+      {showBackToLogin && (
+        <Box sx={{ mt: 2 }}>
+          <Button
+            variant="outlined"
+            onClick={() => navigate("/login")}
+            sx={{
+              borderColor: "rgba(255,255,255,0.25)",
+              color: "rgba(255,255,255,0.8)",
+              px: 3,
+              py: 1,
+              textTransform: "none",
+              fontSize: "0.95rem",
+              borderRadius: 1,
+              "&:hover": {
+                borderColor: "#ffffff",
+                color: "#ffffff",
+                bgcolor: "rgba(255,255,255,0.06)",
+              },
+            }}
+          >
+            Sign in with Username & Password
+          </Button>
+        </Box>
+      )}
+
+      {/* Password Prompt Modal for Protected Users */}
+      <Dialog
+        open={Boolean(selectedProfile)}
+        onClose={() => setSelectedProfile(null)}
+        maxWidth="xs"
+        fullWidth
+        slotProps={{
+          paper: {
+            sx: {
+              bgcolor: "#1C252B",
+              color: "#ffffff",
+              borderRadius: 2,
+              border: "1px solid rgba(255,255,255,0.1)",
+            },
+          },
+        }}
+      >
+        <form onSubmit={handlePasswordSubmit}>
+          <DialogTitle sx={{ textAlign: "center", pt: 3.5, pb: 1 }}>
+            <Avatar
+              sx={{
+                width: 68,
+                height: 68,
+                bgcolor: selectedProfile?.color || "primary.main",
+                fontSize: "2rem",
+                mx: "auto",
+                mb: 1.5,
+                boxShadow: 3,
+              }}
+            >
+              {selectedProfile?.avatar_emoji || selectedProfile?.name.charAt(0).toUpperCase()}
+            </Avatar>
+            <Typography variant="h5" sx={{ fontWeight: 700, color: "#ffffff" }}>
+              {selectedProfile?.name}
+            </Typography>
+            <Typography variant="body2" sx={{ color: "rgba(255,255,255,0.6)", mt: 0.5 }}>
+              Enter password to unlock this profile
+            </Typography>
+          </DialogTitle>
+
+          <DialogContent sx={{ px: 3, pt: 1 }}>
+            {errorMsg && (
+              <Alert severity="error" variant="filled" sx={{ mb: 2 }}>
+                {errorMsg}
+              </Alert>
+            )}
+
+            <TextField
+              autoFocus
+              fullWidth
+              margin="dense"
+              type={showPassword ? "text" : "password"}
+              label="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={submitting}
+              slotProps={{
+                inputLabel: { sx: { color: "rgba(255,255,255,0.7)" } },
+                input: {
+                  sx: { color: "#ffffff", bgcolor: "rgba(255,255,255,0.05)" },
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton
+                        onClick={() => setShowPassword(!showPassword)}
+                        edge="end"
+                        sx={{ color: "rgba(255,255,255,0.6)" }}
+                      >
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+          </DialogContent>
+
+          <DialogActions sx={{ pb: 3, px: 3, gap: 1 }}>
+            <Button
+              onClick={() => setSelectedProfile(null)}
+              sx={{ color: "rgba(255,255,255,0.7)", textTransform: "none" }}
+              disabled={submitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={!password.trim() || submitting}
+              startIcon={<LockOpenOutlinedIcon />}
+              sx={{ px: 3, textTransform: "none" }}
+            >
+              {submitting ? "Unlocking..." : "Enter"}
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+    </Box>
+  );
+};

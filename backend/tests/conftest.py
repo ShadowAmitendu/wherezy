@@ -49,7 +49,7 @@ def clean_tables():
         conn.execute(text("DELETE FROM settings;"))
         conn.execute(text("DELETE FROM profiles;"))
         # Re-seed Admin profile if needed
-        conn.execute(text("INSERT INTO profiles(id, name, color, avatar_emoji, role, is_active, text_scale, high_contrast, theme_mode, is_display, created_at, updated_at) VALUES(1, 'Admin', '#1976d2', '👑', 'admin', 1, 100, 0, 'system', 0, '2026-11-10T00:00:00Z', '2026-11-10T00:00:00Z');"))
+        conn.execute(text("INSERT INTO profiles(id, name, username, pin_hash, must_change_password, color, avatar_emoji, role, is_active, text_scale, high_contrast, theme_mode, is_display, created_at, updated_at) VALUES(1, 'Admin', 'admin', '$2b$12$2VvlYXnteyaa.lFZCAB52eKhX3GuwAtTgSz37ApHrV.Tzq5jflqZO', 1, '#1976d2', '👑', 'admin', 1, 100, 0, 'system', 0, '2026-11-10T00:00:00Z', '2026-11-10T00:00:00Z');"))
         conn.execute(text("PRAGMA foreign_keys = ON;"))
     yield
 
@@ -63,4 +63,6 @@ def db_session():
 
 @pytest.fixture
 def client():
-    return TestClient(app)
+    c = TestClient(app)
+    c.headers["X-Profile-ID"] = "1"
+    return c

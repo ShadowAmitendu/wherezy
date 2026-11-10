@@ -13,7 +13,7 @@ def create_test_image_bytes():
     file.seek(0)
     return file
 
-def test_photo_upload_and_admin_flow():
+def test_photo_upload_and_admin_flow(client):
     # 1. Create an item to attach photo to
     cat_res = client.post("/api/categories", json={"name": "Media Cat Test"})
     cat_id = cat_res.json()["id"]

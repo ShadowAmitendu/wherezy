@@ -5,8 +5,13 @@ import { Box, CircularProgress } from "@mui/material";
 import { AppThemeProvider } from "./theme";
 import { AuthProvider } from "./auth/AuthContext";
 import { AppLayout } from "./layout/AppLayout";
+import { ProtectedRoute } from "./auth/ProtectedRoute";
 
 // Lazy-loaded pages for mobile-friendly code-splitting
+const LoginPage = lazy(() => import("./features/auth/LoginPage").then(m => ({ default: m.LoginPage })));
+const NetflixUserPicker = lazy(() => import("./features/auth/NetflixUserPicker").then(m => ({ default: m.NetflixUserPicker })));
+const UsersPage = lazy(() => import("./features/users/UsersPage").then(m => ({ default: m.UsersPage })));
+const AccountProfilePage = lazy(() => import("./features/profile/AccountProfilePage").then(m => ({ default: m.AccountProfilePage })));
 const DashboardPage = lazy(() => import("./features/dashboard/DashboardPage").then(m => ({ default: m.DashboardPage })));
 const ItemsPage = lazy(() => import("./features/items/ItemsPage").then(m => ({ default: m.ItemsPage })));
 const InboxPage = lazy(() => import("./features/inbox/InboxPage").then(m => ({ default: m.InboxPage })));
@@ -68,6 +73,10 @@ export const App: React.FC = () => {
               }
             >
               <Routes>
+                {/* Public Auth routes */}
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/lock" element={<NetflixUserPicker />} />
+
                 {/* Standalone Printable Routes (without app chrome) */}
                 <Route path="/print/location/:id" element={<PrintShelfPage />} />
                 <Route path="/labels" element={<LabelSheetPage />} />
@@ -79,23 +88,28 @@ export const App: React.FC = () => {
                 <Route path="/i/:id" element={<DirectItemShortcut />} />
                 <Route path="/l/:id" element={<DirectLocationShortcut />} />
 
-                {/* Main App with Shell Layout */}
-                <Route element={<AppLayout />}>
-                  <Route path="/" element={<DashboardPage />} />
-                  <Route path="/items" element={<ItemsPage />} />
-                  <Route path="/inbox" element={<InboxPage />} />
-                  <Route path="/reminders" element={<RemindersPage />} />
-                  <Route path="/categories" element={<CategoriesPage />} />
-                  <Route path="/categories/:id" element={<CategoryDetailPage />} />
-                  <Route path="/locations" element={<LocationsPage />} />
-                  <Route path="/health" element={<HealthPage />} />
-                  <Route path="/moves" element={<MovesPage />} />
-                  <Route path="/contacts" element={<ContactsPage />} />
-                  <Route path="/activity" element={<ActivityPage />} />
-                  <Route path="/trash" element={<TrashPage />} />
-                  <Route path="/expiry" element={<ExpiryPage />} />
-                  <Route path="/scan" element={<ScanPage />} />
-                  <Route path="/settings" element={<SettingsPage />} />
+                {/* Main App with Shell Layout - Protected */}
+                <Route element={<ProtectedRoute />}>
+                  <Route element={<AppLayout />}>
+                    <Route path="/" element={<DashboardPage />} />
+                    <Route path="/items" element={<ItemsPage />} />
+                    <Route path="/inbox" element={<InboxPage />} />
+                    <Route path="/reminders" element={<RemindersPage />} />
+                    <Route path="/categories" element={<CategoriesPage />} />
+                    <Route path="/categories/:id" element={<CategoryDetailPage />} />
+                    <Route path="/locations" element={<LocationsPage />} />
+                    <Route path="/users" element={<UsersPage />} />
+                    <Route path="/account" element={<AccountProfilePage />} />
+                    <Route path="/profile" element={<AccountProfilePage />} />
+                    <Route path="/health" element={<HealthPage />} />
+                    <Route path="/moves" element={<MovesPage />} />
+                    <Route path="/contacts" element={<ContactsPage />} />
+                    <Route path="/activity" element={<ActivityPage />} />
+                    <Route path="/trash" element={<TrashPage />} />
+                    <Route path="/expiry" element={<ExpiryPage />} />
+                    <Route path="/scan" element={<ScanPage />} />
+                    <Route path="/settings" element={<SettingsPage />} />
+                  </Route>
                 </Route>
 
                 {/* Fallback */}

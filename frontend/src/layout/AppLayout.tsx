@@ -45,6 +45,10 @@ import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import QrCodeScannerOutlinedIcon from "@mui/icons-material/QrCodeScannerOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
+import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
+import LogoutIcon from "@mui/icons-material/Logout";
+import SwitchAccountOutlinedIcon from "@mui/icons-material/SwitchAccountOutlined";
 import Brightness4Icon from "@mui/icons-material/Brightness4";
 import Brightness7Icon from "@mui/icons-material/Brightness7";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
@@ -62,13 +66,21 @@ import { api } from "../api/client";
 const DRAWER_WIDTH = 240;
 const MINI_DRAWER_WIDTH = 68;
 
-const NAV_ITEMS = [
+interface NavItem {
+  label: string;
+  path: string;
+  icon: React.ReactNode;
+  adminOnly?: boolean;
+}
+
+const NAV_ITEMS: NavItem[] = [
   { label: "Dashboard", path: "/", icon: <DashboardOutlinedIcon /> },
   { label: "Items", path: "/items", icon: <Inventory2OutlinedIcon /> },
   { label: "Inbox", path: "/inbox", icon: <MoveToInboxOutlinedIcon /> },
   { label: "Reminders", path: "/reminders", icon: <NotificationsOutlinedIcon /> },
   { label: "Categories", path: "/categories", icon: <CategoryOutlinedIcon /> },
   { label: "Locations", path: "/locations", icon: <PlaceOutlinedIcon /> },
+  { label: "Users", path: "/users", icon: <ManageAccountsOutlinedIcon />, adminOnly: true },
   { label: "Health", path: "/health", icon: <HealingOutlinedIcon /> },
   { label: "Moves", path: "/moves", icon: <LocalShippingOutlinedIcon /> },
   { label: "Contacts", path: "/contacts", icon: <PeopleOutlinedIcon /> },
@@ -85,7 +97,7 @@ export const AppLayout: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { mode, setMode, preset, setPreset, resolvedMode, presetConfig } = useAppTheme();
   const [themeAnchorEl, setThemeAnchorEl] = useState<null | HTMLElement>(null);
-  const { pinSet, logout } = useAuth();
+  const { pinSet, logout, selectProfile, currentProfile: authProfile } = useAuth();
 
   // Desktop sidebar state: expanded (text + icons) or collapsed (only icons)
   const [desktopOpen, setDesktopOpen] = useState<boolean>(() => {
@@ -103,7 +115,6 @@ export const AppLayout: React.FC = () => {
   const [remindersCount, setRemindersCount] = useState<number>(0);
 
   // Profile switcher state
-  const [currentProfile, setCurrentProfile] = useState<any | null>(null);
   const [allProfiles, setAllProfiles] = useState<any[]>([]);
   const [profileAnchorEl, setProfileAnchorEl] = useState<null | HTMLElement>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -113,32 +124,15 @@ export const AppLayout: React.FC = () => {
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState<string | null>(null);
 
+  const currentProfile = authProfile;
+
   useEffect(() => {
     const fetchProfileAndReminders = async () => {
       try {
-        const [me, remCount, profiles] = await Promise.all([
-          api.getMyProfile().catch(() => null),
+        const [remCount, profiles] = await Promise.all([
           api.getRemindersCount().catch(() => ({ total: 0 })),
           api.getProfiles().catch(() => []),
         ]);
-        if (me) {
-          setCurrentProfile(me);
-        } else if (profiles && profiles.length > 0) {
-          // If no active profile session, check if there is an admin profile without PIN to auto-connect
-          const singleNoPin = profiles.length === 1 && !profiles[0].has_pin;
-          if (singleNoPin) {
-            try {
-              const selected = await api.selectProfile(profiles[0].id);
-              setCurrentProfile(selected);
-              window.location.reload();
-              return;
-            } catch {
-              setPickerOpen(true);
-            }
-          } else {
-            setPickerOpen(true);
-          }
-        }
         if (remCount) setRemindersCount(remCount.total || 0);
         if (profiles) setAllProfiles(profiles);
       } catch (err) {
@@ -191,8 +185,7 @@ export const AppLayout: React.FC = () => {
       setPinError(null);
     } else {
       try {
-        const updated = await api.selectProfile(profile.id);
-        setCurrentProfile(updated);
+        await selectProfile(profile.id);
         window.location.reload();
       } catch (err: any) {
         console.error("Failed to select profile", err);
@@ -203,8 +196,7 @@ export const AppLayout: React.FC = () => {
   const handleConfirmPinSwitch = async () => {
     if (!pinTargetProfile) return;
     try {
-      const updated = await api.selectProfile(pinTargetProfile.id, pinInput);
-      setCurrentProfile(updated);
+      await selectProfile(pinTargetProfile.id, pinInput);
       setPinTargetProfile(null);
       window.location.reload();
     } catch (err: any) {
@@ -212,9 +204,17 @@ export const AppLayout: React.FC = () => {
     }
   };
 
+  const isUserAdminOrCoAdmin = currentProfile?.role === "admin" || currentProfile?.role === "co_admin";
+  const visibleNavItems = NAV_ITEMS.filter((item) => {
+    if (item.adminOnly) {
+      return isUserAdminOrCoAdmin;
+    }
+    return true;
+  });
+
   const renderNavList = (isMini: boolean) => (
     <List sx={{ py: 1 }}>
-      {NAV_ITEMS.map((item) => {
+      {visibleNavItems.map((item) => {
         const isSelected =
           item.path === "/"
             ? location.pathname === "/"
@@ -351,6 +351,19 @@ export const AppLayout: React.FC = () => {
             <Tooltip title={`Theme: ${presetConfig.name} (${resolvedMode})`}>
               <IconButton onClick={(e) => setThemeAnchorEl(e.currentTarget)} color="inherit">
                 <PaletteOutlinedIcon />
+              </IconButton>
+            </Tooltip>
+
+            {/* Lock / Switch User Button */}
+            <Tooltip title="Lock Session / Switch User">
+              <IconButton
+                onClick={() => {
+                  logout();
+                  navigate("/lock");
+                }}
+                color="inherit"
+              >
+                <LockOutlinedIcon />
               </IconButton>
             </Tooltip>
             <Menu
@@ -519,14 +532,27 @@ export const AppLayout: React.FC = () => {
                     </MenuItem>
                   ))}
                   <Divider />
+                  <MenuItem onClick={() => { setProfileAnchorEl(null); navigate("/account"); }}>
+                    <AccountCircleOutlinedIcon sx={{ mr: 1, fontSize: 18 }} /> My Account & Profile
+                  </MenuItem>
+                  {isUserAdminOrCoAdmin && (
+                    <MenuItem onClick={() => { setProfileAnchorEl(null); navigate("/users"); }}>
+                      <ManageAccountsOutlinedIcon sx={{ mr: 1, fontSize: 18 }} /> Manage Users & Roles
+                    </MenuItem>
+                  )}
                   <MenuItem onClick={() => { setProfileAnchorEl(null); navigate("/settings"); }}>
                     <SettingsOutlinedIcon sx={{ mr: 1, fontSize: 18 }} /> Settings & Preferences
                   </MenuItem>
-                  {pinSet && (
-                    <MenuItem onClick={() => { setProfileAnchorEl(null); logout(); }}>
-                      <LockOutlinedIcon sx={{ mr: 1, fontSize: 18 }} /> Lock Session
-                    </MenuItem>
-                  )}
+                  <MenuItem onClick={() => { setProfileAnchorEl(null); navigate("/lock"); }}>
+                    <SwitchAccountOutlinedIcon sx={{ mr: 1, fontSize: 18 }} /> Switch User (Who's Using)
+                  </MenuItem>
+                  <Divider />
+                  <MenuItem onClick={() => { setProfileAnchorEl(null); logout(); navigate("/lock"); }}>
+                    <LockOutlinedIcon sx={{ mr: 1, fontSize: 18 }} /> Lock Session
+                  </MenuItem>
+                  <MenuItem onClick={() => { setProfileAnchorEl(null); logout(); navigate("/login"); }}>
+                    <LogoutIcon sx={{ mr: 1, fontSize: 18 }} /> Sign Out
+                  </MenuItem>
                 </Menu>
               </>
             ) : (
