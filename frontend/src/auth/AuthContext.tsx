@@ -145,7 +145,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               Please enter the household PIN to access HomeInventory.
             </Typography>
             {errorMsg && (
-              <Alert severity="error" sx={{ mb: 2 }}>
+              <Alert severity="error" variant="filled" onClose={() => setErrorMsg("")} sx={{ mb: 2 }}>
                 {errorMsg}
               </Alert>
             )}

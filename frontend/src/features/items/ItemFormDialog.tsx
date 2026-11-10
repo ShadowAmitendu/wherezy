@@ -146,7 +146,11 @@ export const ItemFormDialog: React.FC<ItemFormDialogProps> = ({
       <form onSubmit={handleSubmit}>
         <DialogTitle>{item ? "Edit Item" : "Add New Item"}</DialogTitle>
         <DialogContent sx={{ pt: "20px !important" }}>
-          {errorMsg && <Alert severity="error" sx={{ mb: 2 }}>{errorMsg}</Alert>}
+          {errorMsg && (
+            <Alert severity="error" variant="filled" onClose={() => setErrorMsg(null)} sx={{ mb: 2 }}>
+              {errorMsg}
+            </Alert>
+          )}
 
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3, mt: 0.5 }}>
             {/* Section 1: Basic Information */}

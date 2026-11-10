@@ -17,6 +17,7 @@ import {
   Switch,
   Chip,
   Alert,
+  Snackbar,
   Tooltip,
   Grid,
 } from "@mui/material";
@@ -207,11 +208,28 @@ export const CategoriesPage: React.FC = () => {
         }
       />
 
-      {deleteError && (
-        <Alert severity="error" onClose={() => setDeleteError(null)} sx={{ mb: 3 }}>
+      <Snackbar
+        open={Boolean(deleteError)}
+        autoHideDuration={6000}
+        onClose={() => setDeleteError(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        sx={{ zIndex: 2000, bottom: { xs: 24, sm: 32 } }}
+      >
+        <Alert
+          severity="error"
+          variant="filled"
+          onClose={() => setDeleteError(null)}
+          sx={{
+            minWidth: { xs: 280, sm: 380 },
+            maxWidth: { xs: "90vw", sm: 540 },
+            boxShadow: "0px 6px 16px rgba(0, 0, 0, 0.35)",
+            borderRadius: 1,
+            alignItems: "center",
+          }}
+        >
           {deleteError}
         </Alert>
-      )}
+      </Snackbar>
 
       {categories.length === 0 && !isLoading ? (
         <EmptyState
@@ -366,7 +384,11 @@ export const CategoriesPage: React.FC = () => {
       <Dialog open={categoryDialogOpen} onClose={() => setCategoryDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editingCategory ? "Edit Category" : "New Category"}</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: "24px !important" }}>
-          {errorMsg && <Alert severity="error">{errorMsg}</Alert>}
+          {errorMsg && (
+            <Alert severity="error" variant="filled" onClose={() => setErrorMsg(null)} sx={{ mb: 1 }}>
+              {errorMsg}
+            </Alert>
+          )}
 
           <TextField
             label="Category Name"

@@ -221,6 +221,50 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             },
           },
         },
+        MuiAlert: {
+          defaultProps: {
+            variant: "filled",
+          },
+          styleOverrides: {
+            root: {
+              borderRadius: 4,
+              boxShadow: "0px 3px 5px -1px rgba(0,0,0,0.2), 0px 6px 10px 0px rgba(0,0,0,0.14), 0px 1px 18px 0px rgba(0,0,0,0.12)",
+              alignItems: "center",
+              fontWeight: 500,
+              "&.MuiAlert-filledSuccess": {
+                backgroundColor: isDark ? "#2e7d32" : "#2e7d32",
+                color: "#ffffff",
+              },
+              "&.MuiAlert-filledError": {
+                backgroundColor: isDark ? "#d32f2f" : "#d32f2f",
+                color: "#ffffff",
+              },
+              "&.MuiAlert-filledWarning": {
+                backgroundColor: isDark ? "#ed6c02" : "#ed6c02",
+                color: "#ffffff",
+              },
+              "&.MuiAlert-filledInfo": {
+                backgroundColor: isDark ? "#0288d1" : "#0288d1",
+                color: "#ffffff",
+              },
+            },
+            action: {
+              paddingTop: 0,
+              marginRight: 0,
+              alignItems: "center",
+            },
+          },
+        },
+        MuiSnackbar: {
+          defaultProps: {
+            anchorOrigin: { vertical: "bottom", horizontal: "center" },
+          },
+          styleOverrides: {
+            root: {
+              zIndex: 2000,
+            },
+          },
+        },
       },
     });
   }, [resolvedMode]);

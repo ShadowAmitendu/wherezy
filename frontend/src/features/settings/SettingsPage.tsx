@@ -11,6 +11,7 @@ import {
   Select,
   MenuItem,
   Alert,
+  Snackbar,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -166,17 +167,51 @@ export const SettingsPage: React.FC = () => {
         subtitle="Household security, network addresses, backup/restore, and export options"
       />
 
-      {saveSuccess && (
-        <Alert severity="success" sx={{ mb: 3 }}>
+      <Snackbar
+        open={Boolean(saveSuccess)}
+        autoHideDuration={6000}
+        onClose={() => setSaveSuccess(false)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        sx={{ zIndex: 2000, bottom: { xs: 24, sm: 32 } }}
+      >
+        <Alert
+          severity="success"
+          variant="filled"
+          onClose={() => setSaveSuccess(false)}
+          sx={{
+            minWidth: { xs: 280, sm: 380 },
+            maxWidth: { xs: "90vw", sm: 540 },
+            boxShadow: "0px 6px 16px rgba(0, 0, 0, 0.35)",
+            borderRadius: 1,
+            alignItems: "center",
+          }}
+        >
           Settings updated successfully!
         </Alert>
-      )}
+      </Snackbar>
 
-      {restoreMessage && (
-        <Alert severity="info" onClose={() => setRestoreMessage(null)} sx={{ mb: 3 }}>
+      <Snackbar
+        open={Boolean(restoreMessage)}
+        autoHideDuration={6000}
+        onClose={() => setRestoreMessage(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        sx={{ zIndex: 2000, bottom: { xs: 24, sm: 32 } }}
+      >
+        <Alert
+          severity="info"
+          variant="filled"
+          onClose={() => setRestoreMessage(null)}
+          sx={{
+            minWidth: { xs: 280, sm: 380 },
+            maxWidth: { xs: "90vw", sm: 540 },
+            boxShadow: "0px 6px 16px rgba(0, 0, 0, 0.35)",
+            borderRadius: 1,
+            alignItems: "center",
+          }}
+        >
           {restoreMessage}
         </Alert>
-      )}
+      </Snackbar>
 
       {/* Security: Household PIN */}
       <Card sx={{ mb: 3 }}>
@@ -419,7 +454,11 @@ export const SettingsPage: React.FC = () => {
               : "Enter a 4-8 digit numeric PIN. You can change or remove this at any time."}
           </Typography>
 
-          {pinError && <Alert severity="error">{pinError}</Alert>}
+          {pinError && (
+            <Alert severity="error" variant="filled" onClose={() => setPinError(null)}>
+              {pinError}
+            </Alert>
+          )}
 
           {pinSet && (
             <TextField

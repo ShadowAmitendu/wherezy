@@ -25,6 +25,7 @@ import {
   Chip,
   Tooltip,
   Alert,
+  Snackbar,
   Divider,
   Switch,
   FormControlLabel,
@@ -355,11 +356,28 @@ export const LocationsPage: React.FC = () => {
         }
       />
 
-      {deleteError && (
-        <Alert severity="error" onClose={() => setDeleteError(null)} sx={{ mb: 3 }}>
+      <Snackbar
+        open={Boolean(deleteError)}
+        autoHideDuration={6000}
+        onClose={() => setDeleteError(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        sx={{ zIndex: 2000, bottom: { xs: 24, sm: 32 } }}
+      >
+        <Alert
+          severity="error"
+          variant="filled"
+          onClose={() => setDeleteError(null)}
+          sx={{
+            minWidth: { xs: 280, sm: 380 },
+            maxWidth: { xs: "90vw", sm: 540 },
+            boxShadow: "0px 6px 16px rgba(0, 0, 0, 0.35)",
+            borderRadius: 1,
+            alignItems: "center",
+          }}
+        >
           {deleteError}
         </Alert>
-      )}
+      </Snackbar>
 
       {tree.length === 0 && !isLoading ? (
         <EmptyState
@@ -519,7 +537,11 @@ export const LocationsPage: React.FC = () => {
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>{editingLoc ? "Edit Location" : "New Location"}</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: "24px !important" }}>
-          {errorMsg && <Alert severity="error">{errorMsg}</Alert>}
+          {errorMsg && (
+            <Alert severity="error" variant="filled" onClose={() => setErrorMsg(null)} sx={{ mb: 1 }}>
+              {errorMsg}
+            </Alert>
+          )}
 
           <TextField
             label="Location Name"
@@ -573,7 +595,11 @@ export const LocationsPage: React.FC = () => {
           <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
             Select a new parent location for &quot;{movingLoc?.name}&quot;:
           </Typography>
-          {errorMsg && <Alert severity="error">{errorMsg}</Alert>}
+          {errorMsg && (
+            <Alert severity="error" variant="filled" onClose={() => setErrorMsg(null)}>
+              {errorMsg}
+            </Alert>
+          )}
           <LocationPicker
             value={targetParentId}
             onChange={(newParent) => setTargetParentId(newParent)}

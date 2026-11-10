@@ -8,6 +8,7 @@ import {
   TextField,
   Button,
   Alert,
+  Snackbar,
   Paper,
   Divider,
 } from "@mui/material";
@@ -126,11 +127,28 @@ export const ScanPage: React.FC = () => {
         subtitle="Quickly locate items and storage shelves by scanning labels"
       />
 
-      {errorMsg && (
-        <Alert severity="error" onClose={() => setErrorMsg(null)} sx={{ mb: 3 }}>
+      <Snackbar
+        open={Boolean(errorMsg)}
+        autoHideDuration={6000}
+        onClose={() => setErrorMsg(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        sx={{ zIndex: 2000, bottom: { xs: 24, sm: 32 } }}
+      >
+        <Alert
+          severity="error"
+          variant="filled"
+          onClose={() => setErrorMsg(null)}
+          sx={{
+            minWidth: { xs: 280, sm: 380 },
+            maxWidth: { xs: "90vw", sm: 540 },
+            boxShadow: "0px 6px 16px rgba(0, 0, 0, 0.35)",
+            borderRadius: 1,
+            alignItems: "center",
+          }}
+        >
           {errorMsg}
         </Alert>
-      )}
+      </Snackbar>
 
       {/* Hidden div for file decoding */}
       <div id="reader-hidden" style={{ display: "none" }} />
@@ -152,7 +170,12 @@ export const ScanPage: React.FC = () => {
           )}
 
           {cameraError && (
-            <Alert severity="warning" sx={{ mb: 2, textAlign: "left" }}>
+            <Alert
+              severity="warning"
+              variant="filled"
+              onClose={() => setCameraError(null)}
+              sx={{ mb: 2, textAlign: "left" }}
+            >
               {cameraError}
             </Alert>
           )}

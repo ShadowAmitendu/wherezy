@@ -12,6 +12,7 @@ import {
   DialogContent,
   CircularProgress,
   Alert,
+  Snackbar,
   Tooltip,
   Grid,
 } from "@mui/material";
@@ -176,11 +177,28 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
         </Box>
       )}
 
-      {errorMsg && (
-        <Alert severity="error" onClose={() => setErrorMsg(null)} sx={{ mb: 2 }}>
+      <Snackbar
+        open={Boolean(errorMsg)}
+        autoHideDuration={6000}
+        onClose={() => setErrorMsg(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+        sx={{ zIndex: 2000, bottom: { xs: 24, sm: 32 } }}
+      >
+        <Alert
+          severity="error"
+          variant="filled"
+          onClose={() => setErrorMsg(null)}
+          sx={{
+            minWidth: { xs: 280, sm: 380 },
+            maxWidth: { xs: "90vw", sm: 540 },
+            boxShadow: "0px 6px 16px rgba(0, 0, 0, 0.35)",
+            borderRadius: 1,
+            alignItems: "center",
+          }}
+        >
           {errorMsg}
         </Alert>
-      )}
+      </Snackbar>
 
       {photos.length === 0 && !isLoading ? (
         <Typography variant="body2" color="text.secondary">
