@@ -484,6 +484,11 @@ export const AppLayout: React.FC = () => {
               onClose={() => setThemeAnchorEl(null)}
               transformOrigin={{ horizontal: "right", vertical: "top" }}
               anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+              slotProps={{
+                paper: {
+                  sx: { maxHeight: "80vh" },
+                },
+              }}
               sx={{ mt: 1 }}
             >
               <MenuItem disabled sx={{ opacity: "1 !important", fontWeight: 700, fontSize: "0.75rem", letterSpacing: "0.08em", textTransform: "uppercase" }}>
@@ -505,7 +510,17 @@ export const AppLayout: React.FC = () => {
                     <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
                       <Box sx={{ display: "flex", gap: 0.5 }}>
                         {cfg.colors.map((c, i) => (
-                          <Box key={i} sx={{ width: 10, height: 10, borderRadius: "50%", bgcolor: c, border: "1px solid rgba(255,255,255,0.2)" }} />
+                          <Box
+                            key={i}
+                            sx={{
+                              width: 10,
+                              height: 10,
+                              borderRadius: "50%",
+                              bgcolor: c,
+                              border: "1px solid",
+                              borderColor: "divider",
+                            }}
+                          />
                         ))}
                       </Box>
                       <Typography variant="body2" sx={{ fontWeight: active ? 700 : 500 }}>

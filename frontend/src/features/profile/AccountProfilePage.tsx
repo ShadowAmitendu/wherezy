@@ -9,30 +9,26 @@ import {
   Button,
   Avatar,
   Chip,
-  Divider,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
   Switch,
   FormControlLabel,
-  Slider,
-  Paper,
-  Stack,
 } from "@mui/material";
 import PersonOutlinedIcon from "@mui/icons-material/PersonOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
-import CheckIcon from "@mui/icons-material/Check";
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { useAuth } from "../../auth/AuthContext";
-import { useAppTheme, THEME_PRESETS, ThemePreset } from "../../theme";
+import { useAppTheme } from "../../theme";
 import { api, ApiException } from "../../api/client";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { AccountIcon } from "../../components/shared/AccountIcon";
 import { AccountIconPicker } from "../../components/shared/AccountIconPicker";
 import { ColorSwatchPicker } from "../../components/shared/ColorSwatchPicker";
+import { ThemePalettePicker } from "../../components/shared/ThemePalettePicker";
 
 export const AccountProfilePage: React.FC = () => {
   const { currentProfile, refreshAuth } = useAuth();
@@ -310,72 +306,12 @@ export const AccountProfilePage: React.FC = () => {
               </Box>
 
               <Grid container spacing={3}>
-                {/* Theme Palette Selection */}
-                <Grid size={{ xs: 12, md: 6 }}>
-                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5 }}>
-                    Color Palette (Theme One & Theme Two)
-                  </Typography>
-                  <Stack spacing={1.5}>
-                    {(Object.keys(THEME_PRESETS) as ThemePreset[]).map((k) => {
-                      const cfg = THEME_PRESETS[k];
-                      const isSelected = preset === k;
-                      return (
-                        <Paper
-                          key={k}
-                          variant="outlined"
-                          onClick={() => setPreset(k)}
-                          sx={{
-                            p: 1.5,
-                            borderRadius: 1.5,
-                            cursor: "pointer",
-                            borderColor: isSelected ? "primary.main" : "divider",
-                            bgcolor: isSelected ? "action.selected" : "background.paper",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            transition: "all 0.15s ease",
-                            "&:hover": { borderColor: "primary.main" },
-                          }}
-                        >
-                          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                            <Box sx={{ display: "flex", gap: 0.5 }}>
-                              {cfg.colors.map((c, i) => (
-                                <Box
-                                  key={i}
-                                  sx={{
-                                    width: 14,
-                                    height: 14,
-                                    borderRadius: "50%",
-                                    bgcolor: c,
-                                    border: "1px solid rgba(255,255,255,0.2)",
-                                  }}
-                                />
-                              ))}
-                            </Box>
-                            <Box>
-                              <Typography variant="subtitle2" sx={{ fontWeight: isSelected ? 700 : 500 }}>
-                                {cfg.name}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                {k === "theme1"
-                                  ? "Theme One: Obsidian Slate & Aqua Mist (#020608, #1C252B, #486B85)"
-                                  : "Theme 2: Abyss Navy & Vibrant Cyan (#001C2E, #02435C, #57B5C3)"}
-                              </Typography>
-                            </Box>
-                          </Box>
-                          {isSelected && <CheckIcon color="primary" />}
-                        </Paper>
-                      );
-                    })}
-                  </Stack>
-                </Grid>
-
                 {/* Display Mode & Contrast */}
-                <Grid size={{ xs: 12, md: 6 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
                   <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5 }}>
                     Display Mode
                   </Typography>
-                  <FormControl fullWidth sx={{ mb: 3 }}>
+                  <FormControl fullWidth>
                     <InputLabel id="mode-select-label">Mode</InputLabel>
                     <Select
                       labelId="mode-select-label"
@@ -388,8 +324,10 @@ export const AccountProfilePage: React.FC = () => {
                       <MenuItem value="system">Follow System Default</MenuItem>
                     </Select>
                   </FormControl>
+                </Grid>
 
-                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5 }}>
                     Accessibility Options
                   </Typography>
                   <FormControlLabel
@@ -401,6 +339,14 @@ export const AccountProfilePage: React.FC = () => {
                     }
                     label="High Contrast Mode"
                   />
+                </Grid>
+
+                {/* Theme Palette Selection */}
+                <Grid size={{ xs: 12 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 1.5 }}>
+                    Color Palette
+                  </Typography>
+                  <ThemePalettePicker variant="compact" preset={preset} onSelect={setPreset} />
                 </Grid>
               </Grid>
             </CardContent>
