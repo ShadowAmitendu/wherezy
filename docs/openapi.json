@@ -4325,6 +4325,90 @@
         }
       }
     },
+    "/api/ai/config/models": {
+      "post": {
+        "tags": [
+          "AI Assistant"
+        ],
+        "summary": "List Local Ai Models",
+        "description": "Discover available models from a Local LLM / OpenAI-compatible server.",
+        "operationId": "list_local_ai_models_api_ai_config_models_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiLocalModelsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiLocalModelsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/ai/config/test": {
+      "post": {
+        "tags": [
+          "AI Assistant"
+        ],
+        "summary": "Test Ai Provider Connection",
+        "description": "Verify connectivity and JSON output with the configured or pending AI provider.",
+        "operationId": "test_ai_provider_connection_api_ai_config_test_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiConnectionTestRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiConnectionTestResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/categories": {
       "get": {
         "tags": [
@@ -6977,6 +7061,119 @@
         ],
         "title": "AiCategoryPlan"
       },
+      "AiConnectionTestRequest": {
+        "properties": {
+          "provider": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "gemini",
+                  "local"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Provider"
+          },
+          "gemini_api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gemini Api Key"
+          },
+          "gemini_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gemini Model"
+          },
+          "local_llm_base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Llm Base Url"
+          },
+          "local_llm_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Llm Model"
+          },
+          "local_llm_api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Llm Api Key"
+          }
+        },
+        "type": "object",
+        "title": "AiConnectionTestRequest"
+      },
+      "AiConnectionTestResponse": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "gemini",
+              "local"
+            ],
+            "title": "Provider"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "latency_ms": {
+            "type": "integer",
+            "title": "Latency Ms"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "provider",
+          "model",
+          "latency_ms",
+          "message"
+        ],
+        "title": "AiConnectionTestResponse"
+      },
       "AiItemExtractResponse": {
         "properties": {
           "suggestion": {
@@ -7085,6 +7282,60 @@
           "summary"
         ],
         "title": "AiItemSuggestion"
+      },
+      "AiLocalModelsRequest": {
+        "properties": {
+          "base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Url"
+          },
+          "api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Api Key"
+          }
+        },
+        "type": "object",
+        "title": "AiLocalModelsRequest"
+      },
+      "AiLocalModelsResponse": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "base_url": {
+            "type": "string",
+            "title": "Base Url"
+          },
+          "models": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Models",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "base_url"
+        ],
+        "title": "AiLocalModelsResponse"
       },
       "AiLocationCommitRequest": {
         "properties": {
@@ -13047,6 +13298,26 @@
             "title": "Ai Configured",
             "default": false
           },
+          "ai_provider": {
+            "type": "string",
+            "enum": [
+              "gemini",
+              "local"
+            ],
+            "title": "Ai Provider",
+            "default": "gemini"
+          },
+          "ai_status_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Status Label"
+          },
           "ai_key_source": {
             "type": "string",
             "enum": [
@@ -13067,6 +13338,60 @@
               }
             ],
             "title": "Gemini Api Key Hint"
+          },
+          "gemini_model": {
+            "type": "string",
+            "title": "Gemini Model",
+            "default": "gemini-3.8-flash"
+          },
+          "local_llm_base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Llm Base Url"
+          },
+          "local_llm_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Llm Model"
+          },
+          "local_llm_has_api_key": {
+            "type": "boolean",
+            "title": "Local Llm Has Api Key",
+            "default": false
+          },
+          "local_llm_api_key_hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Llm Api Key Hint"
+          },
+          "local_llm_stt_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Llm Stt Model"
           }
         },
         "type": "object",
@@ -13150,6 +13475,21 @@
             ],
             "title": "Photo Limit Per Owner"
           },
+          "ai_provider": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "gemini",
+                  "local"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Ai Provider"
+          },
           "gemini_api_key": {
             "anyOf": [
               {
@@ -13165,6 +13505,66 @@
             "type": "boolean",
             "title": "Clear Gemini Api Key",
             "default": false
+          },
+          "gemini_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gemini Model"
+          },
+          "local_llm_base_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Llm Base Url"
+          },
+          "local_llm_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Llm Model"
+          },
+          "local_llm_api_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Llm Api Key"
+          },
+          "clear_local_llm_api_key": {
+            "type": "boolean",
+            "title": "Clear Local Llm Api Key",
+            "default": false
+          },
+          "local_llm_stt_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Local Llm Stt Model"
           }
         },
         "type": "object",

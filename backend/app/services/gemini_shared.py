@@ -1073,7 +1073,7 @@ def fetch_local_models(
     resolved_url = normalize_local_base_url(base_url or cfg.local_llm_base_url or "")
     resolved_key = api_key if (api_key and api_key.strip()) else cfg.local_llm_api_key
     headers = _local_headers(resolved_key)
-    factory = http_client_factory or (lambda: httpx.Client(timeout=10.0))
+    factory = http_client_factory or (lambda: _create_httpx_client(timeout=10.0))
 
     discovered: List[str] = []
     last_error: Optional[str] = None
@@ -1121,7 +1121,7 @@ def fetch_local_models(
                 if resp.status_code == 200:
                     data = resp.json()
                     for entry in data.get("models", []) if isinstance(data, dict) else []:
-                        name = entry.get("name") if isinstance(entry, dict) else None
+                        name = (entry.get("name") or entry.get("model")) if isinstance(entry, dict) else None
                         if isinstance(name, str) and name.strip() and name.strip() not in discovered:
                             discovered.append(name.strip())
             except Exception as exc:
@@ -1138,6 +1138,7 @@ def fetch_local_models(
                 }
             },
         )
+    discovered.sort(key=str.lower)
     return resolved_url, discovered
 
 

@@ -1,7 +1,7 @@
-# HomeInventory Build Report
+# Wherezy Build Report
 
 Generated: 2026-11-10
-Author: HomeInventory Lead Orchestrator
+Author: Wherezy Lead Orchestrator
 Status: **Complete (Phase 0, Phase 1, Phase 2)**
 
 ---

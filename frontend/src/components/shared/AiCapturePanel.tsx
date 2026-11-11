@@ -87,10 +87,10 @@ export const AiCapturePanel: React.FC<AiCapturePanelProps> = ({
             ) : undefined
           }
         >
-          Gemini AI key is not configured yet.{" "}
+          AI provider is not configured yet.{" "}
           {canOpenSettings
-            ? "Add your Gemini API key in Settings to use AI tools."
-            : "Ask an admin to configure the Gemini API key in Settings."}
+            ? "Configure a Local LLM (Ollama / LM Studio) or add a Gemini API key in Settings."
+            : "Ask an admin to configure a Local LLM or Gemini API key in Settings."}
         </Alert>
       )}
 

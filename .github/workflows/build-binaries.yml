@@ -1,4 +1,4 @@
-name: Build Standalone Binaries
+name: Build & Release Wherezy Packages
 
 on:
   workflow_dispatch:
@@ -92,9 +92,77 @@ jobs:
               shutil.rmtree(tmp, ignore_errors=True)
           PY
 
+      - name: Prepare release-named binary
+        shell: bash
+        run: |
+          mkdir -p release-bin
+          cp "${{ matrix.binary_path }}" "release-bin/${{ matrix.artifact_name }}"
+
       - name: Upload standalone binary artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact_name }}
-          path: ${{ matrix.binary_path }}
+          path: release-bin/${{ matrix.artifact_name }}
           if-no-files-found: error
+
+  build-package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build frontend and sync wheel static assets
+        run: |
+          npm --prefix frontend ci
+          npm --prefix frontend run build
+          python -c "from scripts.build_binary import sync_static_dist; sync_static_dist()"
+
+      - name: Build Python wheel and source archive
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build --outdir release-pkg
+
+      - name: Upload Python package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wherezy-python-package
+          path: release-pkg/*
+          if-no-files-found: error
+
+  release:
+    needs: [build-binary, build-package]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-files
+          merge-multiple: true
+
+      - name: Generate SHA256 checksums
+        shell: bash
+        run: |
+          cd release-files
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-files/*
+          generate_release_notes: true

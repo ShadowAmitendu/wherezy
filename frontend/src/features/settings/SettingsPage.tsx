@@ -20,6 +20,10 @@ import {
   Grid,
   Chip,
   Alert,
+  Stack,
+  ToggleButton,
+  ToggleButtonGroup,
+  CircularProgress,
   useTheme,
   useMediaQuery,
 } from "@mui/material";
@@ -33,6 +37,10 @@ import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import ComputerOutlinedIcon from "@mui/icons-material/ComputerOutlined";
+import CloudOutlinedIcon from "@mui/icons-material/CloudOutlined";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import BoltOutlinedIcon from "@mui/icons-material/BoltOutlined";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { AlertDialog } from "../../components/shared/AlertDialog";
@@ -40,7 +48,14 @@ import { ThemePalettePicker } from "../../components/shared/ThemePalettePicker";
 import { BulkAddDialog } from "../items/BulkAddDialog";
 import { useAppTheme } from "../../theme/themeConstants";
 import { useAuth } from "../../auth/useAuth";
-import { api } from "../../api/client";
+import { api, type AiProviderType, type SettingsResponse } from "../../api/client";
+
+const LOCAL_LLM_PRESETS: Array<{ label: string; baseUrl: string; modelHint: string }> = [
+  { label: "Ollama", baseUrl: "http://127.0.0.1:11434/v1", modelHint: "qwen2.5:7b" },
+  { label: "LM Studio", baseUrl: "http://127.0.0.1:1234/v1", modelHint: "qwen2.5-7b-instruct" },
+  { label: "llama.cpp", baseUrl: "http://127.0.0.1:8080/v1", modelHint: "local-model" },
+  { label: "OpenAI-Compatible", baseUrl: "https://api.openai.com/v1", modelHint: "gpt-4o-mini" },
+];
 
 function formatBytes(bytes: number) {
   if (bytes === 0) return "0 Bytes";
@@ -62,11 +77,38 @@ export const SettingsPage: React.FC = () => {
   const [labelPreset, setLabelPreset] = useState("medium");
   const [backupKeep, setBackupKeep] = useState(7);
   const [aiConfigured, setAiConfigured] = useState(false);
+  const [aiProvider, setAiProvider] = useState<AiProviderType>("gemini");
+  const [aiStatusLabel, setAiStatusLabel] = useState<string | null>(null);
   const [aiKeySource, setAiKeySource] = useState<"env" | "settings" | "none">("none");
   const [aiKeyHint, setAiKeyHint] = useState<string | null>(null);
   const [geminiApiKeyInput, setGeminiApiKeyInput] = useState("");
+  const [geminiModelInput, setGeminiModelInput] = useState("gemini-3.8-flash");
+  const [localBaseUrlInput, setLocalBaseUrlInput] = useState("http://127.0.0.1:11434/v1");
+  const [localModelInput, setLocalModelInput] = useState("");
+  const [localSttModelInput, setLocalSttModelInput] = useState("");
+  const [localApiKeyInput, setLocalApiKeyInput] = useState("");
+  const [localHasApiKey, setLocalHasApiKey] = useState(false);
+  const [localApiKeyHint, setLocalApiKeyHint] = useState<string | null>(null);
+  const [localModelsList, setLocalModelsList] = useState<string[]>([]);
+  const [fetchingModels, setFetchingModels] = useState(false);
+  const [testingAi, setTestingAi] = useState(false);
+  const [aiTestResult, setAiTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [aiSaving, setAiSaving] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
+
+  const applyAiSettingsState = useCallback((s: SettingsResponse) => {
+    setAiConfigured(Boolean(s.ai_configured));
+    setAiProvider(s.ai_provider || "gemini");
+    setAiStatusLabel(s.ai_status_label || null);
+    setAiKeySource(s.ai_key_source || "none");
+    setAiKeyHint(s.gemini_api_key_hint || null);
+    setGeminiModelInput(s.gemini_model || "gemini-3.8-flash");
+    setLocalBaseUrlInput(s.local_llm_base_url || "http://127.0.0.1:11434/v1");
+    setLocalModelInput(s.local_llm_model || "");
+    setLocalSttModelInput(s.local_llm_stt_model || "");
+    setLocalHasApiKey(Boolean(s.local_llm_has_api_key));
+    setLocalApiKeyHint(s.local_llm_api_key_hint || null);
+  }, []);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   // Storage & Backups
@@ -101,15 +143,13 @@ export const SettingsPage: React.FC = () => {
       setBaseUrl(s.base_url || "");
       setLabelPreset(s.label_preset || "medium");
       setBackupKeep(s.backup_keep || 7);
-      setAiConfigured(Boolean(s.ai_configured));
-      setAiKeySource(s.ai_key_source || "none");
-      setAiKeyHint(s.gemini_api_key_hint || null);
+      applyAiSettingsState(s);
       setStorageStats(stats);
       setBackups(b);
     } catch (err) {
       console.error(err);
     }
-  }, []);
+  }, [applyAiSettingsState]);
 
   useEffect(() => {
     let active = true;
@@ -120,9 +160,7 @@ export const SettingsPage: React.FC = () => {
         setBaseUrl(s.base_url || "");
         setLabelPreset(s.label_preset || "medium");
         setBackupKeep(s.backup_keep || 7);
-        setAiConfigured(Boolean(s.ai_configured));
-        setAiKeySource(s.ai_key_source || "none");
-        setAiKeyHint(s.gemini_api_key_hint || null);
+        applyAiSettingsState(s);
         setStorageStats(stats);
         setBackups(b);
       })
@@ -132,7 +170,7 @@ export const SettingsPage: React.FC = () => {
     return () => {
       active = false;
     };
-  }, []);
+  }, [applyAiSettingsState]);
 
   const handleSaveGeneral = async () => {
     try {
@@ -153,41 +191,117 @@ export const SettingsPage: React.FC = () => {
     setBaseUrl(window.location.origin);
   };
 
-  const handleSaveAiKey = async () => {
-    const cleaned = geminiApiKeyInput.trim();
-    if (!cleaned) return;
+  const handleSaveAiSettings = async () => {
     setAiSaving(true);
     setAiError(null);
+    setAiTestResult(null);
     try {
-      const updated = await api.updateSettings({ gemini_api_key: cleaned });
-      setAiConfigured(Boolean(updated.ai_configured));
-      setAiKeySource(updated.ai_key_source || "none");
-      setAiKeyHint(updated.gemini_api_key_hint || null);
+      const payload: Parameters<typeof api.updateSettings>[0] = {
+        ai_provider: aiProvider,
+      };
+      if (aiProvider === "local") {
+        payload.local_llm_base_url = localBaseUrlInput.trim() || null;
+        payload.local_llm_model = localModelInput.trim() || null;
+        payload.local_llm_stt_model = localSttModelInput.trim() || null;
+        if (localApiKeyInput.trim()) {
+          payload.local_llm_api_key = localApiKeyInput.trim();
+        }
+      } else {
+        payload.gemini_model = geminiModelInput.trim() || "gemini-3.8-flash";
+        if (geminiApiKeyInput.trim()) {
+          payload.gemini_api_key = geminiApiKeyInput.trim();
+        }
+      }
+      const updated = await api.updateSettings(payload);
+      applyAiSettingsState(updated);
       setGeminiApiKeyInput("");
+      setLocalApiKeyInput("");
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err: any) {
-      setAiError(err?.error?.message || "Failed to save Gemini API key");
+      setAiError(err?.error?.message || "Failed to save AI settings");
     } finally {
       setAiSaving(false);
     }
   };
 
-  const handleClearAiKey = async () => {
+  const handleClearAiKey = async (target: "gemini" | "local") => {
     setAiSaving(true);
     setAiError(null);
+    setAiTestResult(null);
     try {
-      const updated = await api.updateSettings({ clear_gemini_api_key: true });
-      setAiConfigured(Boolean(updated.ai_configured));
-      setAiKeySource(updated.ai_key_source || "none");
-      setAiKeyHint(updated.gemini_api_key_hint || null);
-      setGeminiApiKeyInput("");
+      const updated = await api.updateSettings(
+        target === "local" ? { clear_local_llm_api_key: true } : { clear_gemini_api_key: true }
+      );
+      applyAiSettingsState(updated);
+      if (target === "local") {
+        setLocalApiKeyInput("");
+      } else {
+        setGeminiApiKeyInput("");
+      }
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
     } catch (err: any) {
-      setAiError(err?.error?.message || "Failed to remove Gemini API key");
+      setAiError(err?.error?.message || "Failed to remove API key");
     } finally {
       setAiSaving(false);
+    }
+  };
+
+  const handleFetchLocalModels = async () => {
+    const trimmedUrl = localBaseUrlInput.trim();
+    if (!trimmedUrl) {
+      setAiError("Enter a Local LLM Server Base URL before fetching models.");
+      return;
+    }
+    setFetchingModels(true);
+    setAiError(null);
+    try {
+      const res = await api.fetchLocalAiModels({
+        base_url: trimmedUrl,
+        api_key: localApiKeyInput.trim() || undefined,
+      });
+      setLocalModelsList(res.models);
+      if (res.models.length === 0) {
+        setAiError(`Connected to ${res.base_url}, but no models were listed. Pull or load a model on the server first.`);
+      } else if (!localModelInput.trim()) {
+        setLocalModelInput(res.models[0]);
+      }
+    } catch (err: any) {
+      setLocalModelsList([]);
+      setAiError(err?.error?.message || "Could not fetch models from the local server.");
+    } finally {
+      setFetchingModels(false);
+    }
+  };
+
+  const handleTestAiConnection = async () => {
+    setTestingAi(true);
+    setAiError(null);
+    setAiTestResult(null);
+    try {
+      const res = await api.testAiConnection(
+        aiProvider === "local"
+          ? {
+              provider: "local",
+              local_llm_base_url: localBaseUrlInput.trim() || undefined,
+              local_llm_model: localModelInput.trim() || undefined,
+              local_llm_api_key: localApiKeyInput.trim() || undefined,
+            }
+          : {
+              provider: "gemini",
+              gemini_api_key: geminiApiKeyInput.trim() || undefined,
+              gemini_model: geminiModelInput.trim() || undefined,
+            }
+      );
+      setAiTestResult({ ok: res.ok, message: res.message });
+    } catch (err: any) {
+      setAiTestResult({
+        ok: false,
+        message: err?.error?.message || "AI connection test failed.",
+      });
+    } finally {
+      setTestingAi(false);
     }
   };
 
@@ -419,7 +533,7 @@ export const SettingsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* AI Category Assistant */}
+      {/* AI Assistant Provider (Local LLM or Cloud API Key) */}
       <Card sx={{ mb: { xs: 2, sm: 3 } }}>
         <CardContent>
           <Box
@@ -435,7 +549,7 @@ export const SettingsPage: React.FC = () => {
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <AutoAwesomeIcon color="primary" />
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                AI Category Assistant (Gemini)
+                AI Assistant Provider
               </Typography>
             </Box>
             <Chip
@@ -443,17 +557,40 @@ export const SettingsPage: React.FC = () => {
               color={aiConfigured ? "success" : "default"}
               variant={aiConfigured ? "filled" : "outlined"}
               label={
-                aiKeySource === "env"
+                aiStatusLabel ||
+                (aiKeySource === "env"
                   ? "Active (Server Env)"
-                  : aiKeySource === "settings"
+                  : aiConfigured
                   ? `Configured (${aiKeyHint || "Saved"})`
-                  : "Not Configured"
+                  : "Not Configured")
               }
             />
           </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Enable voice-, photo-, and prompt-driven AI tools across Categories, Items, Quick Capture Inbox, Bulk Extract, and Storage Locations using Gemini. Keys saved here are encrypted at rest on your server and never sent back to browsers.
+            Choose between a private Local LLM (Ollama, LM Studio, llama.cpp, vLLM, or any OpenAI-compatible server) or a Google Gemini API key to power AI features across Categories, Items, Quick Capture Inbox, Bulk Extract, and Locations. Saved API keys are encrypted at rest on your server.
           </Typography>
+
+          <ToggleButtonGroup
+            value={aiProvider}
+            exclusive
+            size={isMobile ? "small" : "medium"}
+            onChange={(_e, next) => {
+              if (!next) return;
+              setAiProvider(next as AiProviderType);
+              setAiError(null);
+              setAiTestResult(null);
+            }}
+            sx={{ mb: 2, display: "flex", flexWrap: "wrap" }}
+          >
+            <ToggleButton value="local" sx={{ flex: { xs: "1 1 auto", sm: "0 1 auto" }, px: 2 }}>
+              <ComputerOutlinedIcon sx={{ mr: 0.75, fontSize: 18 }} />
+              Local LLM (Ollama / LM Studio / Custom)
+            </ToggleButton>
+            <ToggleButton value="gemini" sx={{ flex: { xs: "1 1 auto", sm: "0 1 auto" }, px: 2 }}>
+              <CloudOutlinedIcon sx={{ mr: 0.75, fontSize: 18 }} />
+              Cloud API Key (Gemini)
+            </ToggleButton>
+          </ToggleButtonGroup>
 
           {aiError && (
             <Alert severity="error" onClose={() => setAiError(null)} sx={{ mb: 2 }}>
@@ -461,44 +598,209 @@ export const SettingsPage: React.FC = () => {
             </Alert>
           )}
 
-          {aiKeySource === "env" && (
-            <Alert severity="info" sx={{ mb: 2 }}>
-              A <code>GEMINI_API_KEY</code> environment variable is active on the server and takes priority over saved settings.
+          {aiTestResult && (
+            <Alert
+              severity={aiTestResult.ok ? "success" : "error"}
+              onClose={() => setAiTestResult(null)}
+              sx={{ mb: 2 }}
+            >
+              {aiTestResult.message}
             </Alert>
           )}
 
-          <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: { xs: 1, sm: 1.5 } }}>
-            <TextField
-              type="password"
-              label={aiKeySource === "settings" ? "Replace Gemini API Key" : "Gemini API Key"}
-              placeholder="AIza..."
-              value={geminiApiKeyInput}
-              onChange={(e) => setGeminiApiKeyInput(e.target.value)}
-              fullWidth
-              disabled={aiSaving}
-              autoComplete="off"
-            />
+          {aiProvider === "local" ? (
+            <Stack spacing={2}>
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.75, fontWeight: 600 }}>
+                  Quick Presets
+                </Typography>
+                <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                  {LOCAL_LLM_PRESETS.map((preset) => (
+                    <Chip
+                      key={preset.label}
+                      label={preset.label}
+                      size="small"
+                      clickable
+                      variant={localBaseUrlInput.trim() === preset.baseUrl ? "filled" : "outlined"}
+                      color={localBaseUrlInput.trim() === preset.baseUrl ? "primary" : "default"}
+                      onClick={() => {
+                        setLocalBaseUrlInput(preset.baseUrl);
+                        if (!localModelInput.trim()) {
+                          setLocalModelInput(preset.modelHint);
+                        }
+                        setLocalModelsList([]);
+                        setAiError(null);
+                        setAiTestResult(null);
+                      }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+
+              <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: { xs: 1, sm: 1.5 }, alignItems: { sm: "flex-start" } }}>
+                <TextField
+                  label="Server Base URL"
+                  placeholder="http://127.0.0.1:11434/v1"
+                  value={localBaseUrlInput}
+                  onChange={(e) => setLocalBaseUrlInput(e.target.value)}
+                  fullWidth
+                  disabled={aiSaving || testingAi}
+                  helperText="OpenAI-compatible endpoint (e.g. Ollama /v1, LM Studio /v1, or cloud compatible API)."
+                />
+                <Button
+                  variant="outlined"
+                  size={isMobile ? "small" : "medium"}
+                  onClick={() => void handleFetchLocalModels()}
+                  disabled={fetchingModels || aiSaving || !localBaseUrlInput.trim()}
+                  startIcon={fetchingModels ? <CircularProgress size={16} /> : <RefreshIcon />}
+                  sx={{ whiteSpace: "nowrap", flexShrink: 0, height: { sm: 56 } }}
+                >
+                  {fetchingModels ? "Fetching..." : "Fetch Models"}
+                </Button>
+              </Box>
+
+              {localModelsList.length > 0 && (
+                <Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.75, fontWeight: 600 }}>
+                    Available Models ({localModelsList.length}) — click to select
+                  </Typography>
+                  <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75 }}>
+                    {localModelsList.map((m) => (
+                      <Chip
+                        key={m}
+                        label={m}
+                        size="small"
+                        clickable
+                        variant={localModelInput.trim() === m ? "filled" : "outlined"}
+                        color={localModelInput.trim() === m ? "primary" : "default"}
+                        onClick={() => setLocalModelInput(m)}
+                      />
+                    ))}
+                  </Box>
+                </Box>
+              )}
+
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    label="Model Name"
+                    placeholder="e.g. qwen2.5:7b, llama3.2, gpt-4o-mini"
+                    value={localModelInput}
+                    onChange={(e) => setLocalModelInput(e.target.value)}
+                    fullWidth
+                    disabled={aiSaving || testingAi}
+                    helperText="Vision-capable models (e.g. qwen2.5-vl, llama3.2-vision, llava) enable photo scan."
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <TextField
+                    label="Voice Transcription Model (Optional STT)"
+                    placeholder="e.g. whisper-1"
+                    value={localSttModelInput}
+                    onChange={(e) => setLocalSttModelInput(e.target.value)}
+                    fullWidth
+                    disabled={aiSaving || testingAi}
+                    helperText="Optional /audio/transcriptions Whisper model when the main model has no audio input."
+                  />
+                </Grid>
+              </Grid>
+
+              <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: { xs: 1, sm: 1.5 }, alignItems: { sm: "flex-start" } }}>
+                <TextField
+                  type="password"
+                  label={
+                    localHasApiKey
+                      ? `Replace Optional API Key (${localApiKeyHint || "Saved"})`
+                      : "Optional API Key / Bearer Token"
+                  }
+                  placeholder="Leave blank for keyless Ollama / LM Studio"
+                  value={localApiKeyInput}
+                  onChange={(e) => setLocalApiKeyInput(e.target.value)}
+                  fullWidth
+                  disabled={aiSaving || testingAi}
+                  autoComplete="off"
+                />
+                {localHasApiKey && (
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    size={isMobile ? "small" : "medium"}
+                    onClick={() => void handleClearAiKey("local")}
+                    disabled={aiSaving || testingAi}
+                    sx={{ whiteSpace: "nowrap", flexShrink: 0, height: { sm: 56 } }}
+                  >
+                    Remove Key
+                  </Button>
+                )}
+              </Box>
+            </Stack>
+          ) : (
+            <Stack spacing={2}>
+              {aiKeySource === "env" && (
+                <Alert severity="info">
+                  A <code>GEMINI_API_KEY</code> environment variable is active on the server and takes priority over saved settings.
+                </Alert>
+              )}
+
+              <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: { xs: 1, sm: 1.5 }, alignItems: { sm: "flex-start" } }}>
+                <TextField
+                  type="password"
+                  label={
+                    aiKeySource === "settings"
+                      ? `Replace Gemini API Key (${aiKeyHint || "Saved"})`
+                      : "Gemini API Key"
+                  }
+                  placeholder="AIza..."
+                  value={geminiApiKeyInput}
+                  onChange={(e) => setGeminiApiKeyInput(e.target.value)}
+                  fullWidth
+                  disabled={aiSaving || testingAi}
+                  autoComplete="off"
+                />
+                {aiKeySource === "settings" && (
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    size={isMobile ? "small" : "medium"}
+                    onClick={() => void handleClearAiKey("gemini")}
+                    disabled={aiSaving || testingAi}
+                    sx={{ whiteSpace: "nowrap", flexShrink: 0, height: { sm: 56 } }}
+                  >
+                    Remove Key
+                  </Button>
+                )}
+              </Box>
+
+              <TextField
+                label="Gemini Model"
+                placeholder="gemini-3.8-flash"
+                value={geminiModelInput}
+                onChange={(e) => setGeminiModelInput(e.target.value)}
+                fullWidth
+                disabled={aiSaving || testingAi}
+                helperText="Default: gemini-3.8-flash"
+              />
+            </Stack>
+          )}
+
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5, mt: 2.5 }}>
+            <Button
+              variant="outlined"
+              size={isMobile ? "small" : "medium"}
+              onClick={() => void handleTestAiConnection()}
+              disabled={testingAi || aiSaving}
+              startIcon={testingAi ? <CircularProgress size={16} /> : <BoltOutlinedIcon />}
+            >
+              {testingAi ? "Testing..." : "Test Connection"}
+            </Button>
             <Button
               variant="contained"
               size={isMobile ? "small" : "medium"}
-              onClick={() => void handleSaveAiKey()}
-              disabled={aiSaving || !geminiApiKeyInput.trim()}
-              sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
+              onClick={() => void handleSaveAiSettings()}
+              disabled={aiSaving || testingAi}
             >
-              Save Key
+              {aiSaving ? "Saving..." : "Save AI Settings"}
             </Button>
-            {aiKeySource === "settings" && (
-              <Button
-                variant="outlined"
-                color="error"
-                size={isMobile ? "small" : "medium"}
-                onClick={() => void handleClearAiKey()}
-                disabled={aiSaving}
-                sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
-              >
-                Remove Key
-              </Button>
-            )}
           </Box>
         </CardContent>
       </Card>

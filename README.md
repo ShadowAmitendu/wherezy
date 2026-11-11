@@ -1,11 +1,13 @@
 # Wherezy 📦
 
-A lightweight, local-network (LAN-only) household inventory management web application.
+> **Showcase & Downloads:** [shadowamitendu.github.io/wherezy](https://shadowamitendu.github.io/wherezy/) · [Latest Releases (Windows / Linux / macOS / Python `.whl`)](https://github.com/ShadowAmitendu/wherezy/releases/latest)
 
-- **Frontend**: React 19, TypeScript, Vite, Material UI (MUI v9), `@mui/x-data-grid`, `@dnd-kit`, `react-hook-form` + `zod`
-- **Backend**: Python 3.12+, FastAPI, SQLite (WAL mode + foreign keys), SQLAlchemy 2.x, Pillow
-- **Data storage**: Local SQLite database and image files in `./data/`
-- **100% Offline & LAN-Only**: Zero telemetry, zero cloud calls, self-contained font bundling (`@fontsource/geist`, `@fontsource/inter`, `@fontsource/jetbrains-mono`).
+A lightweight, local-network (LAN-first) household inventory management web application with optional private AI workflows (Local LLM via Ollama/LM Studio or Google Gemini API).
+
+- **Frontend**: React 19, TypeScript, Vite, Material UI (MUI v9), `@mui/x-data-grid`, `@dnd-kit`, `gsap`, `react-hook-form` + `zod`
+- **Backend**: Python 3.12+, FastAPI, SQLite (WAL mode + foreign keys), SQLAlchemy 2.x, Pillow, `httpx`, `google-genai`
+- **Data storage**: Local SQLite database, encrypted AI credentials, attachments, photos, and `.zip` backups in `./data/`
+- **100% Local & LAN-First**: Zero telemetry, self-contained font bundling (`@fontsource/geist`, `@fontsource/inter`, `@fontsource/jetbrains-mono`), and works fully offline (even AI workflows when paired with a local Ollama or LM Studio server).
 
 ---
 
@@ -49,8 +51,15 @@ A lightweight, local-network (LAN-only) household inventory management web appli
    - Pre-restore safety snapshot automatically created before restoring.
    - Full CSV, JSON, and Excel (`.xlsx`) workbook export, plus CSV/JSON bulk import.
 
-8. **Household PIN Protection (Optional)**:
-   - Optional 4-6 digit household PIN stored with Argon2 hashing and rate-limited brute-force protection.
+8. **Household Profiles, RBAC & PIN Security**:
+   - Multi-user household picker (`admin`, `co_admin`, `member`, `viewer`, and kiosk/wallboard `display` mode) with rate-limited bcrypt PIN authentication and activity logs.
+
+9. **Multimodal AI Workflows (Local LLM or Cloud API Key)**:
+   - Configure **Local LLM / OpenAI-compatible** servers (Ollama, LM Studio, `llama.cpp`, vLLM) with optional Whisper STT, **or** **Google Gemini API** (Fernet-encrypted keys at rest).
+   - Generate category schemas from voice or prompts, auto-fill item forms from photos/voice, sort Quick Capture Inbox items, extract multi-item bulk batches, and build nested location trees.
+
+10. **Showcase Static Site (`site/`)**:
+    - Includes a self-contained static landing page in `site/` (auto-deployed to GitHub Pages via `.github/workflows/pages.yml`) with direct binary/wheel download buttons, feature tour, and setup instructions.
 
 ---
 

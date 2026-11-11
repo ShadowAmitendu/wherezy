@@ -4,7 +4,7 @@ import shutil
 from pathlib import Path
 
 # Configure isolated temporary data directory for all tests so live data/inventory.db is NEVER touched
-TEST_DATA_DIR = Path(tempfile.gettempdir()) / "homeinventory_test_data"
+TEST_DATA_DIR = Path(tempfile.gettempdir()) / "wherezy_test_data"
 TEST_DATA_DIR.mkdir(parents=True, exist_ok=True)
 os.environ["DATA_DIR"] = str(TEST_DATA_DIR)
 

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="wherezy-bg" x1="0" y1="0" x2="64" y2="64" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#2196F3" />
+      <stop offset="100%" stop-color="#1565C0" />
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="url(#wherezy-bg)" />
+  <path
+    fill="#FFFFFF"
+    fill-rule="evenodd"
+    d="M18.86 39.06A17.5 17.5 0 1 1 45.14 39.06L33.4 53.2Q32 54.8 30.6 53.2ZM32 19.2L40 25.6V34.8H24V25.6Z"
+  />
+</svg>

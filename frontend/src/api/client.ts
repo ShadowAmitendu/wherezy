@@ -95,6 +95,55 @@ export interface ImportCsvResult {
   errors: string[];
 }
 
+export type AiProviderType = "gemini" | "local";
+
+export interface SettingsUpdatePayload {
+  expiry_warn_days?: number;
+  base_url?: string | null;
+  label_preset?: string;
+  print_defaults?: {
+    include_sub: boolean;
+    show_photos: boolean;
+    show_audit_box: boolean;
+    font_size: string;
+  };
+  theme?: string;
+  backup_keep?: number;
+  photo_limit_per_owner?: number;
+  ai_provider?: AiProviderType;
+  gemini_api_key?: string | null;
+  clear_gemini_api_key?: boolean;
+  gemini_model?: string | null;
+  local_llm_base_url?: string | null;
+  local_llm_model?: string | null;
+  local_llm_api_key?: string | null;
+  clear_local_llm_api_key?: boolean;
+  local_llm_stt_model?: string | null;
+}
+
+export interface AiLocalModelsResponse {
+  ok: boolean;
+  base_url: string;
+  models: string[];
+}
+
+export interface AiConnectionTestPayload {
+  provider?: AiProviderType;
+  gemini_api_key?: string | null;
+  gemini_model?: string | null;
+  local_llm_base_url?: string | null;
+  local_llm_model?: string | null;
+  local_llm_api_key?: string | null;
+}
+
+export interface AiConnectionTestResponse {
+  ok: boolean;
+  provider: AiProviderType;
+  model: string;
+  latency_ms: number;
+  message: string;
+}
+
 export interface SettingsResponse {
   expiry_warn_days: number;
   base_url: string | null;
@@ -109,8 +158,16 @@ export interface SettingsResponse {
   backup_keep: number;
   photo_limit_per_owner: number;
   ai_configured: boolean;
+  ai_provider: AiProviderType;
+  ai_status_label?: string | null;
   ai_key_source: "env" | "settings" | "none";
   gemini_api_key_hint?: string | null;
+  gemini_model?: string | null;
+  local_llm_base_url?: string | null;
+  local_llm_model?: string | null;
+  local_llm_has_api_key?: boolean;
+  local_llm_api_key_hint?: string | null;
+  local_llm_stt_model?: string | null;
 }
 
 export interface AiCategoryFieldPlan {
@@ -316,10 +373,20 @@ export const api = {
 
   // Settings
   getSettings: () => apiFetch<SettingsResponse>("/api/settings"),
-  updateSettings: (data: any) =>
+  updateSettings: (data: SettingsUpdatePayload) =>
     apiFetch<SettingsResponse>("/api/settings", {
       method: "PUT",
       body: JSON.stringify(data),
+    }),
+  fetchLocalAiModels: (payload: { base_url?: string | null; api_key?: string | null }) =>
+    apiFetch<AiLocalModelsResponse>("/api/ai/config/models", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  testAiConnection: (payload: AiConnectionTestPayload) =>
+    apiFetch<AiConnectionTestResponse>("/api/ai/config/test", {
+      method: "POST",
+      body: JSON.stringify(payload),
     }),
 
   // Categories & Fields
