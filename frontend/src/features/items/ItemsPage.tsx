@@ -217,7 +217,7 @@ export const ItemsPage: React.FC = () => {
           <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
             {params.value}
           </Typography>
-          <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>
+          <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "var(--font-mono)" }}>
             I{params.row.id}
           </Typography>
         </Box>

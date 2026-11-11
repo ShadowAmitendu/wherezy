@@ -161,7 +161,7 @@ export const AccountProfilePage: React.FC = () => {
                 sx={{ fontWeight: 700, textTransform: "capitalize" }}
               />
             </Box>
-            <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "monospace", mt: 0.5 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "var(--font-mono)", mt: 0.5 }}>
               @{currentProfile?.username || currentProfile?.name?.toLowerCase().replace(" ", "")}
             </Typography>
             <Typography variant="caption" color="text.secondary">

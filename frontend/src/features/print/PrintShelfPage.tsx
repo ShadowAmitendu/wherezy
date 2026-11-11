@@ -203,7 +203,7 @@ export const PrintShelfPage: React.FC = () => {
           {qrDataUrl && (
             <Box sx={{ textAlign: "center" }}>
               <img src={qrDataUrl} alt="Location QR" style={{ width: 80, height: 80 }} />
-              <Typography variant="caption" sx={{ display: "block", fontFamily: "monospace", fontWeight: 700 }}>
+              <Typography variant="caption" sx={{ display: "block", fontFamily: "var(--font-mono)", fontWeight: 700 }}>
                 L{location?.id}
               </Typography>
             </Box>
@@ -255,7 +255,7 @@ export const PrintShelfPage: React.FC = () => {
                       )}
                       <TableCell sx={{ fontWeight: 600 }}>
                         {it.name}
-                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontFamily: "monospace" }}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontFamily: "var(--font-mono)" }}>
                           I{it.id}
                         </Typography>
                       </TableCell>

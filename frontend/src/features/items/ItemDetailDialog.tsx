@@ -310,7 +310,7 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
               <Chip
                 label={`I${item?.id}`}
                 size="small"
-                sx={{ fontFamily: "monospace", fontWeight: 700 }}
+                sx={{ fontFamily: "var(--font-mono)", fontWeight: 700 }}
                 color="primary"
                 variant="outlined"
               />
@@ -669,7 +669,7 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
                           </Typography>
                         </Box>
                         {act.diff && (
-                          <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>
+                          <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "var(--font-mono)" }}>
                             {JSON.stringify(act.diff)}
                           </Typography>
                         )}

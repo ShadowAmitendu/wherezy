@@ -5,7 +5,7 @@ A lightweight, local-network (LAN-only) household inventory management web appli
 - **Frontend**: React 19, TypeScript, Vite, Material UI (MUI v7), `@mui/x-data-grid`, `@dnd-kit`, `react-hook-form` + `zod`
 - **Backend**: Python 3.12+, FastAPI, SQLite (WAL mode + foreign keys), SQLAlchemy 2.x, Pillow
 - **Data storage**: Local SQLite database and image files in `./data/`
-- **100% Offline & LAN-Only**: Zero telemetry, zero cloud calls, self-contained font bundling (`@fontsource/inter`, `@fontsource/jetbrains-mono`).
+- **100% Offline & LAN-Only**: Zero telemetry, zero cloud calls, self-contained font bundling (`@fontsource/geist`, `@fontsource/inter`, `@fontsource/jetbrains-mono`).
 
 ---
 

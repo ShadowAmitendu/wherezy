@@ -364,7 +364,7 @@ export const UsersPage: React.FC = () => {
                           />
                         )}
                       </Box>
-                      <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "monospace", fontSize: "0.8rem" }}>
+                      <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "var(--font-mono)", fontSize: "0.8rem" }}>
                         @{p.username || p.name.toLowerCase().replace(" ", "")}
                       </Typography>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.8, flexWrap: "wrap" }}>

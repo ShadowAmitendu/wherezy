@@ -120,7 +120,7 @@ export const ExpiryPage: React.FC = () => {
                       <Typography variant="body2" sx={{ fontWeight: 600 }}>
                         {it.name}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "monospace" }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "var(--font-mono)" }}>
                         I{it.id}
                       </Typography>
                     </TableCell>

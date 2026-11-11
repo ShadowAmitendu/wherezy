@@ -247,7 +247,7 @@ export const ActivityPage: React.FC = () => {
                           p: 1.5,
                           bgcolor: "action.hover",
                           borderRadius: 1,
-                          fontFamily: "monospace",
+                          fontFamily: "var(--font-mono)",
                           fontSize: "0.8rem",
                         }}
                       >

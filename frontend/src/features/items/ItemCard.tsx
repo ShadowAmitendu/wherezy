@@ -71,7 +71,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick }) => {
               top: 8,
               left: 8,
               bgcolor: "background.paper",
-              fontFamily: "monospace",
+              fontFamily: "var(--font-mono)",
               fontWeight: 700,
             }}
           />

@@ -1,11 +1,22 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
 import { createTheme, ThemeProvider as MuiThemeProvider, CssBaseline, alpha } from "@mui/material";
+import "@fontsource/geist/400.css";
+import "@fontsource/geist/500.css";
+import "@fontsource/geist/600.css";
+import "@fontsource/geist/700.css";
+import "@fontsource/geist/800.css";
 import "@fontsource/inter/400.css";
 import "@fontsource/inter/500.css";
 import "@fontsource/inter/600.css";
 import "@fontsource/inter/700.css";
 import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/500.css";
 import "@fontsource/jetbrains-mono/600.css";
+import "@fontsource/jetbrains-mono/700.css";
+
+export const HEADING_FONT_FAMILY = "'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+export const BODY_FONT_FAMILY = "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+export const MONO_FONT_FAMILY = "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
 
 export type ThemePreset =
   | "material"
@@ -551,39 +562,68 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         },
       },
       typography: {
-        fontFamily: "'Roboto', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+        fontFamily: BODY_FONT_FAMILY,
+        h1: {
+          fontFamily: HEADING_FONT_FAMILY,
+          fontWeight: 700,
+          letterSpacing: "-0.025em",
+        },
+        h2: {
+          fontFamily: HEADING_FONT_FAMILY,
+          fontWeight: 700,
+          letterSpacing: "-0.02em",
+        },
+        h3: {
+          fontFamily: HEADING_FONT_FAMILY,
+          fontWeight: 700,
+          letterSpacing: "-0.02em",
+        },
         h4: {
-          fontWeight: 400,
-          letterSpacing: "0.00735em",
+          fontFamily: HEADING_FONT_FAMILY,
+          fontWeight: 700,
+          letterSpacing: "-0.015em",
         },
         h5: {
+          fontFamily: HEADING_FONT_FAMILY,
+          fontWeight: 700,
+          letterSpacing: "-0.015em",
+        },
+        h6: {
+          fontFamily: HEADING_FONT_FAMILY,
+          fontWeight: 600,
+          letterSpacing: "-0.01em",
+        },
+        subtitle1: {
+          fontFamily: HEADING_FONT_FAMILY,
+          fontWeight: 600,
+          letterSpacing: "-0.005em",
+        },
+        subtitle2: {
+          fontFamily: BODY_FONT_FAMILY,
+          fontWeight: 500,
+          letterSpacing: "0em",
+        },
+        body1: {
+          fontFamily: BODY_FONT_FAMILY,
           fontWeight: 400,
           letterSpacing: "0em",
         },
-        h6: {
-          fontWeight: 500,
-          letterSpacing: "0.0075em",
-        },
-        subtitle1: {
-          fontWeight: 400,
-          letterSpacing: "0.00938em",
-        },
-        subtitle2: {
-          fontWeight: 500,
-          letterSpacing: "0.00714em",
-        },
-        body1: {
-          fontWeight: 400,
-          letterSpacing: "0.03125em",
-        },
         body2: {
+          fontFamily: BODY_FONT_FAMILY,
           fontWeight: 400,
-          letterSpacing: "0.01786em",
+          letterSpacing: "0em",
         },
         button: {
-          fontWeight: 500,
-          letterSpacing: "0.02857em",
+          fontFamily: BODY_FONT_FAMILY,
+          fontWeight: 600,
+          letterSpacing: "0.015em",
           textTransform: "uppercase",
+        },
+        caption: {
+          fontFamily: BODY_FONT_FAMILY,
+        },
+        overline: {
+          fontFamily: BODY_FONT_FAMILY,
         },
       },
       shape: {
@@ -639,8 +679,9 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             root: {
               borderRadius: 4,
               textTransform: "uppercase",
-              fontWeight: 500,
-              letterSpacing: "0.02857em",
+              fontFamily: BODY_FONT_FAMILY,
+              fontWeight: 600,
+              letterSpacing: "0.015em",
               padding: "6px 16px",
             },
             contained: {
@@ -697,8 +738,10 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         MuiDialogTitle: {
           styleOverrides: {
             root: {
+              fontFamily: HEADING_FONT_FAMILY,
               fontSize: "1.25rem",
-              fontWeight: 500,
+              fontWeight: 600,
+              letterSpacing: "-0.01em",
               padding: "24px 24px 16px 24px",
             },
           },

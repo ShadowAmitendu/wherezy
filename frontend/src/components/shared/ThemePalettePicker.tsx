@@ -136,10 +136,10 @@ export const ThemePalettePicker: React.FC<ThemePalettePickerProps> = ({
                 ))}
               </Box>
               <Box sx={{ display: "flex", justifyContent: "space-between", mt: 0.5 }}>
-                <Typography variant="caption" sx={{ fontSize: "0.65rem", fontFamily: "monospace", opacity: 0.7 }}>
+                <Typography variant="caption" sx={{ fontSize: "0.65rem", fontFamily: "var(--font-mono)", opacity: 0.7 }}>
                   {cfg.colors[0]}
                 </Typography>
-                <Typography variant="caption" sx={{ fontSize: "0.65rem", fontFamily: "monospace", opacity: 0.7 }}>
+                <Typography variant="caption" sx={{ fontSize: "0.65rem", fontFamily: "var(--font-mono)", opacity: 0.7 }}>
                   {cfg.colors[cfg.colors.length - 1]}
                 </Typography>
               </Box>
