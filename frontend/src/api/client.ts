@@ -1,5 +1,5 @@
 /**
- * Type-safe API client for HomeInventory.
+ * Type-safe API client for Wherezy.
  */
 
 export interface ApiError {

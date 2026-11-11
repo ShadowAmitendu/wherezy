@@ -1,5 +1,5 @@
 """
-HomeInventory Server Launcher
+Wherezy Server Launcher
 Run with:
     python run.py
 or:
@@ -29,7 +29,7 @@ def get_lan_ip() -> str:
         return "127.0.0.1"
 
 def main():
-    parser = argparse.ArgumentParser(description="Start the HomeInventory server.")
+    parser = argparse.ArgumentParser(description="Start the Wherezy server.")
     parser.add_argument("--host", default="0.0.0.0", help="Host to listen on (default: 0.0.0.0)")
     parser.add_argument("--port", type=int, default=8000, help="Port to listen on (default: 8000)")
     parser.add_argument("--reload", dest="reload", action="store_true", default=True, help="Enable auto-reload on code change (default: enabled)")
@@ -47,7 +47,7 @@ def main():
     port = args.port
 
     print("=" * 60)
-    print("   📦 HomeInventory Server Starting")
+    print("   📦 Wherezy Server Starting")
     print("=" * 60)
     print(f"   Local Computer:   http://localhost:{port}")
     if lan_ip != "127.0.0.1":

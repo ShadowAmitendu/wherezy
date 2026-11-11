@@ -216,7 +216,7 @@ export const SettingsPage: React.FC = () => {
           </Box>
           <Typography variant="body2" color="text.secondary">
             {pinSet
-              ? "A household PIN is currently active. Devices must enter this PIN to access HomeInventory. Failed attempts are rate-limited to 5 per minute."
+              ? "A household PIN is currently active. Devices must enter this PIN to access Wherezy. Failed attempts are rate-limited to 5 per minute."
               : "No PIN is configured. Anyone on your local home Wi-Fi can view and edit items without logging in."}
           </Typography>
         </CardContent>
@@ -336,7 +336,7 @@ export const SettingsPage: React.FC = () => {
             </Typography>
           </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            HomeInventory stores your complete database and photo files locally in the <code>data/</code> folder.
+            Wherezy stores your complete database and photo files locally in the <code>data/</code> folder.
           </Typography>
 
           {storageStats && (

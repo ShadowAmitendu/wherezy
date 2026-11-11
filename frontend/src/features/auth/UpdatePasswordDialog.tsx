@@ -107,7 +107,7 @@ export const UpdatePasswordDialog: React.FC<UpdatePasswordDialogProps> = ({
         <DialogContent sx={{ pt: 1 }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5, textAlign: "center" }}>
             {currentProfile?.must_change_password
-              ? "Welcome to HomeInventory! For account security, please set a new password before proceeding."
+              ? "Welcome to Wherezy! For account security, please set a new password before proceeding."
               : `Change the login password for account @${currentProfile?.username || currentProfile?.name}.`}
           </Typography>
 

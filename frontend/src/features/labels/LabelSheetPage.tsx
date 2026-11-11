@@ -20,6 +20,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import QRCode from "qrcode";
 import JsBarcode from "jsbarcode";
 import { api } from "../../api/client";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 
 interface LabelData {
   id: string;
@@ -30,6 +31,7 @@ interface LabelData {
 }
 
 export const LabelSheetPage: React.FC = () => {
+  useDocumentTitle("Print Labels");
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -73,9 +75,9 @@ export const LabelSheetPage: React.FC = () => {
         const sampleUrl = `${origin}/#/scan`;
         const qrUrl = await QRCode.toDataURL(sampleUrl, { width: 100, margin: 1 });
         list.push({
-          id: "HI_APP",
+          id: "WZ_APP",
           type: "location",
-          name: "HomeInventory App",
+          name: "Wherezy App",
           path: "Local Wi-Fi Network",
           qrUrl,
         });

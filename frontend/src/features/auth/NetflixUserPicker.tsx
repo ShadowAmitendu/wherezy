@@ -27,6 +27,7 @@ import { useAuth } from "../../auth/AuthContext";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { NetflixProfileCard } from "./NetflixProfileCard";
 import { AccountIcon } from "../../components/shared/AccountIcon";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 
 interface NetflixUserPickerProps {
   onSelectSuccess?: (profile: ProfileOut) => void;
@@ -37,6 +38,7 @@ export const NetflixUserPicker: React.FC<NetflixUserPickerProps> = ({
   onSelectSuccess,
   showBackToLogin = true,
 }) => {
+  useDocumentTitle("Select Profile");
   const navigate = useNavigate();
   const { selectProfile, refreshAuth } = useAuth();
   const [profiles, setProfiles] = useState<ProfileOut[]>([]);
@@ -169,7 +171,7 @@ export const NetflixUserPicker: React.FC<NetflixUserPickerProps> = ({
               fontSize: { xs: "0.95rem", sm: "1.15rem" },
             }}
           >
-            Select your household profile to enter HomeInventory
+            Select your household profile to enter Wherezy
           </Typography>
         </Box>
       </Fade>

@@ -16,8 +16,10 @@ import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
 import AlarmOutlinedIcon from "@mui/icons-material/AlarmOutlined";
 import AssignmentReturnOutlinedIcon from "@mui/icons-material/AssignmentReturnOutlined";
 import { api } from "../../api/client";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 
 export const WallPage: React.FC = () => {
+  useDocumentTitle("Wall Display");
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState<string>("");

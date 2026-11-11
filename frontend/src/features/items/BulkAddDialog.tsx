@@ -82,7 +82,7 @@ function downloadCategoryCsvTemplate(category: Category | null, fields: FieldDef
     .replace(/^-|-$/g, "");
   const anchor = document.createElement("a");
   anchor.href = url;
-  anchor.download = `homeinventory-${slug || "items"}-template.csv`;
+  anchor.download = `wherezy-${slug || "items"}-template.csv`;
   document.body.appendChild(anchor);
   anchor.click();
   document.body.removeChild(anchor);

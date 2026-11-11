@@ -114,7 +114,7 @@ def export_data(
         return Response(
             content=json_str,
             media_type="application/json",
-            headers={"Content-Disposition": "attachment; filename=homeinventory_export.json"}
+            headers={"Content-Disposition": "attachment; filename=wherezy_export.json"}
         )
 
     # CSV format
@@ -170,7 +170,7 @@ def export_data(
     return Response(
         content=csv_data,
         media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=homeinventory_export.csv"}
+        headers={"Content-Disposition": "attachment; filename=wherezy_export.csv"}
     )
 
 def _build_location_lookup(db: Session):

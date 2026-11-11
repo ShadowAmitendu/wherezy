@@ -210,7 +210,7 @@ export const AppLayout: React.FC = () => {
                 }}
                 noWrap
               >
-                HomeInventory
+                Wherezy
               </Typography>
             </Box>
           </Box>
@@ -682,7 +682,7 @@ export const AppLayout: React.FC = () => {
           <Toolbar sx={{ display: "flex", alignItems: "center", px: 2, gap: 1 }}>
             <Inventory2OutlinedIcon color="primary" />
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-              HomeInventory
+              Wherezy
             </Typography>
           </Toolbar>
           <Divider />

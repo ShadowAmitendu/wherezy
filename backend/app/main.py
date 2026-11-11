@@ -22,9 +22,9 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(
-    title="HomeInventory API",
+    title="Wherezy API",
     version="2.0.0",
-    description="LAN-only Household Inventory API v2 with Profiles, Activity, Tags, Reminders, Audits, Inbox, and Moving",
+    description="LAN-only Wherezy Household Inventory API v2 with Profiles, Activity, Tags, Reminders, Audits, Inbox, and Moving",
     lifespan=lifespan
 )
 

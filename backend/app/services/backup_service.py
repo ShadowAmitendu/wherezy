@@ -29,7 +29,7 @@ def create_backup_archive() -> Path:
     Returns path to created zip in BACKUPS_DIR.
     """
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    zip_filename = f"homeinventory_backup_{timestamp}.zip"
+    zip_filename = f"wherezy_backup_{timestamp}.zip"
     zip_path = BACKUPS_DIR / zip_filename
 
     # 1. Safely copy SQLite DB using online backup API to a temp file

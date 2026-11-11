@@ -24,12 +24,14 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import QRCode from "qrcode";
 import { api } from "../../api/client";
 import { CoverThumb } from "../photos/CoverThumb";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 
 export const PrintShelfPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
   const [location, setLocation] = useState<any | null>(null);
+  useDocumentTitle(location?.name ? `Shelf Audit: ${location.name}` : "Shelf Audit Sheet");
   const [items, setItems] = useState<any[]>([]);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
 
@@ -185,7 +187,7 @@ export const PrintShelfPage: React.FC = () => {
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
           <Box>
             <Typography variant="overline" color="text.secondary">
-              HomeInventory Shelf Audit Sheet
+              Wherezy Shelf Audit Sheet
             </Typography>
             <Typography variant="h4" sx={{ fontWeight: 800 }} gutterBottom>
               {location?.name}

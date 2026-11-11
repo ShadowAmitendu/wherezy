@@ -1,4 +1,4 @@
-# HomeInventory 📦
+# Wherezy 📦
 
 A lightweight, local-network (LAN-only) household inventory management web application.
 
@@ -102,10 +102,10 @@ Open your browser to:
 
 Modern mobile browsers (Safari on iOS, Chrome on Android) require a **Secure Context** (`https://` or `localhost`) to grant permission to live video cameras.
 
-If you access HomeInventory over LAN plain HTTP (`http://192.168.x.x:8000`):
+If you access Wherezy over LAN plain HTTP (`http://192.168.x.x:8000`):
 1. **Photo Capture Fallback**: Tap **"Take Photo of Code"** on the Scan screen. Your phone camera will open, take a picture, and decode the QR/barcode instantly.
 2. **Direct QR Link**: Scanning the QR code with your phone's native camera app opens `http://<ip>:8000/#/i/<id>`, taking you directly to the item!
-3. **Optional HTTPS**: You can run HomeInventory behind a reverse proxy (such as Caddy, Nginx, or Traefik) with a local TLS certificate if you want live streaming camera access over Wi-Fi.
+3. **Optional HTTPS**: You can run Wherezy behind a reverse proxy (such as Caddy, Nginx, or Traefik) with a local TLS certificate if you want live streaming camera access over Wi-Fi.
 
 ---
 

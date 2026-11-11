@@ -8,11 +8,13 @@ import { FormBuilder } from "./FormBuilder";
 import { renderMuiIcon } from "../../components/shared/IconPicker";
 import { api } from "../../api/client";
 import { Category, FieldDef } from "./types";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 
 export const CategoryDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [category, setCategory] = useState<Category | null>(null);
+  useDocumentTitle(category ? category.name : "Categories");
   const [fields, setFields] = useState<FieldDef[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 

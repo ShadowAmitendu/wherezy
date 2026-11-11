@@ -21,8 +21,10 @@ import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
 import { useAuth } from "../../auth/AuthContext";
 import { ApiException } from "../../api/client";
 import { AlertDialog } from "../../components/shared/AlertDialog";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 
 export const LoginPage: React.FC = () => {
+  useDocumentTitle("Sign In");
   const navigate = useNavigate();
   const location = useLocation();
   const { login } = useAuth();
@@ -103,7 +105,7 @@ export const LoginPage: React.FC = () => {
               <Inventory2OutlinedIcon fontSize="large" />
             </Box>
             <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: "-0.01em" }}>
-              HomeInventory
+              Wherezy
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
               Sign in to manage your inventory & household

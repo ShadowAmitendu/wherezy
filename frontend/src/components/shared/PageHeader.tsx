@@ -1,14 +1,23 @@
 import React from "react";
 import { Box, Typography } from "@mui/material";
+import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 
 export interface PageHeaderProps {
   title: string;
   subtitle?: string;
   icon?: React.ReactNode;
   action?: React.ReactNode;
+  documentTitle?: string;
 }
 
-export const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, icon, action }) => {
+export const PageHeader: React.FC<PageHeaderProps> = ({
+  title,
+  subtitle,
+  icon,
+  action,
+  documentTitle,
+}) => {
+  useDocumentTitle(documentTitle ?? title);
   return (
     <Box
       sx={{

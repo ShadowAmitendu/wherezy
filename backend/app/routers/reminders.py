@@ -140,7 +140,7 @@ def test_webhook(
     if not (url.startswith("http://") or url.startswith("https://")):
         return WebhookTestResponse(ok=False, message="Webhook URL must begin with http:// or https://")
 
-    payload = json.dumps({"event": "test", "message": "HomeInventory LAN Webhook Test", "sent_by": current.name}).encode("utf-8")
+    payload = json.dumps({"event": "test", "message": "Wherezy LAN Webhook Test", "sent_by": current.name}).encode("utf-8")
     req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
 
     try:
