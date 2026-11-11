@@ -358,7 +358,7 @@ export const LocationsPage: React.FC = () => {
             startIcon={<AddIcon />}
             onClick={() => handleOpenAdd(null)}
           >
-            New Root Location
+            New Location
           </Button>
         }
       />
@@ -375,7 +375,7 @@ export const LocationsPage: React.FC = () => {
         <EmptyState
           title="No Storage Locations"
           description="Add your first room, cupboard, or shelf to organize where household items live."
-          actionLabel="Add Root Location"
+          actionLabel="Add First Location"
           onAction={() => handleOpenAdd(null)}
         />
       ) : (
@@ -389,7 +389,7 @@ export const LocationsPage: React.FC = () => {
                     Location Tree
                   </Typography>
                   <Button size="small" onClick={() => handleOpenAdd(null)}>
-                    + Add Root
+                    + Add Top-Level
                   </Button>
                 </Box>
                 <Divider sx={{ mb: 1.5 }} />
