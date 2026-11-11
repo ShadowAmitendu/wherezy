@@ -1,0 +1,67 @@
+{
+  "name": "Keys, Locks & Access",
+  "slug": "keys",
+  "icon": "key",
+  "color": "#f9a825",
+  "track_expiry": false,
+  "expiry_label": "Expiry date",
+  "fields": [
+    {
+      "label": "Opens / Belongs to",
+      "type": "text",
+      "required": true,
+      "show_in_list": true,
+      "hint": "e.g. Front Door, Terrace Padlock"
+    },
+    {
+      "label": "Type",
+      "type": "dropdown",
+      "required": false,
+      "options": [
+        "House Key",
+        "Padlock + Key",
+        "Vehicle Key / Fob",
+        "Cabinet / Safe Key",
+        "RFID / Access Card",
+        "Luggage Lock",
+        "Combination Lock"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Key code / tag label",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Copy status",
+      "type": "dropdown",
+      "required": false,
+      "options": [
+        "Original",
+        "Spare copy",
+        "Primary set",
+        "Guest / Emergency spare"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Lent to / Shared with",
+      "type": "text",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    },
+    {
+      "label": "Notes",
+      "type": "longtext",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    }
+  ]
+}

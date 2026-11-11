@@ -1,0 +1,56 @@
+{
+  "name": "Hardware & Plumbing",
+  "slug": "hardware",
+  "icon": "plumbing",
+  "color": "#455a64",
+  "track_expiry": false,
+  "expiry_label": "Expiry date",
+  "fields": [
+    {
+      "label": "Category",
+      "type": "dropdown",
+      "required": true,
+      "options": [
+        "Screws & Bolts",
+        "Anchors & Plugs",
+        "Nuts & Washers",
+        "Plumbing Fittings",
+        "Tapes & Adhesives",
+        "Paint & Brushes",
+        "Hinges & Latches",
+        "Sandpaper / Abrasives",
+        "Other"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Size / Thread",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": "e.g. M6 x 30mm or 1/2 inch"
+    },
+    {
+      "label": "Material / Finish",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": "e.g. Brass, Zinc, PVC"
+    },
+    {
+      "label": "Used for",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Notes",
+      "type": "longtext",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    }
+  ]
+}

@@ -17,7 +17,7 @@ A lightweight, local-network (LAN-first) household inventory management web appl
    - Build custom form schemas per category with drag-and-drop field reordering.
    - Field types: `text`, `longtext`, `number` (with optional units like `V`, `W`, `kg`), `date`, `dropdown`, `multiselect`, and `checkbox`.
    - Safe evolution: labels and hints can be edited without losing data; archived fields retain existing records.
-   - Starter templates ready to use: **Medicines**, **Lights**, **Tools**, and **Documents**.
+   - 20 ready-to-use starter templates including **Medicines**, **First Aid**, **Lights**, **Tools**, **Hardware & Plumbing**, **Documents**, **Electronics**, **Cables & Chargers**, **Batteries**, **Pantry & Dry Goods**, **Kitchen & Cookware**, **Cleaning & Laundry**, **Clothing**, **Keys & Locks**, **Books**, **Automotive**, **Garden**, **Pets**, **Travel & Camping**, and **Games & Crafts**.
 
 2. **Storage Location Hierarchy**:
    - Nestable storage locations (e.g. *Garage > Storage Rack > Shelf 2 > Parts Bin A*).

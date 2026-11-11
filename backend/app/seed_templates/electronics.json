@@ -1,0 +1,77 @@
+{
+  "name": "Electronics & Gadgets",
+  "slug": "electronics",
+  "icon": "devices",
+  "color": "#0288d1",
+  "track_expiry": true,
+  "expiry_label": "Warranty till",
+  "fields": [
+    {
+      "label": "Device type",
+      "type": "dropdown",
+      "required": true,
+      "options": [
+        "Phone",
+        "Tablet",
+        "Laptop",
+        "Desktop / Mini PC",
+        "Audio / Headphones",
+        "Camera",
+        "Monitor / Display",
+        "Router / Network",
+        "Smart Home",
+        "Other"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Brand",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Model",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Serial / IMEI",
+      "type": "text",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    },
+    {
+      "label": "Condition",
+      "type": "dropdown",
+      "required": false,
+      "options": [
+        "In active use",
+        "Spare / Working",
+        "Needs repair",
+        "For parts / Recycle"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Purchase date",
+      "type": "date",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    },
+    {
+      "label": "Original box kept",
+      "type": "checkbox",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    }
+  ]
+}

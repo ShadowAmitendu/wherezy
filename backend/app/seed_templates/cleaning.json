@@ -1,0 +1,73 @@
+{
+  "name": "Cleaning & Laundry",
+  "slug": "cleaning",
+  "icon": "cleanhands",
+  "color": "#00acc1",
+  "track_expiry": true,
+  "expiry_label": "Use before",
+  "fields": [
+    {
+      "label": "Supply type",
+      "type": "dropdown",
+      "required": true,
+      "options": [
+        "Laundry Detergent",
+        "Dish Soap / Pods",
+        "Surface Cleaner",
+        "Disinfectant / Bleach",
+        "Glass Cleaner",
+        "Sponge / Scrub / Mop",
+        "Microfiber Cloths",
+        "Trash Bags",
+        "Descaler / Stain Remover",
+        "Other"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Brand",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Pack size",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": "e.g. 1.5 L or 40 pods"
+    },
+    {
+      "label": "Surfaces / rooms",
+      "type": "multiselect",
+      "required": false,
+      "options": [
+        "Kitchen",
+        "Bathroom",
+        "Laundry",
+        "Floors",
+        "Glass",
+        "Wood",
+        "Multi-Surface"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Refill needed soon",
+      "type": "checkbox",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    },
+    {
+      "label": "Safety / dilution note",
+      "type": "text",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    }
+  ]
+}

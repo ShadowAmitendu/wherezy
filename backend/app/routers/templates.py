@@ -15,9 +15,25 @@ router = APIRouter(prefix="/templates", tags=["Templates"])
 
 AVAILABLE_TEMPLATES = [
     {"slug": "medicines", "file": "medicines.json"},
+    {"slug": "first_aid", "file": "first_aid.json"},
     {"slug": "lights", "file": "lights.json"},
     {"slug": "tools", "file": "tools.json"},
+    {"slug": "hardware", "file": "hardware.json"},
     {"slug": "documents", "file": "documents.json"},
+    {"slug": "electronics", "file": "electronics.json"},
+    {"slug": "cables", "file": "cables.json"},
+    {"slug": "batteries", "file": "batteries.json"},
+    {"slug": "pantry", "file": "pantry.json"},
+    {"slug": "kitchenware", "file": "kitchenware.json"},
+    {"slug": "cleaning", "file": "cleaning.json"},
+    {"slug": "clothing", "file": "clothing.json"},
+    {"slug": "keys", "file": "keys.json"},
+    {"slug": "books", "file": "books.json"},
+    {"slug": "automotive", "file": "automotive.json"},
+    {"slug": "garden", "file": "garden.json"},
+    {"slug": "pets", "file": "pets.json"},
+    {"slug": "camping", "file": "camping.json"},
+    {"slug": "hobbies", "file": "hobbies.json"},
 ]
 
 @router.get("", response_model=List[TemplateSummary])

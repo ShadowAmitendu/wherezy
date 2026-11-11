@@ -1,0 +1,63 @@
+{
+  "name": "Car, Bike & Garage Spares",
+  "slug": "automotive",
+  "icon": "directionscar",
+  "color": "#3949ab",
+  "track_expiry": true,
+  "expiry_label": "Service / Expiry",
+  "fields": [
+    {
+      "label": "Vehicle",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": "e.g. Honda City / Commuter Bike"
+    },
+    {
+      "label": "Part / Supply type",
+      "type": "dropdown",
+      "required": true,
+      "options": [
+        "Engine Oil & Fluids",
+        "Filter (Air/Oil/Cabin)",
+        "Wiper Blade",
+        "Bulb / Fuse",
+        "Tire / Puncture Kit",
+        "Wash / Wax / Care",
+        "Helmet & Riding Gear",
+        "Emergency Tool / Jump",
+        "Other"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Brand",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Part number / spec",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": "e.g. 5W-30, H7"
+    },
+    {
+      "label": "Purchased on",
+      "type": "date",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    },
+    {
+      "label": "Fitment notes",
+      "type": "longtext",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    }
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "name": "Garden, Plants & Outdoor",
+  "slug": "garden",
+  "icon": "yard",
+  "color": "#2e7d32",
+  "track_expiry": true,
+  "expiry_label": "Use before",
+  "fields": [
+    {
+      "label": "Item type",
+      "type": "dropdown",
+      "required": true,
+      "options": [
+        "Seeds / Bulbs",
+        "Soil / Potting Mix",
+        "Fertilizer / Plant Food",
+        "Pruning / Hand Tool",
+        "Hose / Nozzle / Sprayer",
+        "Pot / Planter",
+        "Pest Control",
+        "Outdoor / Balcony Gear",
+        "Other"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Plant / Purpose",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Brand",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Season / Sunlight",
+      "type": "multiselect",
+      "required": false,
+      "options": [
+        "Spring",
+        "Summer",
+        "Monsoon",
+        "Winter",
+        "Full Sun",
+        "Shade",
+        "Indoor"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Care / dilution notes",
+      "type": "longtext",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    }
+  ]
+}

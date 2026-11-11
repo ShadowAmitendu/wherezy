@@ -45,6 +45,7 @@ export const CategoriesPage: React.FC = () => {
 
   // Template modal
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [templateSearch, setTemplateSearch] = useState("");
   // AI category dialog
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
   // Add/Edit dialog
@@ -153,11 +154,16 @@ export const CategoriesPage: React.FC = () => {
     }
   };
 
+  const closeTemplateDialog = () => {
+    setTemplateDialogOpen(false);
+    setTemplateSearch("");
+  };
+
   const handleApplyTemplate = async (slug: string) => {
     try {
       setIsLoading(true);
       const created = await api.applyTemplate(slug);
-      setTemplateDialogOpen(false);
+      closeTemplateDialog();
       await loadCategories();
       navigate(`/categories/${created.id}`);
     } catch (err: any) {
@@ -227,7 +233,7 @@ export const CategoriesPage: React.FC = () => {
       {categories.length === 0 && !isLoading ? (
         <EmptyState
           title="No Categories Yet"
-          description="Create your first category from a starter template (Medicines, Lights, Tools, Documents) or start from scratch!"
+          description="Create your first category from 20 ready-made starter templates, generate one with AI, or start from scratch!"
           actionLabel="Start from Template"
           onAction={() => setTemplateDialogOpen(true)}
         />
@@ -253,7 +259,7 @@ export const CategoriesPage: React.FC = () => {
       {/* Start From Template Dialog */}
       <Dialog
         open={templateDialogOpen}
-        onClose={() => setTemplateDialogOpen(false)}
+        onClose={closeTemplateDialog}
         maxWidth="md"
         fullWidth
         fullScreen={isMobile}
@@ -261,10 +267,27 @@ export const CategoriesPage: React.FC = () => {
         <DialogTitle>Starter Templates</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Choose a starter template. All templates come with tailored custom fields that you can freely customize afterwards.
+            Choose from ready-made household templates. All templates come with tailored custom fields that you can freely customize afterwards.
           </Typography>
+          <TextField
+            size="small"
+            fullWidth
+            placeholder="Search templates (e.g. Pantry, Electronics, Tools, First Aid)..."
+            value={templateSearch}
+            onChange={(e) => setTemplateSearch(e.target.value)}
+            sx={{ mb: 2 }}
+          />
           <Grid container spacing={2}>
-            {templates.map((tpl) => (
+            {templates
+              .filter((tpl) => {
+                const q = templateSearch.trim().toLowerCase();
+                if (!q) return true;
+                return (
+                  String(tpl.name || "").toLowerCase().includes(q) ||
+                  String(tpl.slug || "").toLowerCase().includes(q)
+                );
+              })
+              .map((tpl) => (
               <Grid key={tpl.slug} size={{ xs: 12, sm: 6 }}>
                 <Card
                   variant="outlined"
@@ -315,7 +338,7 @@ export const CategoriesPage: React.FC = () => {
           </Grid>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setTemplateDialogOpen(false)}>Cancel</Button>
+          <Button onClick={closeTemplateDialog}>Cancel</Button>
         </DialogActions>
       </Dialog>
 

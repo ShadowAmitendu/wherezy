@@ -1,0 +1,73 @@
+{
+  "name": "Cables & Chargers",
+  "slug": "cables",
+  "icon": "electricalservices",
+  "color": "#546e7a",
+  "track_expiry": false,
+  "expiry_label": "Expiry date",
+  "fields": [
+    {
+      "label": "Type",
+      "type": "dropdown",
+      "required": true,
+      "options": [
+        "USB-C Cable",
+        "USB-A Cable",
+        "Lightning Cable",
+        "HDMI / DisplayPort",
+        "Ethernet / LAN",
+        "Audio / Aux",
+        "Wall Adapter / Brick",
+        "Laptop Charger",
+        "Hub / Dongle",
+        "Extension Cord",
+        "Other"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Connector A to B",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": "e.g. USB-C to HDMI"
+    },
+    {
+      "label": "Max wattage",
+      "type": "number",
+      "unit": "W",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Length",
+      "type": "number",
+      "unit": "m",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Capabilities",
+      "type": "multiselect",
+      "required": false,
+      "options": [
+        "Fast Charge / PD",
+        "High-Speed Data",
+        "4K/8K Video",
+        "Braided"
+      ],
+      "show_in_list": false,
+      "hint": ""
+    },
+    {
+      "label": "Tested working",
+      "type": "checkbox",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    }
+  ]
+}

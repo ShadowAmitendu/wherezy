@@ -1,0 +1,75 @@
+{
+  "name": "Travel & Camping Gear",
+  "slug": "camping",
+  "icon": "luggage",
+  "color": "#00796b",
+  "track_expiry": false,
+  "expiry_label": "Expiry date",
+  "fields": [
+    {
+      "label": "Gear type",
+      "type": "dropdown",
+      "required": true,
+      "options": [
+        "Suitcase / Duffel",
+        "Backpack / Daypack",
+        "Packing Cubes",
+        "Travel Plug Adapter",
+        "Tent / Sleeping Bag",
+        "Lantern / Stove / Bottle",
+        "Toiletry / Tech Pouch",
+        "Rain Gear / Umbrella",
+        "Other"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Brand",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Capacity / Dimensions",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": "e.g. 40 L cabin bag"
+    },
+    {
+      "label": "Condition",
+      "type": "dropdown",
+      "required": false,
+      "options": [
+        "Trip Ready",
+        "Needs Cleaning",
+        "Needs Repair",
+        "Stored Empty"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Weight",
+      "type": "number",
+      "unit": "kg",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    },
+    {
+      "label": "Luggage allowance",
+      "type": "dropdown",
+      "required": false,
+      "options": [
+        "Cabin Carry-On",
+        "Checked Baggage",
+        "Outdoor / Car Trip Only"
+      ],
+      "show_in_list": false,
+      "hint": ""
+    }
+  ]
+}

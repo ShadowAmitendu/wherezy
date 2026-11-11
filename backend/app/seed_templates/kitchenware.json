@@ -1,0 +1,88 @@
+{
+  "name": "Kitchen & Cookware",
+  "slug": "kitchenware",
+  "icon": "kitchen",
+  "color": "#00897b",
+  "track_expiry": true,
+  "expiry_label": "Warranty till",
+  "fields": [
+    {
+      "label": "Item type",
+      "type": "dropdown",
+      "required": true,
+      "options": [
+        "Small Appliance",
+        "Pan / Skillet",
+        "Pot / Pressure Cooker",
+        "Knife / Cutlery",
+        "Bakeware",
+        "Storage Container",
+        "Coffee / Tea Gear",
+        "Servingware",
+        "Utensil",
+        "Other"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Brand",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Material",
+      "type": "dropdown",
+      "required": false,
+      "options": [
+        "Stainless Steel",
+        "Cast Iron",
+        "Non-Stick",
+        "Glass",
+        "Ceramic",
+        "Silicone",
+        "Wood",
+        "Plastic",
+        "Other"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Capacity / size",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": "e.g. 3 L or 28 cm"
+    },
+    {
+      "label": "Compatible with",
+      "type": "multiselect",
+      "required": false,
+      "options": [
+        "Induction",
+        "Gas",
+        "Oven",
+        "Microwave"
+      ],
+      "show_in_list": false,
+      "hint": ""
+    },
+    {
+      "label": "Dishwasher safe",
+      "type": "checkbox",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    },
+    {
+      "label": "Purchased on",
+      "type": "date",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    }
+  ]
+}

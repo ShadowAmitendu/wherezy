@@ -1,0 +1,77 @@
+{
+  "name": "Clothing & Footwear",
+  "slug": "clothing",
+  "icon": "checkroom",
+  "color": "#8e24aa",
+  "track_expiry": false,
+  "expiry_label": "Expiry date",
+  "fields": [
+    {
+      "label": "Item type",
+      "type": "dropdown",
+      "required": true,
+      "options": [
+        "Shirt / Top",
+        "Jacket / Coat",
+        "Pants / Jeans",
+        "Formalwear / Suit / Dress",
+        "Activewear",
+        "Winterwear",
+        "Shoes / Boots",
+        "Bag / Belt / Hat",
+        "Other"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Owner",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Size",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": "e.g. M, 32W, UK 9"
+    },
+    {
+      "label": "Season",
+      "type": "multiselect",
+      "required": false,
+      "options": [
+        "Summer",
+        "Monsoon",
+        "Winter",
+        "All-Season",
+        "Occasionwear"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Color / fabric",
+      "type": "text",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    },
+    {
+      "label": "Care / wash mode",
+      "type": "dropdown",
+      "required": false,
+      "options": [
+        "Machine wash",
+        "Gentle / Delicates",
+        "Hand wash",
+        "Dry clean only",
+        "Wipe clean"
+      ],
+      "show_in_list": false,
+      "hint": ""
+    }
+  ]
+}

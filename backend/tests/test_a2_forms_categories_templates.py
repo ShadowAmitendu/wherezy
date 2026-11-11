@@ -53,8 +53,14 @@ def test_category_crud_and_fields(client):
     res = client.post(f"/api/categories/{cat_id}/fields/reorder", json={"field_ids": [field_id]})
     assert res.status_code == 200
 
-    # 7. Apply templates
-    for slug in ["lights", "tools", "documents"]:
+    # 7. Apply all registered templates (including new household presets)
+    tpl_res = client.get("/api/templates")
+    assert tpl_res.status_code == 200
+    all_tpls = tpl_res.json()
+    assert len(all_tpls) >= 21  # 20 household templates + blank
+    for tpl in all_tpls:
+        slug = tpl["slug"]
         res = client.post(f"/api/templates/{slug}/apply")
-        assert res.status_code == 200
-        assert len(res.json()["fields"]) > 0
+        assert res.status_code == 200, f"Failed applying template {slug}: {res.text}"
+        if slug != "blank":
+            assert len(res.json()["fields"]) == tpl["field_count"] > 0

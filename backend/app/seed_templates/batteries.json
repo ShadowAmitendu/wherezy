@@ -1,0 +1,80 @@
+{
+  "name": "Batteries & Power Packs",
+  "slug": "batteries",
+  "icon": "batterychargingfull",
+  "color": "#2e7d32",
+  "track_expiry": true,
+  "expiry_label": "Use before",
+  "fields": [
+    {
+      "label": "Battery size",
+      "type": "dropdown",
+      "required": true,
+      "options": [
+        "AA",
+        "AAA",
+        "CR2032",
+        "CR2025",
+        "9V",
+        "C",
+        "D",
+        "18650",
+        "Power Bank",
+        "Device Battery Pack",
+        "Other"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Chemistry",
+      "type": "dropdown",
+      "required": false,
+      "options": [
+        "Alkaline",
+        "NiMH Rechargeable",
+        "Lithium Coin",
+        "Li-Ion",
+        "LiFePO4",
+        "Other"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Brand",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Capacity",
+      "type": "number",
+      "unit": "mAh",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Status",
+      "type": "dropdown",
+      "required": false,
+      "options": [
+        "Sealed / New",
+        "Charged",
+        "Partially Used",
+        "Needs Charging"
+      ],
+      "show_in_list": false,
+      "hint": ""
+    },
+    {
+      "label": "Rechargeable",
+      "type": "checkbox",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    }
+  ]
+}

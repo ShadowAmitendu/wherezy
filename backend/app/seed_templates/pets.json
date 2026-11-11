@@ -1,0 +1,63 @@
+{
+  "name": "Pet Supplies & Care",
+  "slug": "pets",
+  "icon": "pets",
+  "color": "#ad1457",
+  "track_expiry": true,
+  "expiry_label": "Best before / Due",
+  "fields": [
+    {
+      "label": "Pet name / Species",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": "e.g. Bruno (Dog) / Cat"
+    },
+    {
+      "label": "Supply type",
+      "type": "dropdown",
+      "required": true,
+      "options": [
+        "Dry / Wet Food",
+        "Treats / Chews",
+        "Flea / Dewormer / Meds",
+        "Toy",
+        "Collar / Harness / Leash",
+        "Grooming / Shampoo",
+        "Bed / Crate / Bowl",
+        "Litter / Waste Bags",
+        "Other"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Brand",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Size / Weight",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": "e.g. 3 kg or Medium"
+    },
+    {
+      "label": "Opened on",
+      "type": "date",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    },
+    {
+      "label": "Vet / Feeding note",
+      "type": "longtext",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    }
+  ]
+}

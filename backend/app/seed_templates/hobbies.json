@@ -1,0 +1,63 @@
+{
+  "name": "Games, Crafts & Stationery",
+  "slug": "hobbies",
+  "icon": "toys",
+  "color": "#d81b60",
+  "track_expiry": false,
+  "expiry_label": "Expiry date",
+  "fields": [
+    {
+      "label": "Category",
+      "type": "dropdown",
+      "required": true,
+      "options": [
+        "Board Game",
+        "Card Game / Puzzle",
+        "Video Game",
+        "Art & Paint Supplies",
+        "Crafts / Sewing / Glue",
+        "Notebooks & Pens",
+        "Music Accessory",
+        "Sports Equipment",
+        "Collectible",
+        "Other"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Brand / Publisher",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Players / Spec",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": "e.g. 2-4 players or A4 200gsm"
+    },
+    {
+      "label": "Completeness",
+      "type": "dropdown",
+      "required": false,
+      "options": [
+        "Complete",
+        "Unopened / Sealed",
+        "Partially Used",
+        "Missing Pieces"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Notes",
+      "type": "longtext",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    }
+  ]
+}

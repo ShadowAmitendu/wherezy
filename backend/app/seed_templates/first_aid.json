@@ -1,0 +1,69 @@
+{
+  "name": "First Aid & Emergency",
+  "slug": "first_aid",
+  "icon": "medicalservices",
+  "color": "#c62828",
+  "track_expiry": true,
+  "expiry_label": "Inspect / Expire",
+  "fields": [
+    {
+      "label": "Supply category",
+      "type": "dropdown",
+      "required": true,
+      "options": [
+        "Bandages & Gauze",
+        "Antiseptic & Wound Care",
+        "Burns & Blisters",
+        "Thermometer / Oximeter",
+        "PPE / Gloves / Masks",
+        "Thermal Blanket / CPR",
+        "Flashlight / Whistle",
+        "Hot / Cold Pack",
+        "Other"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Kit group",
+      "type": "dropdown",
+      "required": false,
+      "options": [
+        "Home Kit",
+        "Car Kit",
+        "Travel Pouch",
+        "Emergency Go-Bag"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Size / Spec",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Sterile / sealed",
+      "type": "checkbox",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Usage instructions",
+      "type": "longtext",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    },
+    {
+      "label": "Last checked on",
+      "type": "date",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    }
+  ]
+}
