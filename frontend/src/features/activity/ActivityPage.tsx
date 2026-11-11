@@ -25,6 +25,7 @@ import FilterListIcon from "@mui/icons-material/FilterList";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { api, ApiException } from "../../api/client";
 import { AlertDialog } from "../../components/shared/AlertDialog";
+import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { PageHeader } from "../../components/shared/PageHeader";
 
 export const ActivityPage: React.FC = () => {
@@ -32,6 +33,8 @@ export const ActivityPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [revertTargetId, setRevertTargetId] = useState<number | null>(null);
+  const [isReverting, setIsReverting] = useState(false);
 
   // Filters
   const [entityFilter, setEntityFilter] = useState<string>("");
@@ -63,14 +66,23 @@ export const ActivityPage: React.FC = () => {
     setExpandedDiffs((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const handleRevert = async (id: number) => {
-    if (!window.confirm("Are you sure you want to revert this change?")) return;
+  const handleRevert = (id: number) => {
+    setRevertTargetId(id);
+  };
+
+  const handleConfirmRevert = async () => {
+    if (revertTargetId === null) return;
+    setIsReverting(true);
     try {
-      await api.revertActivity(id);
+      await api.revertActivity(revertTargetId);
+      setRevertTargetId(null);
       setSuccessMsg("Change reverted successfully");
       loadActivity();
     } catch (err: any) {
+      setRevertTargetId(null);
       setErrorMsg(err.error?.message || "Cannot revert this change");
+    } finally {
+      setIsReverting(false);
     }
   };
 
@@ -273,6 +285,18 @@ export const ActivityPage: React.FC = () => {
           })}
         </Box>
       )}
+
+      <ConfirmDialog
+        open={revertTargetId !== null}
+        title="Revert Change"
+        message="Are you sure you want to revert this change?"
+        confirmLabel="Yes"
+        cancelLabel="No"
+        confirmColor="warning"
+        isLoading={isReverting}
+        onConfirm={handleConfirmRevert}
+        onCancel={() => setRevertTargetId(null)}
+      />
     </Box>
   );
 };

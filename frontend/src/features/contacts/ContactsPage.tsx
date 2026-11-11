@@ -35,6 +35,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import AssignmentReturnOutlinedIcon from "@mui/icons-material/AssignmentReturnOutlined";
 import { AlertDialog } from "../../components/shared/AlertDialog";
+import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { PageHeader } from "../../components/shared/PageHeader";
 import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
 import { api, ApiException } from "../../api/client";
@@ -66,6 +67,8 @@ export const ContactsPage: React.FC = () => {
 
   // Selected item detail
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
+  const [deactivateTarget, setDeactivateTarget] = useState<any | null>(null);
+  const [isDeactivating, setIsDeactivating] = useState(false);
 
   const loadContacts = async () => {
     setLoading(true);
@@ -128,14 +131,24 @@ export const ContactsPage: React.FC = () => {
     }
   };
 
-  const handleDeactivate = async (contact: any) => {
-    if (!window.confirm(`Are you sure you want to remove or deactivate '${contact.name}'?`)) return;
+  const handleDeactivate = (contact: any) => {
+    setDeactivateTarget(contact);
+  };
+
+  const handleConfirmDeactivate = async () => {
+    if (!deactivateTarget) return;
+    const contact = deactivateTarget;
+    setIsDeactivating(true);
     try {
       await api.deleteContact(contact.id);
+      setDeactivateTarget(null);
       setSuccessMsg(`Contact '${contact.name}' deactivated`);
       loadContacts();
     } catch (err: any) {
+      setDeactivateTarget(null);
       setErrorMsg(err.error?.message || "Failed to deactivate contact");
+    } finally {
+      setIsDeactivating(false);
     }
   };
 
@@ -488,6 +501,18 @@ export const ContactsPage: React.FC = () => {
           setSelectedItemId(null);
           loadContacts();
         }}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deactivateTarget)}
+        title="Deactivate Contact"
+        message={`Are you sure you want to remove or deactivate '${deactivateTarget?.name}'?`}
+        confirmLabel="Yes"
+        cancelLabel="No"
+        confirmColor="error"
+        isLoading={isDeactivating}
+        onConfirm={handleConfirmDeactivate}
+        onCancel={() => setDeactivateTarget(null)}
       />
     </Box>
   );

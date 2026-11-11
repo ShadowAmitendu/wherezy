@@ -25,6 +25,7 @@ import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import { api, ApiException } from "../../api/client";
 import { AlertDialog } from "../../components/shared/AlertDialog";
+import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { PageHeader } from "../../components/shared/PageHeader";
 
 export const TrashPage: React.FC = () => {
@@ -33,6 +34,8 @@ export const TrashPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [emptyConfirmOpen, setEmptyConfirmOpen] = useState(false);
+  const [isEmptying, setIsEmptying] = useState(false);
 
   const loadTrash = async () => {
     setLoading(true);
@@ -70,16 +73,22 @@ export const TrashPage: React.FC = () => {
     }
   };
 
-  const handleEmptyTrash = async () => {
-    if (!window.confirm("Permanently empty trash? All deleted items, locations, and categories will be permanently destroyed. This cannot be undone.")) {
-      return;
-    }
+  const handleEmptyTrash = () => {
+    setEmptyConfirmOpen(true);
+  };
+
+  const handleConfirmEmptyTrash = async () => {
+    setIsEmptying(true);
     try {
       await api.emptyTrash();
+      setEmptyConfirmOpen(false);
       setSuccessMsg("Trash emptied permanently");
       loadTrash();
     } catch (err: any) {
+      setEmptyConfirmOpen(false);
       setErrorMsg(err.error?.message || "Failed to empty trash");
+    } finally {
+      setIsEmptying(false);
     }
   };
 
@@ -213,6 +222,18 @@ export const TrashPage: React.FC = () => {
           </Table>
         </TableContainer>
       )}
+
+      <ConfirmDialog
+        open={emptyConfirmOpen}
+        title="Empty Trash Permanently"
+        message="Permanently empty trash? All deleted items, locations, and categories will be permanently destroyed. This cannot be undone."
+        confirmLabel="Yes"
+        cancelLabel="No"
+        confirmColor="error"
+        isLoading={isEmptying}
+        onConfirm={handleConfirmEmptyTrash}
+        onCancel={() => setEmptyConfirmOpen(false)}
+      />
     </Box>
   );
 };

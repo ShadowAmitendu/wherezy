@@ -35,6 +35,7 @@ import UnarchiveOutlinedIcon from "@mui/icons-material/UnarchiveOutlined";
 import { api, ApiException } from "../../api/client";
 import { LocationPicker } from "../locations/LocationPicker";
 import { AlertDialog } from "../../components/shared/AlertDialog";
+import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { PageHeader } from "../../components/shared/PageHeader";
 
 export const MovesPage: React.FC = () => {
@@ -65,6 +66,8 @@ export const MovesPage: React.FC = () => {
   const [loadingBoxItems, setLoadingBoxItems] = useState(false);
   const [itemQuery, setItemQuery] = useState("");
   const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [unpackBoxTargetId, setUnpackBoxTargetId] = useState<number | null>(null);
+  const [isUnpacking, setIsUnpacking] = useState(false);
 
   const loadMoveData = async () => {
     setLoading(true);
@@ -179,19 +182,29 @@ export const MovesPage: React.FC = () => {
     }
   };
 
-  const handleUnpackBox = async (boxId: number) => {
-    if (!window.confirm("Unpack this box? All items inside will be assigned to their destination location.")) return;
+  const handleUnpackBox = (boxId: number) => {
+    setUnpackBoxTargetId(boxId);
+  };
+
+  const handleConfirmUnpackBox = async () => {
+    if (unpackBoxTargetId === null) return;
+    const boxId = unpackBoxTargetId;
+    setIsUnpacking(true);
     try {
       const b = await api.getBox(boxId);
       const itemIds = (b.items || []).map((i: any) => i.id);
       await api.unpackBox(boxId, itemIds, b.destination_location_id || 1);
+      setUnpackBoxTargetId(null);
       setSuccessMsg("Box unpacked successfully!");
       if (selectedBox && selectedBox.id === boxId) {
         setSelectedBox(null);
       }
       loadMoveData();
     } catch (err: any) {
+      setUnpackBoxTargetId(null);
       setErrorMsg(err.error?.message || "Failed to unpack box");
+    } finally {
+      setIsUnpacking(false);
     }
   };
 
@@ -498,6 +511,18 @@ export const MovesPage: React.FC = () => {
           <Button onClick={() => setSelectedBox(null)}>Close</Button>
         </DialogActions>
       </Dialog>
+
+      <ConfirmDialog
+        open={unpackBoxTargetId !== null}
+        title="Unpack Box"
+        message="Unpack this box? All items inside will be assigned to their destination location."
+        confirmLabel="Yes"
+        cancelLabel="No"
+        confirmColor="primary"
+        isLoading={isUnpacking}
+        onConfirm={handleConfirmUnpackBox}
+        onCancel={() => setUnpackBoxTargetId(null)}
+      />
     </Box>
   );
 };

@@ -52,6 +52,7 @@ import { PhotoManager } from "../photos/PhotoManager";
 import { ExpiryChip } from "../../components/shared/ExpiryChip";
 import { LocationBreadcrumb } from "../../components/shared/LocationBreadcrumb";
 import { AlertDialog } from "../../components/shared/AlertDialog";
+import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { api, ApiException } from "../../api/client";
 
 interface ItemDetailDialogProps {
@@ -106,6 +107,9 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
   const [retireDate, setRetireDate] = useState(new Date().toISOString().split("T")[0]);
   const [retireNote, setRetireNote] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [deleteAttachmentId, setDeleteAttachmentId] = useState<number | null>(null);
+  const [deleteItemConfirmOpen, setDeleteItemConfirmOpen] = useState(false);
+  const [isConfirmingAction, setIsConfirmingAction] = useState(false);
 
   const notifyChange = () => {
     if (onItemUpdated) onItemUpdated();
@@ -227,13 +231,22 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
     }
   };
 
-  const handleDeleteAttachment = async (attachmentId: number) => {
-    if (!window.confirm("Delete this attachment?")) return;
+  const handleDeleteAttachment = (attachmentId: number) => {
+    setDeleteAttachmentId(attachmentId);
+  };
+
+  const handleConfirmDeleteAttachment = async () => {
+    if (deleteAttachmentId === null) return;
+    setIsConfirmingAction(true);
     try {
-      await api.deleteAttachment(attachmentId);
+      await api.deleteAttachment(deleteAttachmentId);
+      setDeleteAttachmentId(null);
       await loadItem();
     } catch (err: any) {
+      setDeleteAttachmentId(null);
       setErrorMsg(err.error?.message || "Failed to delete attachment");
+    } finally {
+      setIsConfirmingAction(false);
     }
   };
 
@@ -265,13 +278,24 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
     if (onDelete) {
       onDelete(item);
     } else {
-      if (window.confirm(`Move '${item.name}' to trash?`)) {
-        api.deleteItem(item.id).then(() => {
-          if (onDeleted) onDeleted();
-          notifyChange();
-          onClose();
-        });
-      }
+      setDeleteItemConfirmOpen(true);
+    }
+  };
+
+  const handleConfirmDeleteItem = async () => {
+    if (!item) return;
+    setIsConfirmingAction(true);
+    try {
+      await api.deleteItem(item.id);
+      setDeleteItemConfirmOpen(false);
+      if (onDeleted) onDeleted();
+      notifyChange();
+      onClose();
+    } catch (err: any) {
+      setDeleteItemConfirmOpen(false);
+      setErrorMsg(err.error?.message || "Failed to move item to trash");
+    } finally {
+      setIsConfirmingAction(false);
     }
   };
 
@@ -784,6 +808,30 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
           </Button>
         </DialogActions>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteAttachmentId !== null}
+        title="Delete Attachment"
+        message="Delete this attachment?"
+        confirmLabel="Yes"
+        cancelLabel="No"
+        confirmColor="error"
+        isLoading={isConfirmingAction}
+        onConfirm={handleConfirmDeleteAttachment}
+        onCancel={() => setDeleteAttachmentId(null)}
+      />
+
+      <ConfirmDialog
+        open={deleteItemConfirmOpen}
+        title="Move Item to Trash"
+        message={`Move '${item?.name}' to trash?`}
+        confirmLabel="Yes"
+        cancelLabel="No"
+        confirmColor="error"
+        isLoading={isConfirmingAction}
+        onConfirm={handleConfirmDeleteItem}
+        onCancel={() => setDeleteItemConfirmOpen(false)}
+      />
     </>
   );
 };
