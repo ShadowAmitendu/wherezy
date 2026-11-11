@@ -48,7 +48,7 @@ import { CommandPalette } from "../features/palette/CommandPalette";
 import { SidebarNav } from "./SidebarNav";
 import { api } from "../api/client";
 
-const DRAWER_WIDTH = 240;
+const DRAWER_WIDTH = 220;
 const MINI_DRAWER_WIDTH = 80;
 
 export const AppLayout: React.FC = () => {
@@ -614,7 +614,7 @@ export const AppLayout: React.FC = () => {
           ModalProps={{ keepMounted: true }}
           sx={{
             [`& .MuiDrawer-paper`]: {
-              width: 280,
+              width: 250,
               maxWidth: "80vw",
               boxSizing: "border-box",
               bgcolor: "background.paper",
