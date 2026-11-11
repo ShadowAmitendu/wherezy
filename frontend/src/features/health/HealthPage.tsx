@@ -43,6 +43,7 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import { api } from "../../api/client";
 import { LocationPicker } from "../locations/LocationPicker";
 import { ItemDetailDialog } from "../items/ItemDetailDialog";
+import { formatItemCode } from "../items/itemCodeUtils";
 
 type HealthCheckKey = "no_location" | "no_photo" | "long_expired" | "duplicate" | "stale_inbox";
 
@@ -336,7 +337,7 @@ export const HealthPage: React.FC = () => {
                         {match ? (
                           <Box>
                             <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                              #{match.id} - {match.name}
+                              {formatItemCode(match.id)} - {match.name}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
                               Location: {match.location_path || "None"}

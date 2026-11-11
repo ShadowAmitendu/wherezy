@@ -30,6 +30,7 @@ const ScanPage = lazy(() => import("./features/scan/ScanPage").then(m => ({ defa
 const SettingsPage = lazy(() => import("./features/settings/SettingsPage").then(m => ({ default: m.SettingsPage })));
 const PrintShelfPage = lazy(() => import("./features/print/PrintShelfPage").then(m => ({ default: m.PrintShelfPage })));
 const WallPage = lazy(() => import("./features/wall/WallPage").then(m => ({ default: m.WallPage })));
+const NotFoundPage = lazy(() => import("./features/notfound/NotFoundPage").then(m => ({ default: m.NotFoundPage })));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -114,7 +115,8 @@ export const App: React.FC = () => {
                 </Route>
 
                 {/* Fallback */}
-                <Route path="*" element={<Navigate to="/" replace />} />
+                <Route path="/404" element={<NotFoundPage />} />
+                <Route path="*" element={<NotFoundPage />} />
               </Routes>
             </Suspense>
           </HashRouter>

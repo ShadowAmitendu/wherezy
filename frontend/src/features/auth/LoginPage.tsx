@@ -11,6 +11,7 @@ import {
   IconButton,
   Divider,
   Chip,
+  Fade,
 } from "@mui/material";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
@@ -72,8 +73,9 @@ export const LoginPage: React.FC = () => {
         bgcolor: "background.default",
       }}
     >
-      <Card
-        elevation={6}
+      <Fade in appear timeout={300}>
+        <Card
+          elevation={6}
         sx={{
           maxWidth: 420,
           width: "100%",
@@ -223,6 +225,7 @@ export const LoginPage: React.FC = () => {
           </Button>
         </CardContent>
       </Card>
+      </Fade>
     </Box>
   );
 };

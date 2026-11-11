@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import date, timedelta
 from typing import Optional
 from sqlalchemy.orm import Session
@@ -7,6 +8,22 @@ from backend.app.schemas import ItemOut, ItemDetailOut, ExpiryStatus
 from backend.app.services.location_service import get_location_breadcrumbs, get_location_path_str
 from backend.app.routers.categories import map_field
 from backend.app.routers.photos import map_photo
+
+ITEM_CODE_REGEX = re.compile(r"^(?:I|i|item:)(\d+)$")
+
+
+def format_item_code(item_id: int) -> str:
+    """Format a positive item ID as a canonical item code starting from I01."""
+    return f"I{max(1, int(item_id)):02d}"
+
+
+def parse_item_code(raw: str) -> Optional[int]:
+    """Parse an item code string (e.g., I01, i1, item:01) into a positive item ID."""
+    match = ITEM_CODE_REGEX.match(raw.strip())
+    if not match:
+        return None
+    item_id = int(match.group(1))
+    return item_id if item_id >= 1 else None
 
 def compute_expiry_status(expiry_date_str: Optional[str], warn_days: int = 30) -> Optional[ExpiryStatus]:
     if not expiry_date_str or not expiry_date_str.strip():

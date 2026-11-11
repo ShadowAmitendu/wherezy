@@ -10,6 +10,7 @@ import {
   IconButton,
   CircularProgress,
   Divider,
+  Fade,
 } from "@mui/material";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
 import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
@@ -161,7 +162,8 @@ export const WallPage: React.FC = () => {
           <CircularProgress size={48} />
         </Box>
       ) : (
-        <Grid container spacing={3}>
+        <Fade in appear timeout={250}>
+          <Grid container spacing={3}>
           {/* Overdue Section */}
           <Grid size={{ xs: 12, md: 6 }}>
             <Card variant="outlined" sx={{ height: "100%", borderRadius: 2 }}>
@@ -281,6 +283,7 @@ export const WallPage: React.FC = () => {
             </Card>
           </Grid>
         </Grid>
+        </Fade>
       )}
     </Box>
   );

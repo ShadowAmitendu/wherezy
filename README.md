@@ -54,7 +54,40 @@ A lightweight, local-network (LAN-only) household inventory management web appli
 
 ---
 
-## Quickstart
+## Deploy Anywhere (Standalone Binary, `pipx`, or Docker)
+
+Wherezy can be packaged and deployed onto any target machine without installing Node.js or manually configuring Python source trees:
+
+### Option 1: Standalone Single-File Binary (`wherezy` / `wherezy.exe`)
+1. Build the standalone binary on your target OS (Windows, Linux, or macOS):
+   ```bash
+   python scripts/build_binary.py --install-pyinstaller
+   ```
+   - Produces `dist/wherezy.exe` on Windows or `dist/wherezy` on Linux/macOS with the React UI, SQLite migrations, and starter templates embedded inside.
+2. Copy that single binary file to any matching-OS machine and run:
+   ```bash
+   ./wherezy --open
+   # Custom port and persistent data location:
+   ./wherezy --port 8080 --data-dir /srv/wherezy-data
+   ```
+   By default, the binary stores `inventory.db`, `photos/`, `files/`, and `backups/` in a `./data` folder next to the executable (outside temporary runtime unpack dirs).
+
+### Option 2: Python CLI Package (`pip` / `pipx`)
+```bash
+python scripts/build_binary.py --sync-wheel-assets --skip-frontend  # after frontend build
+pipx install .
+wherezy --host 0.0.0.0 --port 8000 --open
+```
+
+### Option 3: Docker Container (Linux / NAS / Any Architecture)
+```bash
+docker compose up -d --build
+```
+Data persists in the `wherezy_data` Docker volume mounted at `/data`.
+
+---
+
+## Quickstart (From Source)
 
 ### 1. Prerequisites
 - Python 3.12+ (Python 3.14 compatible)

@@ -4,14 +4,13 @@ from sqlalchemy.orm import Session
 from backend.app.core.db import get_db
 from backend.app.models import Item, Location, Profile
 from backend.app.schemas import CodeResolveResponse
-from backend.app.services.item_service import map_item
+from backend.app.services.item_service import format_item_code, map_item, parse_item_code
 from backend.app.services.permissions import require
 from backend.app.routers.locations import map_location
 from backend.app.routers.settings import get_setting_val
 
 router = APIRouter(prefix="/codes", tags=["Codes"])
 
-ITEM_CODE_REGEX = re.compile(r"^(?:I|i|item:)(\d+)$")
 LOC_CODE_REGEX = re.compile(r"^(?:L|l|loc:|location:)(\d+)$")
 URL_ITEM_REGEX = re.compile(r"(?:#/i/|/items/|/i/)(\d+)")
 URL_LOC_REGEX = re.compile(r"(?:#/l/|/locations/|/l/)(\d+)")
@@ -29,25 +28,31 @@ def resolve_code(
     # Check URL patterns first
     url_item_match = URL_ITEM_REGEX.search(raw)
     if url_item_match:
-        target_type = "item"
-        target_id = int(url_item_match.group(1))
+        parsed_item_id = int(url_item_match.group(1))
+        if parsed_item_id >= 1:
+            target_type = "item"
+            target_id = parsed_item_id
     else:
         url_loc_match = URL_LOC_REGEX.search(raw)
         if url_loc_match:
-            target_type = "location"
-            target_id = int(url_loc_match.group(1))
+            parsed_loc_id = int(url_loc_match.group(1))
+            if parsed_loc_id >= 1:
+                target_type = "location"
+                target_id = parsed_loc_id
 
     # Check prefix patterns
     if not target_type:
-        item_match = ITEM_CODE_REGEX.match(raw)
-        if item_match:
+        parsed_item_id = parse_item_code(raw)
+        if parsed_item_id is not None:
             target_type = "item"
-            target_id = int(item_match.group(1))
+            target_id = parsed_item_id
         else:
             loc_match = LOC_CODE_REGEX.match(raw)
             if loc_match:
-                target_type = "location"
-                target_id = int(loc_match.group(1))
+                parsed_loc_id = int(loc_match.group(1))
+                if parsed_loc_id >= 1:
+                    target_type = "location"
+                    target_id = parsed_loc_id
 
     if not target_type or target_id is None:
         raise HTTPException(
@@ -62,7 +67,7 @@ def resolve_code(
         if not item:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail={"error": {"code": "NOT_FOUND", "message": f"Item I{target_id} not found"}}
+                detail={"error": {"code": "NOT_FOUND", "message": f"Item {format_item_code(target_id)} not found"}}
             )
         return CodeResolveResponse(
             type="item",

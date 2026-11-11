@@ -22,6 +22,7 @@ import {
   BottomNavigation,
   BottomNavigationAction,
   CircularProgress,
+  Fade,
 } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
@@ -385,8 +386,8 @@ export const AppLayout: React.FC = () => {
                   <MenuItem
                     key={k}
                     selected={active}
-                    onClick={() => {
-                      setPreset(k);
+                    onClick={(e) => {
+                      setPreset(k, e);
                       setThemeAnchorEl(null);
                     }}
                     sx={{ display: "flex", justifyContent: "space-between", gap: 2, minWidth: 230 }}
@@ -421,8 +422,8 @@ export const AppLayout: React.FC = () => {
               </MenuItem>
               <MenuItem
                 selected={mode === "dark"}
-                onClick={() => {
-                  setMode("dark");
+                onClick={(e) => {
+                  setMode("dark", e);
                   setThemeAnchorEl(null);
                 }}
               >
@@ -434,8 +435,8 @@ export const AppLayout: React.FC = () => {
               </MenuItem>
               <MenuItem
                 selected={mode === "light"}
-                onClick={() => {
-                  setMode("light");
+                onClick={(e) => {
+                  setMode("light", e);
                   setThemeAnchorEl(null);
                 }}
               >
@@ -447,8 +448,8 @@ export const AppLayout: React.FC = () => {
               </MenuItem>
               <MenuItem
                 selected={mode === "system"}
-                onClick={() => {
-                  setMode("system");
+                onClick={(e) => {
+                  setMode("system", e);
                   setThemeAnchorEl(null);
                 }}
               >
@@ -711,9 +712,11 @@ export const AppLayout: React.FC = () => {
           overflowX: "hidden",
         }}
       >
-        <Box sx={{ width: "100%", maxWidth: 1400, mx: "auto" }}>
-          <Outlet />
-        </Box>
+        <Fade key={location.pathname} in appear timeout={{ enter: theme.transitions.duration.enteringScreen, exit: 0 }}>
+          <Box sx={{ width: "100%", maxWidth: 1400, mx: "auto" }}>
+            <Outlet />
+          </Box>
+        </Fade>
       </Box>
 
       {/* Mobile Bottom Navigation Bar */}
@@ -759,9 +762,22 @@ export const AppLayout: React.FC = () => {
                 px: 1,
                 py: 0.5,
                 color: "text.secondary",
+                transition: (t) =>
+                  t.transitions.create(["color", "transform"], {
+                    duration: t.transitions.duration.shortest,
+                  }),
                 "&.Mui-selected": {
                   color: "primary.main",
                   fontWeight: 700,
+                  "& svg": {
+                    transform: "scale(1.1)",
+                  },
+                },
+                "& svg": {
+                  transition: (t) =>
+                    t.transitions.create("transform", {
+                      duration: t.transitions.duration.shortest,
+                    }),
                 },
               },
             }}

@@ -19,6 +19,18 @@ export type ThemePreset =
 
 export type ThemeMode = "system" | "light" | "dark";
 
+export interface ThemeTransitionOrigin {
+  x: number;
+  y: number;
+}
+
+export type ThemeTransitionSource =
+  | ThemeTransitionOrigin
+  | { clientX?: number; clientY?: number; currentTarget?: EventTarget | null }
+  | HTMLElement
+  | null
+  | undefined;
+
 export interface ThemePresetConfig {
   id: ThemePreset;
   name: string;
@@ -91,9 +103,9 @@ export const THEME_PRESETS: Record<ThemePreset, ThemePresetConfig> = {
 
 export interface ThemeContextType {
   mode: ThemeMode;
-  setMode: (mode: ThemeMode) => void;
+  setMode: (mode: ThemeMode, source?: ThemeTransitionSource) => void;
   preset: ThemePreset;
-  setPreset: (preset: ThemePreset) => void;
+  setPreset: (preset: ThemePreset, source?: ThemeTransitionSource) => void;
   resolvedMode: "light" | "dark";
   presetConfig: ThemePresetConfig;
 }

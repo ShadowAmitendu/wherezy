@@ -1,11 +1,15 @@
 import React from "react";
 import { Box, Chip, Grid, Paper, Tooltip, Typography } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
-import { THEME_PRESETS, ThemePreset } from "../../theme/themeConstants";
+import {
+  THEME_PRESETS,
+  ThemePreset,
+  ThemeTransitionSource,
+} from "../../theme/themeConstants";
 
 export interface ThemePalettePickerProps {
   preset: ThemePreset;
-  onSelect: (preset: ThemePreset) => void;
+  onSelect: (preset: ThemePreset, source?: ThemeTransitionSource) => void;
   variant?: "detailed" | "compact";
 }
 
@@ -20,6 +24,13 @@ export const ThemePalettePicker: React.FC<ThemePalettePickerProps> = ({
 }) => {
   const keys = Object.keys(THEME_PRESETS) as ThemePreset[];
 
+  const handleCardKeyDown = (key: ThemePreset) => (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onSelect(key, e.currentTarget);
+    }
+  };
+
   return (
     <Grid container spacing={variant === "compact" ? 1.5 : 2}>
       {keys.map((key) => {
@@ -30,8 +41,12 @@ export const ThemePalettePicker: React.FC<ThemePalettePickerProps> = ({
           return (
             <Grid key={key} size={{ xs: 12, sm: 6 }}>
               <Paper
+                role="button"
+                tabIndex={0}
+                aria-pressed={isSelected}
                 variant="outlined"
-                onClick={() => onSelect(key)}
+                onClick={(e) => onSelect(key, e)}
+                onKeyDown={handleCardKeyDown(key)}
                 sx={{
                   p: 1.5,
                   borderRadius: 1.5,
@@ -44,8 +59,12 @@ export const ThemePalettePicker: React.FC<ThemePalettePickerProps> = ({
                   justifyContent: "space-between",
                   gap: 1.5,
                   height: "100%",
-                  transition: "all 0.15s ease",
-                  "&:hover": { borderColor: "primary.main", bgcolor: "action.hover" },
+                  transition: (theme) =>
+                    theme.transitions.create(["border-color", "background-color", "transform", "box-shadow"], {
+                      duration: theme.transitions.duration.shortest,
+                      easing: theme.transitions.easing.easeInOut,
+                    }),
+                  "&:hover": { borderColor: "primary.main", bgcolor: "action.hover", transform: "translateY(-1px)" },
                 }}
               >
                 <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
@@ -82,8 +101,12 @@ export const ThemePalettePicker: React.FC<ThemePalettePickerProps> = ({
         return (
           <Grid key={key} size={{ xs: 12, md: 6 }}>
             <Paper
+              role="button"
+              tabIndex={0}
+              aria-pressed={isSelected}
               variant="outlined"
-              onClick={() => onSelect(key)}
+              onClick={(e) => onSelect(key, e)}
+              onKeyDown={handleCardKeyDown(key)}
               sx={{
                 p: 2,
                 cursor: "pointer",
@@ -92,10 +115,15 @@ export const ThemePalettePicker: React.FC<ThemePalettePickerProps> = ({
                 borderColor: isSelected ? "primary.main" : "divider",
                 bgcolor: isSelected ? "action.selected" : "background.paper",
                 height: "100%",
-                transition: "all 0.2s ease",
+                transition: (theme) =>
+                  theme.transitions.create(["border-color", "background-color", "transform", "box-shadow"], {
+                    duration: theme.transitions.duration.shorter,
+                    easing: theme.transitions.easing.easeInOut,
+                  }),
                 "&:hover": {
                   borderColor: "primary.main",
                   bgcolor: "action.hover",
+                  transform: "translateY(-2px)",
                 },
               }}
             >

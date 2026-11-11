@@ -1,7 +1,15 @@
 import React from "react";
-import { Snackbar, SnackbarContent, Button, IconButton, Box, Typography } from "@mui/material";
+import { Snackbar, SnackbarContent, Button, IconButton, Box, Typography, Slide } from "@mui/material";
+import type { TransitionProps } from "@mui/material/transitions";
 import CloseIcon from "@mui/icons-material/Close";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+
+const SlideUpTransition = React.forwardRef(function SlideUpTransition(
+  props: TransitionProps & { children: React.ReactElement<any, any> },
+  ref: React.Ref<unknown>
+) {
+  return <Slide direction="up" ref={ref} {...props} />;
+});
 
 interface UndoSnackbarProps {
   open: boolean;
@@ -24,6 +32,7 @@ export const UndoSnackbar: React.FC<UndoSnackbarProps> = ({
       autoHideDuration={autoHideDuration}
       onClose={onClose}
       anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+      slots={{ transition: SlideUpTransition }}
       sx={{
         zIndex: 2000,
         bottom: { xs: 24, sm: 32 },

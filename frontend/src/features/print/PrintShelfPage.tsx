@@ -26,6 +26,7 @@ import { api } from "../../api/client";
 import { CoverThumb } from "../photos/CoverThumb";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { formatTakenOutStatusLabel, getItemQuantity } from "../items/quantityUtils";
+import { formatItemCode } from "../items/itemCodeUtils";
 
 export const PrintShelfPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -261,7 +262,7 @@ export const PrintShelfPage: React.FC = () => {
                       <TableCell sx={{ fontWeight: 600 }}>
                         {it.name}
                         <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontFamily: "var(--font-mono)" }}>
-                          I{it.id}
+                          {formatItemCode(it.id)}
                         </Typography>
                       </TableCell>
                       <TableCell>{it.category_name || "—"}</TableCell>

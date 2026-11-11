@@ -1,0 +1,15 @@
+.git/
+.venv/
+venv/
+data/
+dist/
+build/
+*.egg-info/
+__pycache__/
+*.pyc
+frontend/node_modules/
+frontend/dist/
+backend/app/static_dist/
+.pytest_cache/
+*.db
+*.sqlite

@@ -3,6 +3,7 @@ import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
   CircularProgress,
   Dialog,
@@ -14,31 +15,74 @@ import {
   Grid,
   IconButton,
   InputLabel,
+  LinearProgress,
   List,
   ListItem,
   MenuItem,
   Paper,
   Select,
+  Stack,
   Tab,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   Tabs,
   TextField,
+  Tooltip,
   Typography,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import CloseIcon from "@mui/icons-material/Close";
+import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import PlaylistAddIcon from "@mui/icons-material/PlaylistAdd";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import FactCheckOutlinedIcon from "@mui/icons-material/FactCheckOutlined";
 import { useForm } from "react-hook-form";
-import { api, ApiException, type ImportCsvResult } from "../../api/client";
+import {
+  AiBulkItemDraft,
+  api,
+  ApiException,
+  type ImportCsvResult,
+} from "../../api/client";
+import { AiCapturePanel } from "../../components/shared/AiCapturePanel";
+import { useAiMediaRecorder } from "../../components/shared/useAiMediaRecorder";
 import type { Category, FieldDef } from "../forms/types";
 import { DynamicFields } from "../forms/DynamicFields";
 import { LocationPicker } from "../locations/LocationPicker";
+import {
+  FlatLocationOption,
+  flattenLocationTree,
+} from "../locations/locationUtils";
 import { parsePositiveInt } from "./quantityUtils";
 
-export type BulkAddTab = "list" | "csv";
+export type BulkAddTab = "list" | "ai" | "csv";
+
+interface AiBulkEditableRow extends AiBulkItemDraft {
+  _key: string;
+  included: boolean;
+}
+
+const AI_BULK_EXAMPLES = [
+  {
+    label: "Pantry haul",
+    prompt: "2x Olive Oil expiring 2027-03-01, 3 bags Basmati Rice 5kg, 1 jar Honey in Kitchen Pantry",
+  },
+  {
+    label: "Hardware & tools",
+    prompt: "Bosch cordless drill, 10mm wrench set, 50 M6 stainless screws in Garage Pegboard",
+  },
+  {
+    label: "Receipt / shelf photo",
+    prompt: "Extract every distinct item, quantity, expiry date, and spec from the attached photo",
+  },
+];
 
 interface BulkAddDialogProps {
   open: boolean;
@@ -125,6 +169,18 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
   const [csvFile, setCsvFile] = useState<File | null>(null);
   const [csvResult, setCsvResult] = useState<ImportCsvResult | null>(null);
 
+  // AI Extract state
+  const [aiConfigured, setAiConfigured] = useState(true);
+  const [aiCategoryMode, setAiCategoryMode] = useState<"auto" | number>("auto");
+  const [aiDefaultLocationId, setAiDefaultLocationId] = useState<number | null>(null);
+  const [locationOptions, setLocationOptions] = useState<FlatLocationOption[]>([]);
+  const [aiSummary, setAiSummary] = useState<string | null>(null);
+  const [aiDrafts, setAiDrafts] = useState<AiBulkEditableRow[]>([]);
+  const [aiExtracting, setAiExtracting] = useState(false);
+
+  const aiMedia = useAiMediaRecorder(open && tab === "ai");
+  const { resetAll: resetAiMedia } = aiMedia;
+
   // Shared status state
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -147,13 +203,29 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
     [categoryFields]
   );
 
-  // Load categories & reset transient form state when opened
+  const categoryById = useMemo(() => {
+    const map = new Map<number, Category>();
+    for (const c of categories) {
+      map.set(c.id, c);
+    }
+    return map;
+  }, [categories]);
+
+  const includedAiDrafts = useMemo(
+    () => aiDrafts.filter((row) => row.included),
+    [aiDrafts]
+  );
+
+  // Load categories, location options & reset transient form state when opened
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    api
-      .getCategories()
-      .then((cats) => {
+    Promise.all([
+      api.getCategories(),
+      api.getLocationsTree().catch(() => []),
+      api.getSettings().catch(() => null),
+    ])
+      .then(([cats, tree, settings]) => {
         if (cancelled) return;
         setTab(initialTab);
         setErrorMsg(null);
@@ -164,8 +236,18 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
         setExpiryDate("");
         setNotes("");
         setSelectedLocationId(initialLocationId ?? null);
+        setAiDefaultLocationId(initialLocationId ?? null);
+        setAiCategoryMode("auto");
+        setAiSummary(null);
+        setAiDrafts([]);
+        setAiExtracting(false);
+        resetAiMedia();
         reset({ values: {} });
         setCategories(cats);
+        setLocationOptions(flattenLocationTree(tree || []));
+        if (settings) {
+          setAiConfigured(Boolean(settings.ai_configured));
+        }
         const preferred =
           initialCategoryId && cats.some((c: Category) => c.id === initialCategoryId)
             ? initialCategoryId
@@ -179,7 +261,7 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [open, initialCategoryId, initialLocationId, initialTab, reset]);
+  }, [open, initialCategoryId, initialLocationId, initialTab, reset, resetAiMedia]);
 
   // Fetch active category schema when category selection changes
   useEffect(() => {
@@ -259,6 +341,150 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
     }
   };
 
+  const handleExtractWithAi = async () => {
+    setErrorMsg(null);
+    if (aiMedia.isRecording) {
+      setErrorMsg("Please stop the active voice recording first.");
+      return;
+    }
+    if (!aiMedia.prompt.trim() && !aiMedia.audioDraft && !aiMedia.imageDraft) {
+      setErrorMsg("Paste a list, record a voice message, or attach a receipt/shelf photo first.");
+      return;
+    }
+    if (categories.length === 0) {
+      setErrorMsg("Create at least one category before extracting items.");
+      return;
+    }
+
+    setAiExtracting(true);
+    try {
+      const res = await api.bulkExtractItemsWithAi({
+        prompt: aiMedia.prompt,
+        audio: aiMedia.audioDraft?.blob ?? null,
+        audioFilename: aiMedia.audioDraft?.filename,
+        image: aiMedia.imageDraft?.file ?? null,
+        imageFilename: aiMedia.imageDraft?.file.name,
+        preferredCategoryId:
+          aiCategoryMode === "auto"
+            ? selectedCategoryId
+              ? Number(selectedCategoryId)
+              : null
+            : aiCategoryMode,
+        preferredLocationId: aiDefaultLocationId,
+        lockCategory: aiCategoryMode !== "auto",
+      });
+      setAiSummary(
+        res.summary || `Extracted ${res.items.length} item${res.items.length === 1 ? "" : "s"}. Review before creating.`
+      );
+      setAiDrafts(
+        res.items.map((item, idx) => ({
+          ...item,
+          _key: `ai-${Date.now()}-${idx}`,
+          included: true,
+        }))
+      );
+      if (res.items.length === 0) {
+        setErrorMsg("AI did not find any distinct items in that input. Add more detail or try another file.");
+      }
+    } catch (err: any) {
+      if (err instanceof ApiException) {
+        if (err.error.code === "AI_NOT_CONFIGURED") {
+          setAiConfigured(false);
+        }
+        setErrorMsg(err.error.message);
+      } else {
+        setErrorMsg("Failed to extract items with AI.");
+      }
+    } finally {
+      setAiExtracting(false);
+    }
+  };
+
+  const handleUpdateAiRow = (key: string, patch: Partial<AiBulkEditableRow>) => {
+    setAiDrafts((prev) => prev.map((row) => (row._key === key ? { ...row, ...patch } : row)));
+  };
+
+  const handleRemoveAiRow = (key: string) => {
+    setAiDrafts((prev) => prev.filter((row) => row._key !== key));
+  };
+
+  const handleAddBlankAiRow = () => {
+    const fallbackCatId =
+      aiCategoryMode !== "auto"
+        ? aiCategoryMode
+        : selectedCategoryId
+          ? Number(selectedCategoryId)
+          : categories[0]?.id || 0;
+    const cat = categoryById.get(fallbackCatId);
+    setAiDrafts((prev) => [
+      ...prev,
+      {
+        _key: `manual-${Date.now()}-${prev.length}`,
+        name: "",
+        category_id: fallbackCatId,
+        category_name: cat?.name || null,
+        location_id: aiDefaultLocationId,
+        location_path: null,
+        quantity: 1,
+        expiry_date: null,
+        notes: null,
+        values: {},
+        included: true,
+      },
+    ]);
+  };
+
+  const handleCommitAiDrafts = async () => {
+    setErrorMsg(null);
+    if (includedAiDrafts.length === 0) {
+      setErrorMsg("Select at least one extracted item to create.");
+      return;
+    }
+    for (let i = 0; i < includedAiDrafts.length; i += 1) {
+      const row = includedAiDrafts[i];
+      if (!row.name.trim()) {
+        setErrorMsg(`Row #${i + 1}: item name cannot be blank.`);
+        return;
+      }
+      if (!row.category_id) {
+        setErrorMsg(`"${row.name}": please choose a category.`);
+        return;
+      }
+      if (!Number.isFinite(Number(row.quantity)) || Number(row.quantity) < 1) {
+        setErrorMsg(`"${row.name}": quantity must be at least 1.`);
+        return;
+      }
+    }
+
+    setIsSubmitting(true);
+    try {
+      const res = await api.bulkCommitAiItems(
+        includedAiDrafts.map((row) => ({
+          name: row.name.trim(),
+          category_id: Number(row.category_id),
+          location_id: row.location_id ?? null,
+          quantity: Math.max(1, Math.floor(Number(row.quantity))),
+          expiry_date: row.expiry_date?.trim() || null,
+          notes: row.notes?.trim() || null,
+          values: row.values || {},
+        }))
+      );
+      onAdded(
+        res.created_count,
+        `Added ${res.created_count} ${res.created_count === 1 ? "item" : "items"} via AI Extract`
+      );
+      onClose();
+    } catch (err: any) {
+      if (err instanceof ApiException) {
+        setErrorMsg(err.error.message);
+      } else {
+        setErrorMsg("Failed to save extracted items.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleSelectCsvFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     const picked = event.target.files?.[0] || null;
     event.target.value = "";
@@ -307,7 +533,18 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
   const csvTemplateHeaders = getCsvHeadersForCategory(activeCategory, activeCategoryFields);
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth fullScreen={isMobile}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth={tab === "ai" && aiDrafts.length > 0 ? "lg" : "md"}
+      fullWidth
+      fullScreen={isMobile}
+      slotProps={{
+        transition: {
+          onExited: resetAiMedia,
+        },
+      }}
+    >
       <DialogTitle
         sx={{
           display: "flex",
@@ -332,6 +569,12 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
             value="list"
             label="Quick List"
             icon={<PlaylistAddIcon fontSize="small" />}
+            iconPosition="start"
+          />
+          <Tab
+            value="ai"
+            label="AI Extract"
+            icon={<AutoAwesomeIcon fontSize="small" />}
             iconPosition="start"
           />
           <Tab
@@ -520,6 +763,333 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
             </Button>
           </DialogActions>
         </form>
+      ) : tab === "ai" ? (
+        <>
+          <DialogContent sx={{ pt: 2.5, px: { xs: 2, sm: 3 }, flexGrow: 1, overflowY: "auto" }}>
+            {errorMsg && (
+              <Alert severity="error" sx={{ mb: 2 }} onClose={() => setErrorMsg(null)}>
+                {errorMsg}
+              </Alert>
+            )}
+
+            <Stack spacing={2.25}>
+              <Grid container spacing={2}>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <FormControl fullWidth size="small">
+                    <InputLabel id="bulk-ai-category-mode-label">Category Mode</InputLabel>
+                    <Select
+                      labelId="bulk-ai-category-mode-label"
+                      value={aiCategoryMode === "auto" ? "auto" : String(aiCategoryMode)}
+                      label="Category Mode"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setAiCategoryMode(val === "auto" ? "auto" : Number(val));
+                      }}
+                      disabled={aiExtracting || isSubmitting}
+                    >
+                      <MenuItem value="auto">Auto-detect per item (mixed categories)</MenuItem>
+                      {categories.map((c) => (
+                        <MenuItem key={c.id} value={String(c.id)}>
+                          Always use: {c.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <LocationPicker
+                    size="small"
+                    value={aiDefaultLocationId}
+                    onChange={setAiDefaultLocationId}
+                    label="Default Location (Optional)"
+                    emptyLabel="Auto-detect / Unspecified"
+                  />
+                </Grid>
+              </Grid>
+
+              {aiExtracting && <LinearProgress color="secondary" />}
+
+              <AiCapturePanel
+                media={aiMedia}
+                aiConfigured={aiConfigured}
+                disabled={aiExtracting || isSubmitting}
+                promptLabel="Speak, paste a messy list, or snap a receipt / shelf photo"
+                promptPlaceholder="e.g. 2x AA Battery packs, 1 USB-C hub, ibuprofen 400mg expiring 2027-06-01..."
+                examples={AI_BULK_EXAMPLES}
+                allowImage
+                imageSectionTitle="Receipt / Shelf / Pantry Photo (Optional)"
+                imageSectionSubtitle="Snap groceries, receipts, toolbox drawers, or shelves for multi-item extraction"
+                promptRows={3}
+                onNavigateSettings={onClose}
+              />
+
+              {aiSummary && (
+                <Alert severity="success" onClose={() => setAiSummary(null)}>
+                  {aiSummary}
+                </Alert>
+              )}
+
+              {aiDrafts.length > 0 && (
+                <Box>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                      gap: 1,
+                      mb: 1,
+                    }}
+                  >
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                      Review Extracted Items ({includedAiDrafts.length} of {aiDrafts.length} selected)
+                    </Typography>
+                    <Button
+                      size="small"
+                      startIcon={<AddIcon />}
+                      onClick={handleAddBlankAiRow}
+                      disabled={isSubmitting || aiExtracting}
+                    >
+                      Add Row
+                    </Button>
+                  </Box>
+
+                  <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 340 }}>
+                    <Table size="small" stickyHeader>
+                      <TableHead>
+                        <TableRow>
+                          <TableCell padding="checkbox">
+                            <Checkbox
+                              size="small"
+                              checked={
+                                aiDrafts.length > 0 && includedAiDrafts.length === aiDrafts.length
+                              }
+                              indeterminate={
+                                includedAiDrafts.length > 0 &&
+                                includedAiDrafts.length < aiDrafts.length
+                              }
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setAiDrafts((prev) => prev.map((r) => ({ ...r, included: checked })));
+                              }}
+                              disabled={isSubmitting}
+                            />
+                          </TableCell>
+                          <TableCell sx={{ minWidth: 165 }}>Name</TableCell>
+                          <TableCell sx={{ minWidth: 145 }}>Category</TableCell>
+                          <TableCell sx={{ minWidth: 145 }}>Location</TableCell>
+                          <TableCell sx={{ width: 82 }}>Qty</TableCell>
+                          <TableCell sx={{ minWidth: 140 }}>Expiry</TableCell>
+                          <TableCell sx={{ minWidth: 170 }}>Details / Notes</TableCell>
+                          <TableCell align="right" sx={{ width: 48 }} />
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {aiDrafts.map((row) => {
+                          const rowCat = categoryById.get(Number(row.category_id));
+                          const fieldPairs = Object.entries(row.values || {}).filter(
+                            ([, val]) => val !== null && val !== undefined && val !== ""
+                          );
+                          return (
+                            <TableRow key={row._key} hover selected={row.included}>
+                              <TableCell padding="checkbox">
+                                <Checkbox
+                                  size="small"
+                                  checked={row.included}
+                                  onChange={(e) =>
+                                    handleUpdateAiRow(row._key, { included: e.target.checked })
+                                  }
+                                  disabled={isSubmitting}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <TextField
+                                  size="small"
+                                  fullWidth
+                                  value={row.name}
+                                  placeholder="Item name"
+                                  onChange={(e) =>
+                                    handleUpdateAiRow(row._key, { name: e.target.value })
+                                  }
+                                  disabled={isSubmitting}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <Select
+                                  size="small"
+                                  fullWidth
+                                  value={row.category_id ? String(row.category_id) : ""}
+                                  onChange={(e) =>
+                                    handleUpdateAiRow(row._key, {
+                                      category_id: Number(e.target.value),
+                                    })
+                                  }
+                                  disabled={isSubmitting || aiCategoryMode !== "auto"}
+                                >
+                                  {categories.map((c) => (
+                                    <MenuItem key={c.id} value={String(c.id)}>
+                                      {c.name}
+                                    </MenuItem>
+                                  ))}
+                                </Select>
+                              </TableCell>
+                              <TableCell>
+                                <Select
+                                  size="small"
+                                  fullWidth
+                                  displayEmpty
+                                  value={row.location_id ? String(row.location_id) : ""}
+                                  onChange={(e) =>
+                                    handleUpdateAiRow(row._key, {
+                                      location_id: e.target.value ? Number(e.target.value) : null,
+                                    })
+                                  }
+                                  disabled={isSubmitting}
+                                >
+                                  <MenuItem value="">
+                                    <em>Unspecified</em>
+                                  </MenuItem>
+                                  {locationOptions.map((loc) => (
+                                    <MenuItem key={loc.id} value={String(loc.id)}>
+                                      {loc.path}
+                                    </MenuItem>
+                                  ))}
+                                </Select>
+                              </TableCell>
+                              <TableCell>
+                                <TextField
+                                  size="small"
+                                  type="number"
+                                  value={row.quantity}
+                                  onChange={(e) =>
+                                    handleUpdateAiRow(row._key, {
+                                      quantity: Math.max(1, Number(e.target.value) || 1),
+                                    })
+                                  }
+                                  slotProps={{
+                                    htmlInput: {
+                                      min: 1,
+                                      step: 1,
+                                      style: { fontFamily: "var(--font-mono)" },
+                                    },
+                                  }}
+                                  disabled={isSubmitting}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                {rowCat?.track_expiry ? (
+                                  <TextField
+                                    size="small"
+                                    type="date"
+                                    value={row.expiry_date || ""}
+                                    onChange={(e) =>
+                                      handleUpdateAiRow(row._key, {
+                                        expiry_date: e.target.value || null,
+                                      })
+                                    }
+                                    slotProps={{ inputLabel: { shrink: true } }}
+                                    disabled={isSubmitting}
+                                  />
+                                ) : (
+                                  <Typography variant="caption" color="text.disabled">
+                                    —
+                                  </Typography>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Stack spacing={0.5}>
+                                  <TextField
+                                    size="small"
+                                    fullWidth
+                                    placeholder="Notes"
+                                    value={row.notes || ""}
+                                    onChange={(e) =>
+                                      handleUpdateAiRow(row._key, {
+                                        notes: e.target.value || null,
+                                      })
+                                    }
+                                    disabled={isSubmitting}
+                                  />
+                                  {fieldPairs.length > 0 && (
+                                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+                                      {fieldPairs.map(([key, val]) => (
+                                        <Chip
+                                          key={key}
+                                          size="small"
+                                          variant="outlined"
+                                          label={`${key}: ${Array.isArray(val) ? val.join(", ") : String(val)}`}
+                                          sx={{ height: 20, fontSize: "0.68rem" }}
+                                        />
+                                      ))}
+                                    </Box>
+                                  )}
+                                </Stack>
+                              </TableCell>
+                              <TableCell align="right">
+                                <Tooltip title="Remove row">
+                                  <IconButton
+                                    size="small"
+                                    color="error"
+                                    onClick={() => handleRemoveAiRow(row._key)}
+                                    disabled={isSubmitting}
+                                  >
+                                    <DeleteOutlinedIcon fontSize="small" />
+                                  </IconButton>
+                                </Tooltip>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </Box>
+              )}
+            </Stack>
+          </DialogContent>
+
+          <DialogActions
+            sx={{ px: { xs: 2, sm: 3 }, py: 2, borderTop: 1, borderColor: "divider", flexWrap: "wrap", gap: 1 }}
+          >
+            <Button onClick={onClose} disabled={isSubmitting || aiExtracting}>
+              Cancel
+            </Button>
+            <Button
+              variant={aiDrafts.length > 0 ? "outlined" : "contained"}
+              color="secondary"
+              startIcon={
+                aiExtracting ? <CircularProgress size={16} color="inherit" /> : <AutoAwesomeIcon />
+              }
+              onClick={() => void handleExtractWithAi()}
+              disabled={
+                aiExtracting ||
+                isSubmitting ||
+                aiMedia.isRecording ||
+                (!aiMedia.prompt.trim() && !aiMedia.audioDraft && !aiMedia.imageDraft)
+              }
+            >
+              {aiExtracting
+                ? "Extracting..."
+                : aiDrafts.length > 0
+                  ? "Re-extract"
+                  : "Extract Items"}
+            </Button>
+            {aiDrafts.length > 0 && (
+              <Button
+                variant="contained"
+                startIcon={
+                  isSubmitting ? <CircularProgress size={16} color="inherit" /> : <PlaylistAddIcon />
+                }
+                onClick={() => void handleCommitAiDrafts()}
+                disabled={isSubmitting || aiExtracting || includedAiDrafts.length === 0}
+              >
+                {isSubmitting
+                  ? "Creating..."
+                  : `Create ${includedAiDrafts.length} ${includedAiDrafts.length === 1 ? "Item" : "Items"}`}
+              </Button>
+            )}
+          </DialogActions>
+        </>
       ) : (
         <>
           <DialogContent sx={{ pt: 2.5, px: { xs: 2, sm: 3 }, flexGrow: 1, overflowY: "auto" }}>

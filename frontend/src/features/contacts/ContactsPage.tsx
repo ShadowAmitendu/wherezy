@@ -21,6 +21,8 @@ import {
   List,
   ListItem,
   ListItemText,
+  Fade,
+  Grow,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
@@ -261,92 +263,114 @@ export const ContactsPage: React.FC = () => {
           <CircularProgress />
         </Box>
       ) : filteredContacts.length === 0 ? (
-        <Card variant="outlined" sx={{ p: 6, textAlign: "center", borderRadius: 1 }}>
-          <PeopleOutlinedIcon sx={{ fontSize: 48, color: "text.secondary", mb: 1.5 }} />
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>
-            No contacts found
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Add contacts to easily record who borrowed items and track return dates.
-          </Typography>
-          <Button variant="outlined" onClick={handleOpenAdd}>
-            Add First Contact
-          </Button>
-        </Card>
+        <Fade in appear timeout={250}>
+          <Card variant="outlined" sx={{ p: 6, textAlign: "center", borderRadius: 1 }}>
+            <PeopleOutlinedIcon sx={{ fontSize: 48, color: "text.secondary", mb: 1.5 }} />
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              No contacts found
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Add contacts to easily record who borrowed items and track return dates.
+            </Typography>
+            <Button variant="outlined" onClick={handleOpenAdd}>
+              Add First Contact
+            </Button>
+          </Card>
+        </Fade>
       ) : (
         <Grid container spacing={2}>
-          {filteredContacts.map((contact) => {
+          {filteredContacts.map((contact, idx) => {
             const hasLoans = contact.items_out_count > 0;
             const hasOverdue = contact.has_overdue;
 
             return (
               <Grid key={contact.id} size={{ xs: 12, sm: 6, md: 4 }}>
-                <Card variant="outlined" sx={{ height: "100%", display: "flex", flexDirection: "column", borderRadius: 1 }}>
-                  <CardContent sx={{ flexGrow: 1 }}>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
-                      <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                        {contact.name}
-                      </Typography>
-                      {hasLoans && (
-                        <Chip
-                          label={hasOverdue ? `${contact.items_out_count} Lent (Overdue)` : `${contact.items_out_count} Lent`}
-                          size="small"
-                          color={hasOverdue ? "error" : "primary"}
-                          icon={hasOverdue ? <WarningAmberOutlinedIcon /> : <Inventory2OutlinedIcon />}
-                          sx={{ fontWeight: 600 }}
-                        />
-                      )}
-                    </Box>
-
-                    {contact.phone && (
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 1 }}>
-                        <PhoneOutlinedIcon fontSize="small" color="action" />
-                        <Typography
-                          variant="body2"
-                          component="a"
-                          href={`tel:${contact.phone}`}
-                          sx={{ color: "primary.main", textDecoration: "none", "&:hover": { textDecoration: "underline" } }}
-                        >
-                          {contact.phone}
+                <Grow in appear timeout={Math.min(200 + idx * 45, 480)}>
+                  <Card
+                    variant="outlined"
+                    sx={{
+                      height: "100%",
+                      display: "flex",
+                      flexDirection: "column",
+                      borderRadius: 1,
+                      transition: (t) =>
+                        t.transitions.create(["transform", "box-shadow", "border-color"], {
+                          duration: t.transitions.duration.shorter,
+                          easing: t.transitions.easing.easeInOut,
+                        }),
+                      "&:hover": {
+                        transform: "translateY(-2px)",
+                        boxShadow: 3,
+                        borderColor: "primary.main",
+                      },
+                    }}
+                  >
+                    <CardContent sx={{ flexGrow: 1 }}>
+                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
+                        <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                          {contact.name}
                         </Typography>
-                        <Tooltip title="Copy phone number">
-                          <IconButton size="small" onClick={() => handleCopyPhone(contact.phone)}>
-                            <ContentCopyIcon fontSize="inherit" />
+                        {hasLoans && (
+                          <Chip
+                            label={hasOverdue ? `${contact.items_out_count} Lent (Overdue)` : `${contact.items_out_count} Lent`}
+                            size="small"
+                            color={hasOverdue ? "error" : "primary"}
+                            icon={hasOverdue ? <WarningAmberOutlinedIcon /> : <Inventory2OutlinedIcon />}
+                            sx={{ fontWeight: 600 }}
+                          />
+                        )}
+                      </Box>
+
+                      {contact.phone && (
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 1 }}>
+                          <PhoneOutlinedIcon fontSize="small" color="action" />
+                          <Typography
+                            variant="body2"
+                            component="a"
+                            href={`tel:${contact.phone}`}
+                            sx={{ color: "primary.main", textDecoration: "none", "&:hover": { textDecoration: "underline" } }}
+                          >
+                            {contact.phone}
+                          </Typography>
+                          <Tooltip title="Copy phone number">
+                            <IconButton size="small" onClick={() => handleCopyPhone(contact.phone)}>
+                              <ContentCopyIcon fontSize="inherit" />
+                            </IconButton>
+                          </Tooltip>
+                        </Box>
+                      )}
+
+                      {contact.note && (
+                        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.5, mt: 1 }}>
+                          <NotesOutlinedIcon fontSize="small" color="action" sx={{ mt: 0.2 }} />
+                          <Typography variant="body2" color="text.secondary">
+                            {contact.note}
+                          </Typography>
+                        </Box>
+                      )}
+                    </CardContent>
+
+                    <Divider />
+
+                    <CardActions sx={{ justifyContent: "space-between", px: 2, py: 1 }}>
+                      <Button size="small" onClick={() => handleOpenLoans(contact)}>
+                        View Loans ({contact.items_out_count || 0})
+                      </Button>
+                      <Box>
+                        <Tooltip title="Edit Contact">
+                          <IconButton size="small" onClick={() => handleOpenEdit(contact)}>
+                            <EditOutlinedIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Deactivate Contact">
+                          <IconButton size="small" color="error" onClick={() => handleDeactivate(contact)}>
+                            <DeleteOutlinedIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
                       </Box>
-                    )}
-
-                    {contact.note && (
-                      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 0.5, mt: 1 }}>
-                        <NotesOutlinedIcon fontSize="small" color="action" sx={{ mt: 0.2 }} />
-                        <Typography variant="body2" color="text.secondary">
-                          {contact.note}
-                        </Typography>
-                      </Box>
-                    )}
-                  </CardContent>
-
-                  <Divider />
-
-                  <CardActions sx={{ justifyContent: "space-between", px: 2, py: 1 }}>
-                    <Button size="small" onClick={() => handleOpenLoans(contact)}>
-                      View Loans ({contact.items_out_count || 0})
-                    </Button>
-                    <Box>
-                      <Tooltip title="Edit Contact">
-                        <IconButton size="small" onClick={() => handleOpenEdit(contact)}>
-                          <EditOutlinedIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Deactivate Contact">
-                        <IconButton size="small" color="error" onClick={() => handleDeactivate(contact)}>
-                          <DeleteOutlinedIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  </CardActions>
-                </Card>
+                    </CardActions>
+                  </Card>
+                </Grow>
               </Grid>
             );
           })}

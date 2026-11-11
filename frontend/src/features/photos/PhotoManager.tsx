@@ -10,7 +10,6 @@ import {
   Dialog,
   DialogContent,
   Tooltip,
-  Grid,
 } from "@mui/material";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { PhotoCaptureButtons } from "../../components/shared/PhotoCaptureButtons";
@@ -170,15 +169,34 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
           No photos attached.
         </Typography>
       ) : (
-        <Grid container spacing={2}>
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(145px, 1fr))",
+            gap: 1.5,
+          }}
+        >
           {photos.map((photo) => (
-            <Grid key={photo.id} size={{ xs: 6, sm: 4, md: 3 }}>
-              <Card
+            <Card
+              key={photo.id}
+              variant="outlined"
+              sx={{
+                position: "relative",
+                border: photo.is_cover ? "2px solid" : "1px solid",
+                borderColor: photo.is_cover ? "primary.main" : "divider",
+                borderRadius: 1.5,
+                overflow: "hidden",
+                bgcolor: "transparent",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              <Box
                 sx={{
                   position: "relative",
-                  border: photo.is_cover ? "2px solid" : "1px solid",
-                  borderColor: photo.is_cover ? "primary.main" : "divider",
-                  borderRadius: 2,
+                  aspectRatio: "4 / 3",
+                  bgcolor: "action.hover",
+                  overflow: "hidden",
                 }}
               >
                 {photo.is_cover && (
@@ -188,9 +206,11 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
                     color="primary"
                     sx={{
                       position: "absolute",
-                      top: 6,
-                      left: 6,
+                      top: 8,
+                      left: 8,
                       zIndex: 2,
+                      height: 22,
+                      fontSize: "0.68rem",
                       fontWeight: 600,
                     }}
                   />
@@ -198,47 +218,65 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
 
                 <CardMedia
                   component="img"
-                  height="140"
                   image={photo.thumb_url}
                   alt="Photo thumbnail"
-                  sx={{ objectFit: "cover", cursor: "pointer" }}
+                  sx={{
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    display: "block",
+                    cursor: "pointer",
+                  }}
                   onClick={() => setZoomPhoto(photo)}
                 />
+              </Box>
 
-                {!readOnly && (
-                  <CardActions sx={{ justifyContent: "space-between", px: 1, py: 0.5 }}>
-                    <Tooltip title={photo.is_cover ? "Primary Cover Photo" : "Set as Cover"}>
-                      <IconButton
-                        size="small"
-                        color={photo.is_cover ? "primary" : "default"}
-                        onClick={() => handleSetCover(photo.id)}
-                      >
-                        {photo.is_cover ? <StarIcon fontSize="small" /> : <StarBorderIcon fontSize="small" />}
+              {!readOnly && (
+                <CardActions
+                  sx={{
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "nowrap",
+                    px: 0.75,
+                    py: 0.5,
+                    bgcolor: "action.hover",
+                    borderTop: "1px solid",
+                    borderColor: "divider",
+                  }}
+                >
+                  <Tooltip title={photo.is_cover ? "Primary Cover Photo" : "Set as Cover"}>
+                    <IconButton
+                      size="small"
+                      color={photo.is_cover ? "primary" : "default"}
+                      onClick={() => handleSetCover(photo.id)}
+                      aria-label={photo.is_cover ? "Primary cover photo" : "Set as cover photo"}
+                    >
+                      {photo.is_cover ? <StarIcon fontSize="small" /> : <StarBorderIcon fontSize="small" />}
+                    </IconButton>
+                  </Tooltip>
+
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.25, flexShrink: 0 }}>
+                    <Tooltip title="View full size">
+                      <IconButton size="small" onClick={() => setZoomPhoto(photo)} aria-label="View full size">
+                        <ZoomInOutlinedIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
-
-                    <Box>
-                      <Tooltip title="View full size">
-                        <IconButton size="small" onClick={() => setZoomPhoto(photo)}>
-                          <ZoomInOutlinedIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete photo">
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => setDeleteTarget(photo)}
-                        >
-                          <DeleteOutlinedIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  </CardActions>
-                )}
-              </Card>
-            </Grid>
+                    <Tooltip title="Delete photo">
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => setDeleteTarget(photo)}
+                        aria-label="Delete photo"
+                      >
+                        <DeleteOutlinedIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                </CardActions>
+              )}
+            </Card>
           ))}
-        </Grid>
+        </Box>
       )}
 
       {/* Zoom Dialog */}

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { Box, Button, Chip } from "@mui/material";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { Alert, Box, Button, Chip } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { FormBuilder } from "./FormBuilder";
@@ -13,6 +14,12 @@ import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 export const CategoryDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  const initialAiSummary =
+    typeof (location.state as { aiSummary?: unknown } | null)?.aiSummary === "string"
+      ? ((location.state as { aiSummary: string }).aiSummary)
+      : null;
+  const [aiBanner, setAiBanner] = useState<string | null>(initialAiSummary);
   const [category, setCategory] = useState<Category | null>(null);
   useDocumentTitle(category ? category.name : "Categories");
   const [fields, setFields] = useState<FieldDef[]>([]);
@@ -94,6 +101,17 @@ export const CategoryDetailPage: React.FC = () => {
               </Box>
             }
           />
+
+          {aiBanner && (
+            <Alert
+              severity="success"
+              icon={<AutoAwesomeIcon fontSize="inherit" />}
+              onClose={() => setAiBanner(null)}
+              sx={{ mb: 2.5 }}
+            >
+              <strong>AI Category Created & Optimized:</strong> {aiBanner}
+            </Alert>
+          )}
 
           <FormBuilder
             categoryId={category.id}

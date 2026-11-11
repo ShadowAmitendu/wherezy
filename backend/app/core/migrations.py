@@ -4,9 +4,15 @@ import zipfile
 import datetime
 import tempfile
 from pathlib import Path
-from backend.app.core.config import DB_PATH, BACKUPS_DIR, PHOTOS_DIR, FILES_DIR, DATA_DIR
+from backend.app.core.config import (
+    DB_PATH,
+    BACKUPS_DIR,
+    PHOTOS_DIR,
+    FILES_DIR,
+    DATA_DIR,
+    MIGRATIONS_DIR,
+)
 
-MIGRATIONS_DIR = Path(__file__).resolve().parent.parent / "migrations"
 TARGET_V2_VERSION = 11
 
 

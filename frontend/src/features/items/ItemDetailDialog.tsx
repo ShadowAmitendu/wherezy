@@ -53,6 +53,7 @@ import {
   getItemQuantity,
   getItemTakenOutQuantity,
 } from "./quantityUtils";
+import { formatItemCode } from "./itemCodeUtils";
 import { PhotoManager } from "../photos/PhotoManager";
 import { ExpiryChip } from "../../components/shared/ExpiryChip";
 import { LocationBreadcrumb } from "../../components/shared/LocationBreadcrumb";
@@ -207,14 +208,16 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
   useEffect(() => {
     if (item && barcodeCanvasRef.current && tabIndex === 0) {
       try {
-        JsBarcode(barcodeCanvasRef.current, `I${item.id}`, {
+        JsBarcode(barcodeCanvasRef.current, formatItemCode(item.id), {
           format: "CODE128",
-          width: 1.5,
-          height: 35,
+          width: 1.4,
+          height: 32,
           displayValue: true,
           fontSize: 12,
           font: "JetBrains Mono",
-          margin: 0,
+          margin: 4,
+          background: "#ffffff",
+          lineColor: "#000000",
         });
       } catch (err) {
         console.error("Barcode generation failed", err);
@@ -363,12 +366,12 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
 
   return (
     <>
-      <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth fullScreen={isMobile}>
-        <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", pb: 1 }}>
-          <Box>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 0.5, flexWrap: "wrap" }}>
+      <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth fullScreen={isMobile}>
+        <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", pb: 1.5 }}>
+          <Box sx={{ minWidth: 0, pr: 1 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75, flexWrap: "wrap" }}>
               <Chip
-                label={`I${item?.id}`}
+                label={formatItemCode(item?.id)}
                 size="small"
                 sx={{ fontFamily: "var(--font-mono)", fontWeight: 700 }}
                 color="primary"
@@ -402,7 +405,7 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
               {item?.name}
             </Typography>
           </Box>
-          <IconButton onClick={onClose} size="small">
+          <IconButton onClick={onClose} size="small" aria-label="Close">
             <CloseIcon />
           </IconButton>
         </DialogTitle>
@@ -469,7 +472,15 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
               {/* Left Column: Location, Taken Out, Properties, Notes */}
               <Grid size={{ xs: 12, md: 7 }} sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
                 {/* Location Breadcrumb & Status */}
-                <Box sx={{ p: 2, bgcolor: "action.hover", borderRadius: 1 }}>
+                <Box
+                  sx={{
+                    p: 2,
+                    bgcolor: "action.hover",
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 1.5,
+                  }}
+                >
                   <Typography variant="caption" color="text.secondary" sx={{ display: "block", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 500, mb: 0.5 }}>
                     Location
                   </Typography>
@@ -485,8 +496,8 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
                     p: 2,
                     border: "1px solid",
                     borderColor: takenOut ? "secondary.main" : "divider",
-                    borderRadius: 1,
-                    bgcolor: takenOut ? "action.selected" : "background.paper",
+                    borderRadius: 1.5,
+                    bgcolor: takenOut ? "action.selected" : "action.hover",
                   }}
                 >
                   <Box
@@ -499,6 +510,7 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
                     }}
                   >
                     <FormControlLabel
+                      sx={{ m: 0, "& .MuiFormControlLabel-label": { ml: 1 } }}
                       control={
                         <Switch
                           checked={takenOut}
@@ -615,7 +627,7 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
                     {item?.category_name ? `${item.category_name} Attributes` : "Item Attributes"}
                   </Typography>
 
-                  <Grid container spacing={2}>
+                  <Grid container spacing={1.5}>
                     {item?.field_defs && item.field_defs.length > 0 ? (
                       item.field_defs.map((field) => {
                         const val = item.values?.[field.key];
@@ -631,8 +643,19 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
                         }
 
                         return (
-                          <Grid key={field.key} size={{ xs: 12, sm: 6 }}>
-                            <Box sx={{ p: 1.5, border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
+                          <Grid
+                            key={field.key}
+                            size={{ xs: 12, sm: item.field_defs!.length === 1 ? 12 : 6 }}
+                          >
+                            <Box
+                              sx={{
+                                p: 1.5,
+                                border: "1px solid",
+                                borderColor: "divider",
+                                borderRadius: 1.5,
+                                height: "100%",
+                              }}
+                            >
                               <Typography variant="caption" color="text.secondary">
                                 {field.label}
                               </Typography>
@@ -653,7 +676,7 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
                   </Grid>
 
                   {item?.notes && (
-                    <Box sx={{ mt: 2, p: 2, bgcolor: "action.hover", borderRadius: 1 }}>
+                    <Box sx={{ mt: 2, p: 2, bgcolor: "action.hover", border: "1px solid", borderColor: "divider", borderRadius: 1.5 }}>
                       <Typography variant="caption" color="text.secondary" sx={{ display: "block", textTransform: "uppercase", letterSpacing: "0.08em", fontWeight: 500, mb: 0.5 }}>
                         Notes
                       </Typography>
@@ -672,15 +695,29 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
                   {item && <PhotoManager ownerType="item" ownerId={item.id} />}
                 </Box>
 
-                <Box sx={{ p: 2, border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
+                <Box sx={{ p: 2, border: "1px solid", borderColor: "divider", borderRadius: 1.5 }}>
                   <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1.5 }}>
                     QR Code & Barcode
                   </Typography>
-                  <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-                    {qrUrl && <img src={qrUrl} alt="QR Code" style={{ width: 120, height: 120 }} />}
-                    <canvas ref={barcodeCanvasRef} style={{ maxWidth: "100%" }} />
+                  <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5 }}>
+                    <Box
+                      sx={{
+                        p: 1.5,
+                        bgcolor: "#ffffff",
+                        borderRadius: 1.5,
+                        border: "1px solid",
+                        borderColor: "divider",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: 1.25,
+                      }}
+                    >
+                      {qrUrl && <img src={qrUrl} alt="QR Code" style={{ width: 112, height: 112, display: "block" }} />}
+                      <canvas ref={barcodeCanvasRef} style={{ maxWidth: "100%", display: "block" }} />
+                    </Box>
                     <Typography variant="caption" color="text.secondary" align="center">
-                      Scan code with mobile camera to open this item, or type <code>I{item?.id}</code> in search/scan.
+                      Scan code with mobile camera to open this item, or type <code>{formatItemCode(item?.id)}</code> in search/scan.
                     </Typography>
                   </Box>
                 </Box>

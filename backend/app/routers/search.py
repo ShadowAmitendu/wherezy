@@ -1,9 +1,11 @@
 from typing import List
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from backend.app.core.db import get_db
 from backend.app.models import Item, Location, Category, Tag, Contact, Profile
 from backend.app.schemas import QuickSearchResponse, QuickSearchResult
+from backend.app.services.item_service import format_item_code, parse_item_code
 from backend.app.services.permissions import require
 from backend.app.services.visibility import items_visible
 
@@ -35,7 +37,11 @@ def quick_search(
             results.append(act)
 
     # 2. Items (active visible only, max 8)
-    items = items_visible(db).filter(Item.name.ilike(f"%{term}%")).limit(8).all()
+    code_id = parse_item_code(q)
+    item_filter = Item.name.ilike(f"%{term}%")
+    if code_id is not None:
+        item_filter = or_(item_filter, Item.id == code_id)
+    items = items_visible(db).filter(item_filter).limit(8).all()
     for it in items:
         loc_path = it.location.name if it.location else "No location"
         cat_name = it.category.name if it.category else "Uncategorized"
@@ -43,7 +49,7 @@ def quick_search(
             type="item",
             id=it.id,
             title=it.name,
-            subtitle=f"{cat_name} • {loc_path}",
+            subtitle=f"{format_item_code(it.id)} • {cat_name} • {loc_path}",
             url=f"/items?selected={it.id}"
         ))
 

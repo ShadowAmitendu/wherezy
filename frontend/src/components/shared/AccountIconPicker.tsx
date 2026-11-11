@@ -1,64 +1,81 @@
-import React from "react";
-import { Box, Typography, Tooltip, IconButton } from "@mui/material";
+import React, { useMemo, useSyncExternalStore } from "react";
+import { Box, Chip, Typography } from "@mui/material";
 import { AccountIcon } from "./AccountIcon";
-import { ACCOUNT_ICONS, getAccountIconComponent } from "./accountIcons";
+import { ACCOUNT_ICONS, resolveAccountIconName } from "./accountIcons";
+import { MaterialIconGrid } from "./MaterialIconGrid";
+import {
+  formatMaterialIconLabel,
+  getCachedMaterialIconEntry,
+  getMaterialIconCatalogSnapshot,
+  normalizeMaterialIconKey,
+  subscribeMaterialIconCatalog,
+} from "./materialIconCatalog";
 
 interface AccountIconPickerProps {
   value: string;
-  onChange: (iconName: string) => void;
+  onChange: (value: string) => void;
   label?: string;
-  size?: number;
 }
+
+const CURATED_LABEL_BY_KEY = new Map(
+  ACCOUNT_ICONS.map((item) => [normalizeMaterialIconKey(item.name), item.label]),
+);
 
 export const AccountIconPicker: React.FC<AccountIconPickerProps> = ({
   value,
   onChange,
   label = "Account Icon",
-  size = 40,
 }) => {
-  // Normalize value for matching (handles legacy emojis or lowercase names)
-  const CurrentIconComp = getAccountIconComponent(value);
+  const catalog = useSyncExternalStore(
+    subscribeMaterialIconCatalog,
+    getMaterialIconCatalogSnapshot,
+  );
+
+  const resolvedName = resolveAccountIconName(value);
+  const selectedLabel = useMemo(() => {
+    const key = normalizeMaterialIconKey(resolvedName);
+    const curatedLabel = CURATED_LABEL_BY_KEY.get(key);
+    if (curatedLabel) return curatedLabel;
+    if (catalog.loaded) {
+      const entry = getCachedMaterialIconEntry(resolvedName);
+      if (entry) return entry.label;
+    }
+    return formatMaterialIconLabel(resolvedName);
+  }, [catalog.loaded, resolvedName]);
 
   return (
     <Box>
-      {label && (
-        <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 1,
+          mb: 1,
+          flexWrap: "wrap",
+        }}
+      >
+        <Typography variant="body2" sx={{ fontWeight: 600 }}>
           {label}
         </Typography>
-      )}
-      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-        {ACCOUNT_ICONS.map((item) => {
-          const ItemComp = getAccountIconComponent(item.name);
-          const isSelected = ItemComp === CurrentIconComp;
-
-          return (
-            <Tooltip key={item.name} title={item.label} arrow>
-              <IconButton
-                onClick={() => onChange(item.name)}
-                aria-label={item.label}
-                sx={{
-                  width: size,
-                  height: size,
-                  borderRadius: 1.5,
-                  bgcolor: isSelected ? "primary.main" : "action.hover",
-                  color: isSelected ? "primary.contrastText" : "text.secondary",
-                  border: isSelected ? "2px solid" : "1px solid transparent",
-                  borderColor: isSelected ? "primary.main" : "divider",
-                  boxShadow: isSelected ? 2 : 0,
-                  transition: "all 0.15s ease",
-                  transform: isSelected ? "scale(1.08)" : "scale(1)",
-                  "&:hover": {
-                    bgcolor: isSelected ? "primary.dark" : "action.selected",
-                    transform: "scale(1.15)",
-                  },
-                }}
-              >
-                <AccountIcon icon={item.name} fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          );
-        })}
+        <Chip
+          icon={<AccountIcon icon={value} fontSize="small" />}
+          label={selectedLabel}
+          size="small"
+          variant="outlined"
+        />
       </Box>
+
+      <MaterialIconGrid
+        curatedItems={ACCOUNT_ICONS}
+        selectedIcon={resolvedName}
+        onSelect={onChange}
+        renderCuratedIcon={(name) => <AccountIcon icon={name} fontSize="small" />}
+        fallbackType="person"
+        variant="compact"
+        maxHeight={{ xs: 196, sm: 224 }}
+        searchPlaceholder="Search 2,164 Material icons (e.g. rocket, cat, coffee, bike)..."
+      />
     </Box>
   );
 };

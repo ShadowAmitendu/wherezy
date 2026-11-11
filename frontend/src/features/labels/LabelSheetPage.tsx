@@ -17,6 +17,7 @@ import QRCode from "qrcode";
 import JsBarcode from "jsbarcode";
 import { api } from "../../api/client";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+import { formatItemCode } from "../items/itemCodeUtils";
 
 interface LabelData {
   id: string;
@@ -49,7 +50,7 @@ export const LabelSheetPage: React.FC = () => {
         const qrTarget = `${origin}/#/i/${item.id}`;
         const qrUrl = await QRCode.toDataURL(qrTarget, { width: 100, margin: 1 });
         list.push({
-          id: `I${item.id}`,
+          id: formatItemCode(item.id),
           type: "item",
           name: item.name,
           path: item.location_path || undefined,

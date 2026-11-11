@@ -1,0 +1,21 @@
+services:
+  wherezy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: wherezy:latest
+    container_name: wherezy
+    restart: unless-stopped
+    ports:
+      - "${WHEREZY_PORT:-8000}:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DATA_DIR=/data
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    volumes:
+      - wherezy_data:/data
+
+volumes:
+  wherezy_data:

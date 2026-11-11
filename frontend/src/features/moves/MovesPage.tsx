@@ -18,6 +18,8 @@ import {
   List,
   ListItem,
   ListItemText,
+  Fade,
+  Grow,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
@@ -266,111 +268,135 @@ export const MovesPage: React.FC = () => {
           <CircularProgress />
         </Box>
       ) : !activeMove ? (
-        <Card variant="outlined" sx={{ p: 6, textAlign: "center", borderRadius: 1 }}>
-          <LocalShippingOutlinedIcon sx={{ fontSize: 48, color: "text.secondary", mb: 1.5 }} />
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>
-            No Active Move
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Start a moving house project to number your boxes, assign destination rooms, and pack items.
-          </Typography>
-          <Button variant="outlined" onClick={() => setMoveDialogOpen(true)}>
-            Start Move
-          </Button>
-        </Card>
-      ) : (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          <Card variant="outlined" sx={{ p: 2.5, borderRadius: 1 }}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2 }}>
-              <Box>
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                  {activeMove.name}
-                </Typography>
-                {activeMove.target_date && (
-                  <Typography variant="body2" color="text.secondary">
-                    Target Date: {activeMove.target_date}
-                  </Typography>
-                )}
-              </Box>
-              <Box sx={{ display: "flex", gap: 1 }}>
-                <Chip label={`${boxes.length} Boxes`} color="primary" sx={{ fontWeight: 600 }} />
-                <Chip
-                  label={activeMove.status === "planning" ? "In Progress" : "Completed"}
-                  color="secondary"
-                  variant="outlined"
-                />
-              </Box>
-            </Box>
+        <Fade in appear timeout={250}>
+          <Card variant="outlined" sx={{ p: 6, textAlign: "center", borderRadius: 1 }}>
+            <LocalShippingOutlinedIcon sx={{ fontSize: 48, color: "text.secondary", mb: 1.5 }} />
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              No Active Move
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Start a moving house project to number your boxes, assign destination rooms, and pack items.
+            </Typography>
+            <Button variant="outlined" onClick={() => setMoveDialogOpen(true)}>
+              Start Move
+            </Button>
           </Card>
-
-          {/* Boxes Grid */}
-          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-            Boxes ({boxes.length})
-          </Typography>
-
-          {boxes.length === 0 ? (
-            <Card variant="outlined" sx={{ p: 4, textAlign: "center", borderRadius: 1 }}>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
-                No boxes added yet. Create your first box to begin packing.
-              </Typography>
-              <Button variant="outlined" onClick={() => setBoxDialogOpen(true)}>
-                Add Box
-              </Button>
+        </Fade>
+      ) : (
+        <Fade in appear timeout={250}>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            <Card variant="outlined" sx={{ p: 2.5, borderRadius: 1 }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 2 }}>
+                <Box>
+                  <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                    {activeMove.name}
+                  </Typography>
+                  {activeMove.target_date && (
+                    <Typography variant="body2" color="text.secondary">
+                      Target Date: {activeMove.target_date}
+                    </Typography>
+                  )}
+                </Box>
+                <Box sx={{ display: "flex", gap: 1 }}>
+                  <Chip label={`${boxes.length} Boxes`} color="primary" sx={{ fontWeight: 600 }} />
+                  <Chip
+                    label={activeMove.status === "planning" ? "In Progress" : "Completed"}
+                    color="secondary"
+                    variant="outlined"
+                  />
+                </Box>
+              </Box>
             </Card>
-          ) : (
-            <Grid container spacing={2}>
-              {boxes.map((box) => (
-                <Grid key={box.id} size={{ xs: 12, sm: 6, md: 4 }}>
-                  <Card variant="outlined" sx={{ height: "100%", display: "flex", flexDirection: "column", borderRadius: 1 }}>
-                    <CardContent sx={{ flexGrow: 1 }}>
-                      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
-                        <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                          Box #{box.number}: {box.label}
-                        </Typography>
-                        <Chip
-                          label={box.status}
-                          size="small"
-                          color={box.status === "packed" ? "success" : box.status === "unpacked" ? "default" : "primary"}
-                          sx={{ textTransform: "capitalize", fontWeight: 600 }}
-                        />
-                      </Box>
 
-                      {box.destination && (
-                        <Typography variant="body2" color="text.secondary">
-                          Destination: <strong>{box.destination}</strong>
-                        </Typography>
-                      )}
+            {/* Boxes Grid */}
+            <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+              Boxes ({boxes.length})
+            </Typography>
 
-                      {box.notes && (
-                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-                          {box.notes}
-                        </Typography>
-                      )}
-                    </CardContent>
+            {boxes.length === 0 ? (
+              <Card variant="outlined" sx={{ p: 4, textAlign: "center", borderRadius: 1 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                  No boxes added yet. Create your first box to begin packing.
+                </Typography>
+                <Button variant="outlined" onClick={() => setBoxDialogOpen(true)}>
+                  Add Box
+                </Button>
+              </Card>
+            ) : (
+              <Grid container spacing={2}>
+                {boxes.map((box, idx) => (
+                  <Grid key={box.id} size={{ xs: 12, sm: 6, md: 4 }}>
+                    <Grow in appear timeout={Math.min(200 + idx * 45, 480)}>
+                      <Card
+                        variant="outlined"
+                        sx={{
+                          height: "100%",
+                          display: "flex",
+                          flexDirection: "column",
+                          borderRadius: 1,
+                          transition: (t) =>
+                            t.transitions.create(["transform", "box-shadow", "border-color"], {
+                              duration: t.transitions.duration.shorter,
+                              easing: t.transitions.easing.easeInOut,
+                            }),
+                          "&:hover": {
+                            transform: "translateY(-2px)",
+                            boxShadow: 3,
+                            borderColor: "primary.main",
+                          },
+                        }}
+                      >
+                        <CardContent sx={{ flexGrow: 1 }}>
+                          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
+                            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                              Box #{box.number}: {box.label}
+                            </Typography>
+                            <Chip
+                              label={box.status}
+                              size="small"
+                              color={box.status === "packed" ? "success" : box.status === "unpacked" ? "default" : "primary"}
+                              sx={{ textTransform: "capitalize", fontWeight: 600 }}
+                            />
+                          </Box>
 
-                    <Divider />
+                          {box.destination && (
+                            <Typography variant="body2" color="text.secondary">
+                              Destination: <strong>{box.destination}</strong>
+                            </Typography>
+                          )}
 
-                    <CardActions sx={{ justifyContent: "space-between", px: 2, py: 1 }}>
-                      <Button size="small" onClick={() => handleOpenBoxDetails(box)}>
-                        Contents & Pack
-                      </Button>
-                      {box.status !== "unpacked" && (
-                        <Button
-                          size="small"
-                          color="secondary"
-                          startIcon={<UnarchiveOutlinedIcon />}
-                          onClick={() => handleUnpackBox(box.id)}
-                        >
-                          Unpack
-                        </Button>
-                      )}
-                    </CardActions>
-                  </Card>
-                </Grid>
-              ))}
-            </Grid>
-          )}
-        </Box>
+                          {box.notes && (
+                            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                              {box.notes}
+                            </Typography>
+                          )}
+                        </CardContent>
+
+                        <Divider />
+
+                        <CardActions sx={{ justifyContent: "space-between", px: 2, py: 1 }}>
+                          <Button size="small" onClick={() => handleOpenBoxDetails(box)}>
+                            Contents & Pack
+                          </Button>
+                          {box.status !== "unpacked" && (
+                            <Button
+                              size="small"
+                              color="secondary"
+                              startIcon={<UnarchiveOutlinedIcon />}
+                              onClick={() => handleUnpackBox(box.id)}
+                            >
+                              Unpack
+                            </Button>
+                          )}
+                        </CardActions>
+                      </Card>
+                    </Grow>
+                  </Grid>
+                ))}
+              </Grid>
+            )}
+          </Box>
+        </Fade>
       )}
 
       {/* Start Move Dialog */}

@@ -20,6 +20,7 @@ import { EmptyState } from "../../components/shared/EmptyState";
 import { ExpiryChip } from "../../components/shared/ExpiryChip";
 import { CoverThumb } from "../photos/CoverThumb";
 import { ItemDetailDialog } from "../items/ItemDetailDialog";
+import { formatItemCode } from "../items/itemCodeUtils";
 import { api } from "../../api/client";
 import { Item } from "../items/types";
 
@@ -133,7 +134,7 @@ export const ExpiryPage: React.FC = () => {
                         {it.name}
                       </Typography>
                       <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "var(--font-mono)" }}>
-                        I{it.id}
+                        {formatItemCode(it.id)}
                       </Typography>
                     </TableCell>
                     <TableCell>

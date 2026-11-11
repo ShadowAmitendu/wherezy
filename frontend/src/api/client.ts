@@ -1,6 +1,7 @@
 /**
  * Type-safe API client for Wherezy.
  */
+import type { Category, FieldType } from "../features/forms/types";
 
 interface ApiError {
   code: string;
@@ -94,6 +95,135 @@ export interface ImportCsvResult {
   errors: string[];
 }
 
+export interface SettingsResponse {
+  expiry_warn_days: number;
+  base_url: string | null;
+  label_preset: string;
+  print_defaults: {
+    include_sub: boolean;
+    show_photos: boolean;
+    show_audit_box: boolean;
+    font_size: string;
+  };
+  theme: string;
+  backup_keep: number;
+  photo_limit_per_owner: number;
+  ai_configured: boolean;
+  ai_key_source: "env" | "settings" | "none";
+  gemini_api_key_hint?: string | null;
+}
+
+export interface AiCategoryFieldPlan {
+  label: string;
+  type: FieldType;
+  required?: boolean;
+  options?: string[] | null;
+  unit?: string | null;
+  hint?: string | null;
+  show_in_list?: boolean;
+}
+
+export interface AiCategoryPlan {
+  name: string;
+  icon: string;
+  color: string;
+  track_expiry: boolean;
+  expiry_label?: string | null;
+  optimization_summary: string;
+  fields: AiCategoryFieldPlan[];
+}
+
+export interface AiCategoryGenerateResponse {
+  created: boolean;
+  plan: AiCategoryPlan;
+  category?: Category | null;
+}
+
+export interface AiCategoryCommitPayload {
+  name: string;
+  icon: string;
+  color: string;
+  track_expiry: boolean;
+  expiry_label?: string | null;
+  fields: AiCategoryFieldPlan[];
+}
+
+export interface AiItemSuggestion {
+  name: string;
+  category_id?: number | null;
+  category_name?: string | null;
+  location_id?: number | null;
+  location_path?: string | null;
+  quantity: number;
+  expiry_date?: string | null;
+  notes?: string | null;
+  values: Record<string, any>;
+  summary: string;
+}
+
+export interface AiItemExtractResponse {
+  suggestion: AiItemSuggestion;
+}
+
+export interface AiBulkItemDraft {
+  name: string;
+  category_id?: number | null;
+  category_name?: string | null;
+  location_id?: number | null;
+  location_path?: string | null;
+  quantity: number;
+  expiry_date?: string | null;
+  notes?: string | null;
+  values: Record<string, any>;
+}
+
+export interface AiBulkExtractResponse {
+  summary: string;
+  items: AiBulkItemDraft[];
+}
+
+export interface AiBulkCommitItem {
+  name: string;
+  category_id: number;
+  location_id?: number | null;
+  quantity: number;
+  expiry_date?: string | null;
+  notes?: string | null;
+  values: Record<string, any>;
+}
+
+export interface AiBulkCommitResponse {
+  ok: boolean;
+  created_count: number;
+  batch_id: string;
+  items: any[];
+}
+
+export interface AiLocationNodePlan {
+  temp_id: string;
+  parent_temp_id?: string | null;
+  name: string;
+  kind: string;
+  notes?: string | null;
+}
+
+export interface AiLocationPlan {
+  summary: string;
+  nodes: AiLocationNodePlan[];
+}
+
+export interface AiLocationGenerateResponse {
+  created: boolean;
+  plan: AiLocationPlan;
+  created_locations: any[];
+}
+
+export interface AiLocationCommitResponse {
+  ok: boolean;
+  created_count: number;
+  locations: any[];
+}
+
 export type ProfileRole = "admin" | "co_admin" | "member" | "viewer" | "custom";
 
 export interface ProfileOut {
@@ -185,9 +315,9 @@ export const api = {
     }),
 
   // Settings
-  getSettings: () => apiFetch<any>("/api/settings"),
+  getSettings: () => apiFetch<SettingsResponse>("/api/settings"),
   updateSettings: (data: any) =>
-    apiFetch<any>("/api/settings", {
+    apiFetch<SettingsResponse>("/api/settings", {
       method: "PUT",
       body: JSON.stringify(data),
     }),
@@ -199,6 +329,172 @@ export const api = {
     apiFetch<any>("/api/categories", {
       method: "POST",
       body: JSON.stringify(data),
+    }),
+  generateCategoryWithAi: (payload: {
+    prompt?: string;
+    audio?: Blob | File | null;
+    audioFilename?: string;
+    create?: boolean;
+  }) => {
+    const formData = new FormData();
+    if (payload.prompt && payload.prompt.trim()) {
+      formData.append("prompt", payload.prompt.trim());
+    }
+    formData.append("create", String(payload.create ?? true));
+    if (payload.audio) {
+      const filename =
+        payload.audio instanceof File
+          ? payload.audio.name
+          : payload.audioFilename || "voice_note.webm";
+      formData.append("audio", payload.audio, filename);
+    }
+    return apiFetch<AiCategoryGenerateResponse>("/api/categories/ai/generate", {
+      method: "POST",
+      body: formData,
+    });
+  },
+  commitAiCategory: (data: AiCategoryCommitPayload) =>
+    apiFetch<Category>("/api/categories/ai/commit", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  extractItemWithAi: (payload: {
+    prompt?: string;
+    audio?: Blob | File | null;
+    audioFilename?: string;
+    image?: Blob | File | null;
+    imageFilename?: string;
+    preferredCategoryId?: number | null;
+    preferredLocationId?: number | null;
+  }) => {
+    const formData = new FormData();
+    if (payload.prompt && payload.prompt.trim()) {
+      formData.append("prompt", payload.prompt.trim());
+    }
+    if (payload.preferredCategoryId) {
+      formData.append("preferred_category_id", String(payload.preferredCategoryId));
+    }
+    if (payload.preferredLocationId) {
+      formData.append("preferred_location_id", String(payload.preferredLocationId));
+    }
+    if (payload.audio) {
+      const fname =
+        payload.audio instanceof File
+          ? payload.audio.name
+          : payload.audioFilename || "voice_note.webm";
+      formData.append("audio", payload.audio, fname);
+    }
+    if (payload.image) {
+      const iname =
+        payload.image instanceof File
+          ? payload.image.name
+          : payload.imageFilename || "item_photo.jpg";
+      formData.append("image", payload.image, iname);
+    }
+    return apiFetch<AiItemExtractResponse>("/api/ai/item/extract", {
+      method: "POST",
+      body: formData,
+    });
+  },
+  analyzeInboxItemWithAi: (
+    itemId: number,
+    payload?: { prompt?: string; audio?: Blob | File | null; audioFilename?: string }
+  ) => {
+    const formData = new FormData();
+    if (payload?.prompt && payload.prompt.trim()) {
+      formData.append("prompt", payload.prompt.trim());
+    }
+    if (payload?.audio) {
+      const fname =
+        payload.audio instanceof File
+          ? payload.audio.name
+          : payload.audioFilename || "voice_note.webm";
+      formData.append("audio", payload.audio, fname);
+    }
+    return apiFetch<AiItemExtractResponse>(`/api/ai/inbox/${itemId}/analyze`, {
+      method: "POST",
+      body: formData,
+    });
+  },
+  bulkExtractItemsWithAi: (payload: {
+    prompt?: string;
+    audio?: Blob | File | null;
+    audioFilename?: string;
+    image?: Blob | File | null;
+    imageFilename?: string;
+    preferredCategoryId?: number | null;
+    preferredLocationId?: number | null;
+    lockCategory?: boolean;
+  }) => {
+    const formData = new FormData();
+    if (payload.prompt && payload.prompt.trim()) {
+      formData.append("prompt", payload.prompt.trim());
+    }
+    if (payload.preferredCategoryId) {
+      formData.append("preferred_category_id", String(payload.preferredCategoryId));
+    }
+    if (payload.preferredLocationId) {
+      formData.append("preferred_location_id", String(payload.preferredLocationId));
+    }
+    formData.append("lock_category", String(Boolean(payload.lockCategory)));
+    if (payload.audio) {
+      const fname =
+        payload.audio instanceof File
+          ? payload.audio.name
+          : payload.audioFilename || "voice_note.webm";
+      formData.append("audio", payload.audio, fname);
+    }
+    if (payload.image) {
+      const iname =
+        payload.image instanceof File
+          ? payload.image.name
+          : payload.imageFilename || "shelf_photo.jpg";
+      formData.append("image", payload.image, iname);
+    }
+    return apiFetch<AiBulkExtractResponse>("/api/ai/items/bulk-extract", {
+      method: "POST",
+      body: formData,
+    });
+  },
+  bulkCommitAiItems: (items: AiBulkCommitItem[]) =>
+    apiFetch<AiBulkCommitResponse>("/api/ai/items/bulk-commit", {
+      method: "POST",
+      body: JSON.stringify({ items }),
+    }),
+  generateLocationsWithAi: (payload: {
+    prompt?: string;
+    audio?: Blob | File | null;
+    audioFilename?: string;
+    rootParentId?: number | null;
+    create?: boolean;
+  }) => {
+    const formData = new FormData();
+    if (payload.prompt && payload.prompt.trim()) {
+      formData.append("prompt", payload.prompt.trim());
+    }
+    if (payload.rootParentId) {
+      formData.append("root_parent_id", String(payload.rootParentId));
+    }
+    formData.append("create", String(Boolean(payload.create)));
+    if (payload.audio) {
+      const fname =
+        payload.audio instanceof File
+          ? payload.audio.name
+          : payload.audioFilename || "voice_note.webm";
+      formData.append("audio", payload.audio, fname);
+    }
+    return apiFetch<AiLocationGenerateResponse>("/api/ai/locations/generate", {
+      method: "POST",
+      body: formData,
+    });
+  },
+  commitAiLocations: (payload: {
+    root_parent_id?: number | null;
+    nodes: AiLocationNodePlan[];
+  }) =>
+    apiFetch<AiLocationCommitResponse>("/api/ai/locations/commit", {
+      method: "POST",
+      body: JSON.stringify(payload),
     }),
   updateCategory: (id: number, data: any) =>
     apiFetch<any>(`/api/categories/${id}`, {

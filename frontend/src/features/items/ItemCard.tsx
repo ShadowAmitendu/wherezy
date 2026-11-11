@@ -11,6 +11,7 @@ import { CoverThumb } from "../photos/CoverThumb";
 import { ExpiryChip } from "../../components/shared/ExpiryChip";
 import { Item } from "./types";
 import { formatTakenOutStatusLabel, getItemQuantity } from "./quantityUtils";
+import { formatItemCode } from "./itemCodeUtils";
 
 export interface ItemCardProps {
   item: Item;
@@ -24,7 +25,11 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick }) => {
         height: "100%",
         display: "flex",
         flexDirection: "column",
-        transition: "transform 0.15s ease, box-shadow 0.15s ease",
+        transition: (theme) =>
+          theme.transitions.create(["transform", "box-shadow", "border-color"], {
+            duration: theme.transitions.duration.shorter,
+            easing: theme.transitions.easing.easeInOut,
+          }),
         "&:hover": {
           transform: "translateY(-2px)",
           boxShadow: 4,
@@ -65,7 +70,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick }) => {
           )}
 
           <Chip
-            label={`I${item.id}`}
+            label={formatItemCode(item.id)}
             size="small"
             sx={{
               position: "absolute",

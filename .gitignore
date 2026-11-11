@@ -33,6 +33,7 @@ data/
 frontend/node_modules/
 frontend/dist/
 frontend/dist-ssr/
+backend/app/static_dist/
 *.local
 
 # Logs

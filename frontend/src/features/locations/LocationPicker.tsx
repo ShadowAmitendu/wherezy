@@ -7,14 +7,7 @@ import {
   FormHelperText,
 } from "@mui/material";
 import { api } from "../../api/client";
-
-export interface FlatLocationOption {
-  id: number;
-  name: string;
-  kind: string;
-  path: string;
-  depth: number;
-}
+import { FlatLocationOption, flattenLocationTree } from "./locationUtils";
 
 interface LocationPickerProps {
   value: number | null | undefined;
@@ -25,28 +18,6 @@ interface LocationPickerProps {
   helperText?: string;
   size?: "small" | "medium";
   emptyLabel?: string;
-}
-
-function flattenTree(
-  nodes: any[],
-  depth = 0,
-  excludeId?: number | null
-): FlatLocationOption[] {
-  let list: FlatLocationOption[] = [];
-  for (const node of nodes) {
-    if (excludeId && node.id === excludeId) continue;
-    list.push({
-      id: node.id,
-      name: node.name,
-      kind: node.kind,
-      path: node.path || node.name,
-      depth,
-    });
-    if (node.children && node.children.length > 0) {
-      list = list.concat(flattenTree(node.children, depth + 1, excludeId));
-    }
-  }
-  return list;
 }
 
 export const LocationPicker: React.FC<LocationPickerProps> = ({
@@ -63,7 +34,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
 
   useEffect(() => {
     api.getLocationsTree().then((tree) => {
-      setOptions(flattenTree(tree, 0, excludeId));
+      setOptions(flattenLocationTree(tree, 0, excludeId));
     }).catch(console.error);
   }, [excludeId]);
 

@@ -22,6 +22,7 @@ import {
   Avatar,
   Tooltip,
   Divider,
+  Grow,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
@@ -327,7 +328,7 @@ export const UsersPage: React.FC = () => {
 
       {/* Grid of User Cards */}
       <Grid container spacing={2.5}>
-        {profiles.map((p) => {
+        {profiles.map((p, idx) => {
           const roleStyle = getRoleChipColor(p.role);
           const isSelf = p.id === currentProfile?.id;
           const isTargetAdmin = p.role === "admin";
@@ -335,21 +336,27 @@ export const UsersPage: React.FC = () => {
 
           return (
             <Grid key={p.id} size={{ xs: 12, sm: 6, md: 4 }}>
-              <Card
-                variant="outlined"
-                sx={{
-                  borderRadius: 2,
-                  height: "100%",
-                  display: "flex",
-                  flexDirection: "column",
-                  opacity: p.is_active ? 1 : 0.65,
-                  transition: "all 0.2s ease",
-                  "&:hover": {
-                    boxShadow: 2,
-                    borderColor: "primary.main",
-                  },
-                }}
-              >
+              <Grow in appear timeout={Math.min(200 + idx * 50, 480)}>
+                <Card
+                  variant="outlined"
+                  sx={{
+                    borderRadius: 2,
+                    height: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    opacity: p.is_active ? 1 : 0.65,
+                    transition: (t) =>
+                      t.transitions.create(["box-shadow", "border-color", "transform", "opacity"], {
+                        duration: t.transitions.duration.shorter,
+                        easing: t.transitions.easing.easeInOut,
+                      }),
+                    "&:hover": {
+                      boxShadow: 2,
+                      borderColor: "primary.main",
+                      transform: "translateY(-2px)",
+                    },
+                  }}
+                >
                 <CardContent sx={{ p: 2.5, flex: 1, display: "flex", flexDirection: "column" }}>
                   <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2, mb: 2 }}>
                     <Avatar
@@ -490,6 +497,7 @@ export const UsersPage: React.FC = () => {
                   </Box>
                 </CardContent>
               </Card>
+              </Grow>
             </Grid>
           );
         })}
@@ -535,7 +543,7 @@ export const UsersPage: React.FC = () => {
               </Grid>
 
               {/* Account Icon Selector */}
-              <Grid size={{ xs: 12, sm: 6 }}>
+              <Grid size={{ xs: 12 }}>
                 <AccountIconPicker
                   value={avatarEmoji}
                   onChange={setAvatarEmoji}
@@ -544,7 +552,7 @@ export const UsersPage: React.FC = () => {
               </Grid>
 
               {/* Accent Color Selector */}
-              <Grid size={{ xs: 12, sm: 6 }}>
+              <Grid size={{ xs: 12 }}>
                 <ColorSwatchPicker
                   value={color}
                   onChange={setColor}

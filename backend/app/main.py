@@ -1,13 +1,12 @@
 from contextlib import asynccontextmanager
-from pathlib import Path
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from backend.app.core.config import HOST, PORT
+from backend.app.core.config import FRONTEND_DIST, HOST, PORT, is_frozen
 from backend.app.core.migrations import run_migrations
 from backend.app.routers import (
-    health, auth, settings, categories, fields,
+    health, auth, settings, categories, categories_ai, ai_assist, fields,
     templates, items, locations, dashboard, photos, codes, admin,
     profiles, activity, tags, bulk, reminders, attachments, audits,
     trash, search, inbox, lifecycle, contacts, moves, labels,
@@ -69,6 +68,8 @@ app.include_router(wall.router, prefix=api_prefix)
 app.include_router(second_copy.router, prefix=api_prefix)
 app.include_router(offline.router, prefix=api_prefix)
 app.include_router(settings.router, prefix=api_prefix)
+app.include_router(categories_ai.router, prefix=api_prefix)
+app.include_router(ai_assist.router, prefix=api_prefix)
 app.include_router(categories.router, prefix=api_prefix)
 app.include_router(fields.router, prefix=api_prefix)
 app.include_router(templates.router, prefix=api_prefix)
@@ -80,8 +81,7 @@ app.include_router(codes.router, prefix=api_prefix)
 app.include_router(admin.router, prefix=api_prefix)
 
 # Mount frontend/dist if built (SPA fallback)
-FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
-if FRONTEND_DIST.exists() and (FRONTEND_DIST / "index.html").exists():
+if FRONTEND_DIST.exists() and (FRONTEND_DIST / "index.html").exists() and (FRONTEND_DIST / "assets").is_dir():
     app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST / "assets")), name="assets")
 
     @app.get("/{full_path:path}", include_in_schema=False)
@@ -96,4 +96,6 @@ if FRONTEND_DIST.exists() and (FRONTEND_DIST / "index.html").exists():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("backend.app.main:app", host=HOST, port=PORT, reload=True)
+
+    target = app if is_frozen() else "backend.app.main:app"
+    uvicorn.run(target, host=HOST, port=PORT, reload=not is_frozen())

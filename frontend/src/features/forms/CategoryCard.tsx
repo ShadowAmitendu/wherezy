@@ -36,7 +36,11 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
         display: "flex",
         flexDirection: "column",
         borderLeft: `6px solid ${category.color || "#1976d2"}`,
-        transition: "transform 0.15s, box-shadow 0.15s",
+        transition: (theme) =>
+          theme.transitions.create(["transform", "box-shadow"], {
+            duration: theme.transitions.duration.shorter,
+            easing: theme.transitions.easing.easeInOut,
+          }),
         "&:hover": {
           transform: "translateY(-2px)",
           boxShadow: 4,

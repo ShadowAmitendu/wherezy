@@ -46,6 +46,17 @@ class SettingsResponse(BaseModel):
     theme: str = "system"
     backup_keep: int = 7
     photo_limit_per_owner: int = 10
+    ai_configured: bool = False
+    ai_provider: Literal["gemini", "local"] = "gemini"
+    ai_status_label: Optional[str] = None
+    ai_key_source: Literal["env", "settings", "none"] = "none"
+    gemini_api_key_hint: Optional[str] = None
+    gemini_model: str = "gemini-3.8-flash"
+    local_llm_base_url: Optional[str] = None
+    local_llm_model: Optional[str] = None
+    local_llm_has_api_key: bool = False
+    local_llm_api_key_hint: Optional[str] = None
+    local_llm_stt_model: Optional[str] = None
 
 class SettingsUpdateRequest(BaseModel):
     expiry_warn_days: Optional[int] = None
@@ -55,6 +66,15 @@ class SettingsUpdateRequest(BaseModel):
     theme: Optional[str] = None
     backup_keep: Optional[int] = None
     photo_limit_per_owner: Optional[int] = None
+    ai_provider: Optional[Literal["gemini", "local"]] = None
+    gemini_api_key: Optional[str] = None
+    clear_gemini_api_key: bool = False
+    gemini_model: Optional[str] = None
+    local_llm_base_url: Optional[str] = None
+    local_llm_model: Optional[str] = None
+    local_llm_api_key: Optional[str] = None
+    clear_local_llm_api_key: bool = False
+    local_llm_stt_model: Optional[str] = None
 
 # --- Field Defs & Categories ---
 
@@ -141,6 +161,32 @@ class TemplateSummary(BaseModel):
     track_expiry: bool
     expiry_label: Optional[str]
     field_count: int
+
+class AiCategoryFieldPlan(BaseModel):
+    label: str
+    type: FieldType
+    required: bool = False
+    options: Optional[List[str]] = None
+    unit: Optional[str] = None
+    hint: Optional[str] = None
+    show_in_list: bool = False
+
+class AiCategoryPlan(BaseModel):
+    name: str
+    icon: str
+    color: str
+    track_expiry: bool = False
+    expiry_label: Optional[str] = None
+    optimization_summary: str
+    fields: List[AiCategoryFieldPlan] = []
+
+class AiCategoryCommitRequest(CategoryBase):
+    fields: List[AiCategoryFieldPlan] = []
+
+class AiCategoryGenerateResponse(BaseModel):
+    created: bool = True
+    plan: AiCategoryPlan
+    category: Optional[CategoryDetailOut] = None
 
 # --- Photos ---
 
@@ -918,3 +964,120 @@ class BulkCreateResponse(BaseModel):
     created_count: int
     batch_id: str
     items: List[ItemDetailOut] = []
+
+
+# --- AI Workflows (Items, Inbox, Bulk Items, Locations) ---
+
+
+class AiItemSuggestion(BaseModel):
+    name: str
+    category_id: Optional[int] = None
+    category_name: Optional[str] = None
+    location_id: Optional[int] = None
+    location_path: Optional[str] = None
+    quantity: int = Field(default=1, ge=1, le=1_000_000)
+    expiry_date: Optional[str] = None
+    notes: Optional[str] = None
+    values: Dict[str, Any] = {}
+    summary: str
+
+
+class AiItemExtractResponse(BaseModel):
+    suggestion: AiItemSuggestion
+
+
+class AiBulkItemDraft(BaseModel):
+    name: str
+    category_id: Optional[int] = None
+    category_name: Optional[str] = None
+    location_id: Optional[int] = None
+    location_path: Optional[str] = None
+    quantity: int = Field(default=1, ge=1, le=1_000_000)
+    expiry_date: Optional[str] = None
+    notes: Optional[str] = None
+    values: Dict[str, Any] = {}
+
+
+class AiBulkExtractResponse(BaseModel):
+    summary: str
+    items: List[AiBulkItemDraft] = []
+
+
+class AiBulkCommitItem(BaseModel):
+    name: str
+    category_id: int
+    location_id: Optional[int] = None
+    quantity: int = Field(default=1, ge=1, le=1_000_000)
+    expiry_date: Optional[str] = None
+    notes: Optional[str] = None
+    values: Dict[str, Any] = {}
+
+
+class AiBulkCommitRequest(BaseModel):
+    items: List[AiBulkCommitItem]
+
+
+class AiBulkCommitResponse(BaseModel):
+    ok: bool = True
+    created_count: int
+    batch_id: str
+    items: List[ItemDetailOut] = []
+
+
+class AiLocationNodePlan(BaseModel):
+    temp_id: str
+    parent_temp_id: Optional[str] = None
+    name: str
+    kind: str = "Room"
+    notes: Optional[str] = None
+
+
+class AiLocationPlan(BaseModel):
+    summary: str
+    nodes: List[AiLocationNodePlan] = []
+
+
+class AiLocationGenerateResponse(BaseModel):
+    created: bool = False
+    plan: AiLocationPlan
+    created_locations: List[LocationOut] = []
+
+
+class AiLocationCommitRequest(BaseModel):
+    root_parent_id: Optional[int] = None
+    nodes: List[AiLocationNodePlan]
+
+
+class AiLocationCommitResponse(BaseModel):
+    ok: bool = True
+    created_count: int
+    locations: List[LocationOut] = []
+
+
+class AiLocalModelsRequest(BaseModel):
+    base_url: Optional[str] = None
+    api_key: Optional[str] = None
+
+
+class AiLocalModelsResponse(BaseModel):
+    ok: bool = True
+    base_url: str
+    models: List[str] = []
+
+
+class AiConnectionTestRequest(BaseModel):
+    provider: Optional[Literal["gemini", "local"]] = None
+    gemini_api_key: Optional[str] = None
+    gemini_model: Optional[str] = None
+    local_llm_base_url: Optional[str] = None
+    local_llm_model: Optional[str] = None
+    local_llm_api_key: Optional[str] = None
+
+
+class AiConnectionTestResponse(BaseModel):
+    ok: bool = True
+    provider: Literal["gemini", "local"]
+    model: str
+    latency_ms: int
+    message: str
+

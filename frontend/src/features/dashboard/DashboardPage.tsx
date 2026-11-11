@@ -13,6 +13,8 @@ import {
   ListItemText,
   ListItemIcon,
   Grid,
+  Fade,
+  Grow,
 } from "@mui/material";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import RemoveCircleOutlinedIcon from "@mui/icons-material/RemoveCircleOutlined";
@@ -89,13 +91,17 @@ export const DashboardPage: React.FC = () => {
       <Grid container spacing={{ xs: 1.5, sm: 2, md: 2.5 }} sx={{ mb: { xs: 2.5, sm: 4 } }}>
         {/* Total Items */}
         <Grid size={{ xs: 6, sm: 6, md: 3 }}>
-          <Card
-            sx={{
-              borderLeft: { xs: "4px solid #1976d2", sm: "6px solid #1976d2" },
-              transition: "transform 0.15s",
-              "&:hover": { transform: "translateY(-2px)" },
-            }}
-          >
+          <Grow in={!isLoading} appear timeout={200}>
+            <Card
+              sx={{
+                borderLeft: { xs: "4px solid #1976d2", sm: "6px solid #1976d2" },
+                transition: (t) =>
+                  t.transitions.create(["transform", "box-shadow"], {
+                    duration: t.transitions.duration.shorter,
+                  }),
+                "&:hover": { transform: "translateY(-2px)", boxShadow: 4 },
+              }}
+            >
             <CardActionArea onClick={() => navigate("/items")}>
               <CardContent sx={{ p: { xs: 1.25, sm: 2, md: 2.5 }, "&:last-child": { pb: { xs: 1.25, sm: 2, md: 2.5 } } }}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -142,18 +148,23 @@ export const DashboardPage: React.FC = () => {
                 </Typography>
               </CardContent>
             </CardActionArea>
-          </Card>
+            </Card>
+          </Grow>
         </Grid>
 
         {/* Taken Out */}
         <Grid size={{ xs: 6, sm: 6, md: 3 }}>
-          <Card
-            sx={{
-              borderLeft: { xs: "4px solid #9c27b0", sm: "6px solid #9c27b0" },
-              transition: "transform 0.15s",
-              "&:hover": { transform: "translateY(-2px)" },
-            }}
-          >
+          <Grow in={!isLoading} appear timeout={260}>
+            <Card
+              sx={{
+                borderLeft: { xs: "4px solid #9c27b0", sm: "6px solid #9c27b0" },
+                transition: (t) =>
+                  t.transitions.create(["transform", "box-shadow"], {
+                    duration: t.transitions.duration.shorter,
+                  }),
+                "&:hover": { transform: "translateY(-2px)", boxShadow: 4 },
+              }}
+            >
             <CardActionArea onClick={() => navigate("/items?taken_out=out")}>
               <CardContent sx={{ p: { xs: 1.25, sm: 2, md: 2.5 }, "&:last-child": { pb: { xs: 1.25, sm: 2, md: 2.5 } } }}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -200,18 +211,23 @@ export const DashboardPage: React.FC = () => {
                 </Typography>
               </CardContent>
             </CardActionArea>
-          </Card>
+            </Card>
+          </Grow>
         </Grid>
 
         {/* Expiring Soon */}
         <Grid size={{ xs: 6, sm: 6, md: 3 }}>
-          <Card
-            sx={{
-              borderLeft: { xs: "4px solid #f57c00", sm: "6px solid #f57c00" },
-              transition: "transform 0.15s",
-              "&:hover": { transform: "translateY(-2px)" },
-            }}
-          >
+          <Grow in={!isLoading} appear timeout={320}>
+            <Card
+              sx={{
+                borderLeft: { xs: "4px solid #f57c00", sm: "6px solid #f57c00" },
+                transition: (t) =>
+                  t.transitions.create(["transform", "box-shadow"], {
+                    duration: t.transitions.duration.shorter,
+                  }),
+                "&:hover": { transform: "translateY(-2px)", boxShadow: 4 },
+              }}
+            >
             <CardActionArea onClick={() => navigate("/expiry?filter=soon")}>
               <CardContent sx={{ p: { xs: 1.25, sm: 2, md: 2.5 }, "&:last-child": { pb: { xs: 1.25, sm: 2, md: 2.5 } } }}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -259,18 +275,23 @@ export const DashboardPage: React.FC = () => {
                 </Typography>
               </CardContent>
             </CardActionArea>
-          </Card>
+            </Card>
+          </Grow>
         </Grid>
 
         {/* Expired */}
         <Grid size={{ xs: 6, sm: 6, md: 3 }}>
-          <Card
-            sx={{
-              borderLeft: { xs: "4px solid #e53935", sm: "6px solid #e53935" },
-              transition: "transform 0.15s",
-              "&:hover": { transform: "translateY(-2px)" },
-            }}
-          >
+          <Grow in={!isLoading} appear timeout={380}>
+            <Card
+              sx={{
+                borderLeft: { xs: "4px solid #e53935", sm: "6px solid #e53935" },
+                transition: (t) =>
+                  t.transitions.create(["transform", "box-shadow"], {
+                    duration: t.transitions.duration.shorter,
+                  }),
+                "&:hover": { transform: "translateY(-2px)", boxShadow: 4 },
+              }}
+            >
             <CardActionArea onClick={() => navigate("/expiry?filter=expired")}>
               <CardContent sx={{ p: { xs: 1.25, sm: 2, md: 2.5 }, "&:last-child": { pb: { xs: 1.25, sm: 2, md: 2.5 } } }}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -315,7 +336,8 @@ export const DashboardPage: React.FC = () => {
                 </Typography>
               </CardContent>
             </CardActionArea>
-          </Card>
+            </Card>
+          </Grow>
         </Grid>
       </Grid>
 
@@ -345,66 +367,71 @@ export const DashboardPage: React.FC = () => {
           </Card>
         ) : (
           <Grid container spacing={{ xs: 1.25, sm: 2 }}>
-            {data?.category_counts?.map((cat: any) => (
+            {data?.category_counts?.map((cat: any, idx: number) => (
               <Grid key={cat.id} size={{ xs: 6, sm: 4, md: 3 }}>
-                <Card
-                  variant="outlined"
-                  sx={{
-                    transition: "border-color 0.15s",
-                    "&:hover": { borderColor: cat.color },
-                  }}
-                >
-                  <CardActionArea onClick={() => navigate(`/items?category_id=${cat.id}`)}>
-                    <CardContent
-                      sx={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: { xs: 1, sm: 1.5 },
-                        p: { xs: 1.25, sm: 1.75, md: 2 },
-                        "&:last-child": { pb: { xs: 1.25, sm: 1.75, md: 2 } },
-                      }}
-                    >
-                      <Box
+                <Grow in={!isLoading} appear timeout={Math.min(240 + idx * 35, 520)}>
+                  <Card
+                    variant="outlined"
+                    sx={{
+                      transition: (t) =>
+                        t.transitions.create(["border-color", "transform", "box-shadow"], {
+                          duration: t.transitions.duration.shortest,
+                        }),
+                      "&:hover": { borderColor: cat.color, transform: "translateY(-2px)", boxShadow: 2 },
+                    }}
+                  >
+                    <CardActionArea onClick={() => navigate(`/items?category_id=${cat.id}`)}>
+                      <CardContent
                         sx={{
-                          width: { xs: 30, sm: 38 },
-                          height: { xs: 30, sm: 38 },
-                          minWidth: { xs: 30, sm: 38 },
-                          borderRadius: 1.5,
-                          bgcolor: `${cat.color}20`,
-                          color: cat.color,
                           display: "flex",
                           alignItems: "center",
-                          justifyContent: "center",
+                          gap: { xs: 1, sm: 1.5 },
+                          p: { xs: 1.25, sm: 1.75, md: 2 },
+                          "&:last-child": { pb: { xs: 1.25, sm: 1.75, md: 2 } },
                         }}
                       >
-                        {renderMuiIcon(cat.icon, "small")}
-                      </Box>
-                      <Box sx={{ overflow: "hidden" }}>
-                        <Typography
-                          variant="subtitle2"
+                        <Box
                           sx={{
-                            fontWeight: 700,
-                            fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                            width: { xs: 30, sm: 38 },
+                            height: { xs: 30, sm: 38 },
+                            minWidth: { xs: 30, sm: 38 },
+                            borderRadius: 1.5,
+                            bgcolor: `${cat.color}20`,
+                            color: cat.color,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
                           }}
-                          noWrap
                         >
-                          {cat.name}
-                        </Typography>
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{
-                            fontSize: { xs: "0.65rem", sm: "0.75rem" },
-                            display: "block",
-                          }}
-                          noWrap
-                        >
-                          {cat.count} items
-                        </Typography>
-                      </Box>
-                    </CardContent>
-                  </CardActionArea>
-                </Card>
+                          {renderMuiIcon(cat.icon, "small")}
+                        </Box>
+                        <Box sx={{ overflow: "hidden" }}>
+                          <Typography
+                            variant="subtitle2"
+                            sx={{
+                              fontWeight: 700,
+                              fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                            }}
+                            noWrap
+                          >
+                            {cat.name}
+                          </Typography>
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{
+                              fontSize: { xs: "0.65rem", sm: "0.75rem" },
+                              display: "block",
+                            }}
+                            noWrap
+                          >
+                            {cat.count} items
+                          </Typography>
+                        </Box>
+                      </CardContent>
+                    </CardActionArea>
+                  </Card>
+                </Grow>
               </Grid>
             ))}
           </Grid>
@@ -412,7 +439,8 @@ export const DashboardPage: React.FC = () => {
       </Box>
 
       {/* Two-Column: Expiring Items & Recent Items */}
-      <Grid container spacing={3}>
+      <Fade in={!isLoading} appear timeout={350}>
+        <Grid container spacing={3}>
         {/* Expiring Soon / Expired List */}
         <Grid size={{ xs: 12, md: 6 }}>
           <Card sx={{ height: "100%" }}>
@@ -439,6 +467,10 @@ export const DashboardPage: React.FC = () => {
                       sx={{
                         px: 1,
                         cursor: "pointer",
+                        transition: (t) =>
+                          t.transitions.create("background-color", {
+                            duration: t.transitions.duration.shortest,
+                          }),
                         "&:hover": { bgcolor: "action.hover" },
                       }}
                       onClick={() => navigate(`/items?selected=${it.id}`)}
@@ -485,6 +517,10 @@ export const DashboardPage: React.FC = () => {
                       sx={{
                         px: 1,
                         cursor: "pointer",
+                        transition: (t) =>
+                          t.transitions.create("background-color", {
+                            duration: t.transitions.duration.shortest,
+                          }),
                         "&:hover": { bgcolor: "action.hover" },
                       }}
                       onClick={() => navigate(`/items?selected=${it.id}`)}
@@ -514,6 +550,7 @@ export const DashboardPage: React.FC = () => {
           </Card>
         </Grid>
       </Grid>
+      </Fade>
     </Box>
   );
 };

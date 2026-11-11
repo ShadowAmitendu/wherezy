@@ -241,7 +241,7 @@ export const ScanPage: React.FC = () => {
             </Typography>
           </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            USB or Bluetooth barcode scanners type directly here. You can also manually type an item ID (<code>I12</code>) or location ID (<code>L3</code>).
+            USB or Bluetooth barcode scanners type directly here. You can also manually type an item code (<code>I01</code>) or location ID (<code>L3</code>).
           </Typography>
 
           <form onSubmit={handleTypedSubmit}>
@@ -250,7 +250,7 @@ export const ScanPage: React.FC = () => {
                 inputRef={textInputRef}
                 fullWidth
                 size="medium"
-                placeholder="e.g. I123, L45, or barcode number"
+                placeholder="e.g. I01, L45, or barcode number"
                 value={typedCode}
                 onChange={(e) => setTypedCode(e.target.value)}
                 disabled={isResolving}

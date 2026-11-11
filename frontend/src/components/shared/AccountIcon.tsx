@@ -1,6 +1,11 @@
 import React from "react";
 import { SxProps, Theme } from "@mui/material";
-import { getAccountIconComponent } from "./accountIcons";
+import { LazyMaterialIcon } from "./LazyMaterialIcon";
+import {
+  getAccountIconComponent,
+  hasCuratedAccountIcon,
+  resolveAccountIconName,
+} from "./accountIcons";
 
 export interface AccountIconProps {
   icon?: string | null;
@@ -14,5 +19,15 @@ export const AccountIcon: React.FC<AccountIconProps> = ({
   fontSize = "medium",
   sx,
 }) => {
-  return React.createElement(getAccountIconComponent(icon), { fontSize, sx });
+  if (!icon || hasCuratedAccountIcon(icon)) {
+    return React.createElement(getAccountIconComponent(icon), { fontSize, sx });
+  }
+  return (
+    <LazyMaterialIcon
+      icon={resolveAccountIconName(icon)}
+      fallbackType="person"
+      fontSize={fontSize}
+      sx={sx}
+    />
+  );
 };

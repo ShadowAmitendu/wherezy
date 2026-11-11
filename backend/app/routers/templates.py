@@ -1,9 +1,9 @@
 import json
-from pathlib import Path
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
+from backend.app.core.config import TEMPLATES_DIR
 from backend.app.core.db import get_db
 from backend.app.models import Category, FieldDef, Profile
 from backend.app.schemas import TemplateSummary, CategoryDetailOut
@@ -12,8 +12,6 @@ from backend.app.services.permissions import require
 from backend.app.routers.categories import map_category, map_field
 
 router = APIRouter(prefix="/templates", tags=["Templates"])
-
-TEMPLATES_DIR = Path(__file__).resolve().parent.parent / "seed_templates"
 
 AVAILABLE_TEMPLATES = [
     {"slug": "medicines", "file": "medicines.json"},

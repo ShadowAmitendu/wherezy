@@ -1,0 +1,100 @@
+name: Build Standalone Binaries
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-binary:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact_name: wherezy-linux-x86_64
+            binary_path: dist/wherezy
+          - os: macos-latest
+            artifact_name: wherezy-macos-arm64
+            binary_path: dist/wherezy
+          - os: windows-latest
+            artifact_name: wherezy-windows-x86_64.exe
+            binary_path: dist/wherezy.exe
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend and build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt pyinstaller
+
+      - name: Build standalone binary
+        run: python scripts/build_binary.py --clean
+
+      - name: Smoke test standalone binary
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os, shutil, socket, subprocess, tempfile, time, urllib.request
+          from pathlib import Path
+
+          bin_src = Path("${{ matrix.binary_path }}")
+          assert bin_src.is_file(), f"Missing binary: {bin_src}"
+          tmp = Path(tempfile.mkdtemp(prefix="wherezy_ci_"))
+          bin_copy = tmp / bin_src.name
+          shutil.copy2(bin_src, bin_copy)
+
+          with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+              s.bind(("127.0.0.1", 0))
+              port = s.getsockname()[1]
+
+          proc = subprocess.Popen(
+              [str(bin_copy), "--host", "127.0.0.1", "--port", str(port)],
+              cwd=str(tmp),
+          )
+          try:
+              for _ in range(60):
+                  if proc.poll() is not None:
+                      raise SystemExit(f"Process exited early with {proc.returncode}")
+                  try:
+                      with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health", timeout=2) as r:
+                          if r.status == 200:
+                              break
+                  except Exception:
+                      time.sleep(0.5)
+              else:
+                  raise SystemExit("Timed out waiting for /api/health")
+
+              with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=5) as r:
+                  assert r.status == 200
+                  assert b'<div id="root">' in r.read()
+              assert (tmp / "data" / "inventory.db").is_file()
+          finally:
+              proc.terminate()
+              proc.wait(timeout=10)
+              shutil.rmtree(tmp, ignore_errors=True)
+          PY
+
+      - name: Upload standalone binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.binary_path }}
+          if-no-files-found: error

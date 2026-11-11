@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { createTheme, ThemeProvider as MuiThemeProvider, CssBaseline, alpha } from "@mui/material";
+import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { createTheme, ThemeProvider as MuiThemeProvider, CssBaseline, alpha, Grow } from "@mui/material";
 import "@fontsource/geist/400.css";
 import "@fontsource/geist/500.css";
 import "@fontsource/geist/600.css";
@@ -18,9 +18,15 @@ import {
   BODY_FONT_FAMILY,
   ThemePreset,
   ThemeMode,
+  ThemeTransitionSource,
   THEME_PRESETS,
   ThemeContext,
 } from "./themeConstants";
+import {
+  extractThemeTransitionOrigin,
+  runRadialThemeTransition,
+  type PointerRecord,
+} from "./radialThemeTransition";
 
 interface ModePalette {
   defaultBg: string;
@@ -377,6 +383,27 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
   });
 
+  const lastPointerRef = useRef<PointerRecord | null>(null);
+
+  useEffect(() => {
+    const handlePointerDown = (e: PointerEvent) => {
+      lastPointerRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        time: performance.now(),
+      };
+    };
+    window.addEventListener("pointerdown", handlePointerDown, {
+      capture: true,
+      passive: true,
+    });
+    return () => {
+      window.removeEventListener("pointerdown", handlePointerDown, {
+        capture: true,
+      });
+    };
+  }, []);
+
   useEffect(() => {
     const media = window.matchMedia("(prefers-color-scheme: dark)");
     const listener = (e: MediaQueryListEvent) => setSystemPrefersDark(e.matches);
@@ -384,18 +411,66 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return () => media.removeEventListener("change", listener);
   }, []);
 
-  const setMode = (newMode: ThemeMode) => {
-    setModeState(newMode);
-    localStorage.setItem("hi_theme", newMode);
-  };
-
-  const setPreset = (newPreset: ThemePreset) => {
-    setPresetState(newPreset);
-    localStorage.setItem("hi_theme_preset", newPreset);
-  };
-
   const resolvedMode: "light" | "dark" =
     mode === "system" ? (systemPrefersDark ? "dark" : "light") : mode;
+
+  const triggerRadialUpdate = useCallback(
+    (
+      nextPreset: ThemePreset,
+      nextResolved: "light" | "dark",
+      source: ThemeTransitionSource,
+      apply: () => void,
+    ) => {
+      const nextPalette = (THEME_PALETTES[nextPreset] || THEME_PALETTES.material)[nextResolved];
+      const origin = extractThemeTransitionOrigin(
+        source,
+        lastPointerRef.current,
+        { width: window.innerWidth, height: window.innerHeight },
+        performance.now(),
+        typeof document !== "undefined" ? document.activeElement : null,
+      );
+      runRadialThemeTransition({
+        applyTheme: apply,
+        origin,
+        overlayColor: nextPalette.defaultBg,
+        accentColor: nextPalette.primaryMain,
+      });
+    },
+    [],
+  );
+
+  const setMode = useCallback(
+    (newMode: ThemeMode, source?: ThemeTransitionSource) => {
+      if (newMode === mode) return;
+      const nextResolved: "light" | "dark" =
+        newMode === "system" ? (systemPrefersDark ? "dark" : "light") : newMode;
+
+      const apply = () => {
+        setModeState(newMode);
+        localStorage.setItem("hi_theme", newMode);
+      };
+
+      if (nextResolved === resolvedMode) {
+        apply();
+        return;
+      }
+
+      triggerRadialUpdate(preset, nextResolved, source, apply);
+    },
+    [mode, preset, resolvedMode, systemPrefersDark, triggerRadialUpdate],
+  );
+
+  const setPreset = useCallback(
+    (newPreset: ThemePreset, source?: ThemeTransitionSource) => {
+      if (newPreset === preset) return;
+      const apply = () => {
+        setPresetState(newPreset);
+        localStorage.setItem("hi_theme_preset", newPreset);
+      };
+      triggerRadialUpdate(newPreset, resolvedMode, source, apply);
+    },
+    [preset, resolvedMode, triggerRadialUpdate],
+  );
 
   const presetConfig = THEME_PRESETS[preset] || THEME_PRESETS.material;
 
@@ -553,6 +628,9 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       shape: {
         borderRadius: 4, // Authentic Material Design 2 4px border radius
       },
+      motion: {
+        reducedMotion: "system",
+      },
       components: {
         MuiCssBaseline: {
           styleOverrides: {
@@ -600,13 +678,29 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         },
         MuiButton: {
           styleOverrides: {
-            root: {
+            root: ({ theme }) => ({
               borderRadius: 4,
               textTransform: "uppercase",
               fontFamily: BODY_FONT_FAMILY,
               fontWeight: 600,
               letterSpacing: "0.015em",
               padding: "6px 16px",
+              transition: theme.transitions.create(
+                ["background-color", "box-shadow", "border-color", "color", "transform"],
+                {
+                  duration: theme.transitions.duration.shortest,
+                  easing: theme.transitions.easing.easeInOut,
+                }
+              ),
+              "&:active:not(:disabled)": {
+                transform: "scale(0.98)",
+              },
+              "@media (prefers-reduced-motion: reduce)": {
+                transition: "none",
+                "&:active:not(:disabled)": {
+                  transform: "none",
+                },
+              },
               "@media (max-width:599.95px)": {
                 fontSize: "0.75rem",
                 lineHeight: 1.4,
@@ -618,7 +712,7 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                   },
                 },
               },
-            },
+            }),
             sizeSmall: {
               "@media (max-width:599.95px)": {
                 fontSize: "0.72rem",
@@ -638,19 +732,44 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             },
           },
         },
+        MuiIconButton: {
+          styleOverrides: {
+            root: ({ theme }) => ({
+              transition: theme.transitions.create(["background-color", "color", "transform"], {
+                duration: theme.transitions.duration.shortest,
+                easing: theme.transitions.easing.easeInOut,
+              }),
+              "&:active:not(:disabled)": {
+                transform: "scale(0.94)",
+              },
+              "@media (prefers-reduced-motion: reduce)": {
+                transition: "none",
+                "&:active:not(:disabled)": {
+                  transform: "none",
+                },
+              },
+            }),
+          },
+        },
         MuiCard: {
           defaultProps: {
             elevation: 1,
           },
           styleOverrides: {
-            root: {
+            root: ({ theme }) => ({
               borderRadius: 4,
               backgroundColor: isDark ? paperBg : "#ffffff",
               boxShadow: isDark
                 ? "0px 2px 1px -1px rgba(0,0,0,0.5), 0px 1px 1px 0px rgba(0,0,0,0.35), 0px 1px 3px 0px rgba(0,0,0,0.3)"
                 : "0px 2px 1px -1px rgba(0,0,0,0.12), 0px 1px 1px 0px rgba(0,0,0,0.08), 0px 1px 3px 0px rgba(0,0,0,0.06)",
-              transition: "box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1) 0ms, transform 150ms ease",
-            },
+              transition: theme.transitions.create(["box-shadow", "transform", "border-color"], {
+                duration: theme.transitions.duration.shorter,
+                easing: theme.transitions.easing.easeInOut,
+              }),
+              "@media (prefers-reduced-motion: reduce)": {
+                transition: "none",
+              },
+            }),
           },
         },
         MuiCardContent: {
@@ -678,6 +797,9 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         MuiDialog: {
           defaultProps: {
             fullWidth: true,
+            slots: {
+              transition: Grow,
+            },
           },
           styleOverrides: {
             paper: {
@@ -726,8 +848,12 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         },
         MuiListItemButton: {
           styleOverrides: {
-            root: {
+            root: ({ theme }) => ({
               borderRadius: 4,
+              transition: theme.transitions.create(["background-color", "color"], {
+                duration: theme.transitions.duration.shortest,
+                easing: theme.transitions.easing.easeInOut,
+              }),
               "&.Mui-selected": {
                 backgroundColor: `${alpha(primaryMain, isDark ? 0.16 : 0.12)} !important`,
                 color: `${primaryMain} !important`,
@@ -741,19 +867,35 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                   backgroundColor: `${alpha(primaryMain, isDark ? 0.24 : 0.18)} !important`,
                 },
               },
-            },
+            }),
           },
         },
         MuiChip: {
           styleOverrides: {
-            root: {
+            root: ({ theme }) => ({
               borderRadius: 16,
               fontWeight: 500,
+              transition: theme.transitions.create(
+                ["background-color", "border-color", "box-shadow", "color", "transform"],
+                {
+                  duration: theme.transitions.duration.shortest,
+                  easing: theme.transitions.easing.easeInOut,
+                }
+              ),
+              "&.MuiChip-clickable:active": {
+                transform: "scale(0.96)",
+              },
+              "@media (prefers-reduced-motion: reduce)": {
+                transition: "none",
+                "&.MuiChip-clickable:active": {
+                  transform: "none",
+                },
+              },
               "@media (max-width:599.95px)": {
                 height: 24,
                 fontSize: "0.72rem",
               },
-            },
+            }),
             sizeSmall: {
               "@media (max-width:599.95px)": {
                 height: 20,
@@ -893,8 +1035,13 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
   }, [resolvedMode, preset]);
 
+  const contextValue = useMemo(
+    () => ({ mode, setMode, preset, setPreset, resolvedMode, presetConfig }),
+    [mode, setMode, preset, setPreset, resolvedMode, presetConfig],
+  );
+
   return (
-    <ThemeContext.Provider value={{ mode, setMode, preset, setPreset, resolvedMode, presetConfig }}>
+    <ThemeContext.Provider value={contextValue}>
       <MuiThemeProvider theme={theme}>
         <CssBaseline />
         {children}

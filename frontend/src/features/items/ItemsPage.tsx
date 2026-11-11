@@ -13,6 +13,8 @@ import {
   Grid,
   Snackbar,
   Alert,
+  Fade,
+  Grow,
   useTheme,
   useMediaQuery,
 } from "@mui/material";
@@ -46,6 +48,7 @@ import {
   getItemQuantity,
   getItemTakenOutQuantity,
 } from "./quantityUtils";
+import { formatItemCode } from "./itemCodeUtils";
 import { api } from "../../api/client";
 import { Item } from "./types";
 import { Category } from "../forms/types";
@@ -274,7 +277,7 @@ export const ItemsPage: React.FC = () => {
             {params.value}
           </Typography>
           <Typography variant="caption" color="text.secondary" sx={{ fontFamily: "var(--font-mono)" }}>
-            I{params.row.id}
+            {formatItemCode(params.row.id)}
           </Typography>
         </Box>
       ),
@@ -413,14 +416,16 @@ export const ItemsPage: React.FC = () => {
         action={
           <Box sx={{ display: "flex", gap: { xs: 0.75, sm: 1 }, alignItems: "center", flexWrap: "wrap" }}>
             {selectedItemIds.length > 0 && (
-              <Button
-                variant="outlined"
-                size={isMobile ? "small" : "medium"}
-                startIcon={<DriveFileMoveOutlinedIcon />}
-                onClick={() => setBulkMoveOpen(true)}
-              >
-                Move Selected ({selectedItemIds.length})
-              </Button>
+              <Grow in appear timeout={200}>
+                <Button
+                  variant="outlined"
+                  size={isMobile ? "small" : "medium"}
+                  startIcon={<DriveFileMoveOutlinedIcon />}
+                  onClick={() => setBulkMoveOpen(true)}
+                >
+                  Move Selected ({selectedItemIds.length})
+                </Button>
+              </Grow>
             )}
             <ToggleButtonGroup
               size="small"
@@ -489,46 +494,52 @@ export const ItemsPage: React.FC = () => {
           }}
         />
       ) : viewMode === "table" ? (
-        <Card>
-          <Box sx={{ width: "100%", height: 600 }}>
-            <DataGrid
-              rows={items}
-              columns={columns}
-              rowCount={total}
-              loading={isLoading}
-              pageSizeOptions={[10, 25, 50, 100]}
-              paginationModel={paginationModel}
-              paginationMode="server"
-              onPaginationModelChange={setPaginationModel}
-              sortModel={sortModel}
-              sortingMode="server"
-              onSortModelChange={setSortModel}
-              checkboxSelection
-              onRowSelectionModelChange={(newSelection) => {
-                if (newSelection && typeof newSelection === "object" && "ids" in newSelection) {
-                  const set = (newSelection as { ids: Set<any> }).ids;
-                  setSelectedItemIds(Array.from(set).map(Number));
-                } else if (Array.isArray(newSelection)) {
-                  setSelectedItemIds((newSelection as any[]).map(Number));
-                }
-              }}
-              onRowClick={(params) => setDetailItemId(params.row.id)}
-              disableRowSelectionOnClick
-              sx={{
-                border: "none",
-                "& .MuiDataGrid-row": {
-                  cursor: "pointer",
-                },
-              }}
-            />
-          </Box>
-        </Card>
+        <Fade in appear timeout={225}>
+          <Card>
+            <Box sx={{ width: "100%", height: 600 }}>
+              <DataGrid
+                rows={items}
+                columns={columns}
+                rowCount={total}
+                loading={isLoading}
+                pageSizeOptions={[10, 25, 50, 100]}
+                paginationModel={paginationModel}
+                paginationMode="server"
+                onPaginationModelChange={setPaginationModel}
+                sortModel={sortModel}
+                sortingMode="server"
+                onSortModelChange={setSortModel}
+                checkboxSelection
+                onRowSelectionModelChange={(newSelection) => {
+                  if (newSelection && typeof newSelection === "object" && "ids" in newSelection) {
+                    const set = (newSelection as { ids: Set<any> }).ids;
+                    setSelectedItemIds(Array.from(set).map(Number));
+                  } else if (Array.isArray(newSelection)) {
+                    setSelectedItemIds((newSelection as any[]).map(Number));
+                  }
+                }}
+                onRowClick={(params) => setDetailItemId(params.row.id)}
+                disableRowSelectionOnClick
+                sx={{
+                  border: "none",
+                  "& .MuiDataGrid-row": {
+                    cursor: "pointer",
+                  },
+                }}
+              />
+            </Box>
+          </Card>
+        </Fade>
       ) : (
         /* Card View */
         <Grid container spacing={2.5}>
-          {items.map((item) => (
+          {items.map((item, idx) => (
             <Grid key={item.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
-              <ItemCard item={item} onClick={(it) => setDetailItemId(it.id)} />
+              <Grow in appear timeout={Math.min(180 + idx * 35, 450)}>
+                <Box sx={{ height: "100%" }}>
+                  <ItemCard item={item} onClick={(it) => setDetailItemId(it.id)} />
+                </Box>
+              </Grow>
             </Grid>
           ))}
         </Grid>

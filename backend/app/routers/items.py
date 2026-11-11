@@ -13,7 +13,7 @@ from backend.app.schemas import (
     BulkRequest, ItemsListResponse, ItemDetailOut, ItemOut, SuccessResponse
 )
 from backend.app.routers.settings import get_setting_val
-from backend.app.services.item_service import map_item, map_item_detail
+from backend.app.services.item_service import map_item, map_item_detail, parse_item_code
 from backend.app.services.location_service import get_descendant_location_ids
 from backend.app.models import utc_now_iso
 from backend.app.services.visibility import items_visible
@@ -124,14 +124,18 @@ def list_items(
     # Search filter
     if q and q.strip():
         term = f"%{q.strip()}%"
+        code_id = parse_item_code(q)
+        search_filters = [
+            Item.name.ilike(term),
+            Item.notes.ilike(term),
+            Location.name.ilike(term),
+            Category.name.ilike(term),
+            Item.values_json.ilike(term),
+        ]
+        if code_id is not None:
+            search_filters.append(Item.id == code_id)
         query = query.outerjoin(Location, Item.location_id == Location.id).outerjoin(Category, Item.category_id == Category.id).filter(
-            or_(
-                Item.name.ilike(term),
-                Item.notes.ilike(term),
-                Location.name.ilike(term),
-                Category.name.ilike(term),
-                Item.values_json.ilike(term)
-            )
+            or_(*search_filters)
         )
 
     # Custom field filters: f.<fieldKey>=value

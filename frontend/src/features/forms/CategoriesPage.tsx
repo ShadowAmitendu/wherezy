@@ -15,10 +15,12 @@ import {
   FormControlLabel,
   Switch,
   Grid,
+  Grow,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
 import { PageHeader } from "../../components/shared/PageHeader";
@@ -28,6 +30,7 @@ import { IconPicker } from "../../components/shared/IconPicker";
 import { renderMuiIcon } from "../../components/shared/iconUtils";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { ColorSwatchPicker } from "../../components/shared/ColorSwatchPicker";
+import { AICategoryDialog } from "./AICategoryDialog";
 import { CategoryCard } from "./CategoryCard";
 import { api, ApiException } from "../../api/client";
 import { Category } from "./types";
@@ -42,6 +45,8 @@ export const CategoriesPage: React.FC = () => {
 
   // Template modal
   const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  // AI category dialog
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
   // Add/Edit dialog
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -187,6 +192,14 @@ export const CategoriesPage: React.FC = () => {
           <>
             <Button
               variant="outlined"
+              color="secondary"
+              startIcon={<AutoAwesomeIcon />}
+              onClick={() => setAiDialogOpen(true)}
+            >
+              AI Create
+            </Button>
+            <Button
+              variant="outlined"
               startIcon={<AutoFixHighIcon />}
               onClick={() => setTemplateDialogOpen(true)}
             >
@@ -220,14 +233,18 @@ export const CategoriesPage: React.FC = () => {
         />
       ) : (
         <Grid container spacing={2.5}>
-          {categories.map((cat) => (
+          {categories.map((cat, idx) => (
             <Grid key={cat.id} size={{ xs: 12, sm: 6, md: 4 }} sx={{ display: "flex" }}>
-              <CategoryCard
-                category={cat}
-                onClick={(c) => navigate(`/categories/${c.id}`)}
-                onEdit={handleOpenEdit}
-                onDelete={(c) => setDeleteTarget(c)}
-              />
+              <Grow in={!isLoading} appear timeout={Math.min(200 + idx * 45, 480)}>
+                <Box sx={{ width: "100%", display: "flex" }}>
+                  <CategoryCard
+                    category={cat}
+                    onClick={(c) => navigate(`/categories/${c.id}`)}
+                    onEdit={handleOpenEdit}
+                    onDelete={(c) => setDeleteTarget(c)}
+                  />
+                </Box>
+              </Grow>
             </Grid>
           ))}
         </Grid>
@@ -253,10 +270,16 @@ export const CategoriesPage: React.FC = () => {
                   variant="outlined"
                   sx={{
                     cursor: "pointer",
-                    transition: "border-color 0.2s, background-color 0.2s",
+                    transition: (t) =>
+                      t.transitions.create(["border-color", "background-color", "transform", "box-shadow"], {
+                        duration: t.transitions.duration.shorter,
+                        easing: t.transitions.easing.easeInOut,
+                      }),
                     "&:hover": {
                       borderColor: tpl.color,
                       bgcolor: "action.hover",
+                      transform: "translateY(-2px)",
+                      boxShadow: 2,
                     },
                   }}
                   onClick={() => handleApplyTemplate(tpl.slug)}
@@ -383,6 +406,19 @@ export const CategoriesPage: React.FC = () => {
         selectedIcon={icon}
         onSelect={(newIcon) => setIcon(newIcon)}
         onClose={() => setIconPickerOpen(false)}
+      />
+
+      {/* AI Category Builder Dialog */}
+      <AICategoryDialog
+        open={aiDialogOpen}
+        onClose={() => setAiDialogOpen(false)}
+        onCreated={(created, optimizationSummary) => {
+          setAiDialogOpen(false);
+          void loadCategories();
+          navigate(`/categories/${created.id}`, {
+            state: optimizationSummary ? { aiSummary: optimizationSummary } : undefined,
+          });
+        }}
       />
 
       {/* Delete Confirmation Dialog */}

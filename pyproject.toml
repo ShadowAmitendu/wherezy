@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "wherezy"
+version = "2.0.0"
+description = "Self-hosted home inventory tracker with QR/barcode labels, custom schemas, and AI categorization."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "pydantic>=2.0.0",
+    "google-genai>=1.0.0",
+    "sqlalchemy>=2.0.0",
+    "pillow>=10.0.0",
+    "itsdangerous>=2.2.0",
+    "python-multipart>=0.0.9",
+    "httpx>=0.27.0",
+    "bcrypt>=4.0.0",
+    "openpyxl>=3.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+build = [
+    "pyinstaller>=6.0.0",
+]
+
+[project.scripts]
+wherezy = "backend.app.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["backend*"]
+exclude = ["backend.tests*"]
+
+[tool.setuptools.package-data]
+"backend.app" = [
+    "migrations/*.sql",
+    "seed_templates/*.json",
+    "static_dist/**/*",
+    "static_dist/*",
+]

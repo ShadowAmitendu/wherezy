@@ -18,9 +18,12 @@ import {
   ListItem,
   ListItemText,
   Grid,
+  Chip,
+  Alert,
   useTheme,
   useMediaQuery,
 } from "@mui/material";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import CloudDownloadOutlinedIcon from "@mui/icons-material/CloudDownloadOutlined";
 import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
@@ -58,6 +61,12 @@ export const SettingsPage: React.FC = () => {
   const [baseUrl, setBaseUrl] = useState("");
   const [labelPreset, setLabelPreset] = useState("medium");
   const [backupKeep, setBackupKeep] = useState(7);
+  const [aiConfigured, setAiConfigured] = useState(false);
+  const [aiKeySource, setAiKeySource] = useState<"env" | "settings" | "none">("none");
+  const [aiKeyHint, setAiKeyHint] = useState<string | null>(null);
+  const [geminiApiKeyInput, setGeminiApiKeyInput] = useState("");
+  const [aiSaving, setAiSaving] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   // Storage & Backups
@@ -92,6 +101,9 @@ export const SettingsPage: React.FC = () => {
       setBaseUrl(s.base_url || "");
       setLabelPreset(s.label_preset || "medium");
       setBackupKeep(s.backup_keep || 7);
+      setAiConfigured(Boolean(s.ai_configured));
+      setAiKeySource(s.ai_key_source || "none");
+      setAiKeyHint(s.gemini_api_key_hint || null);
       setStorageStats(stats);
       setBackups(b);
     } catch (err) {
@@ -108,6 +120,9 @@ export const SettingsPage: React.FC = () => {
         setBaseUrl(s.base_url || "");
         setLabelPreset(s.label_preset || "medium");
         setBackupKeep(s.backup_keep || 7);
+        setAiConfigured(Boolean(s.ai_configured));
+        setAiKeySource(s.ai_key_source || "none");
+        setAiKeyHint(s.gemini_api_key_hint || null);
         setStorageStats(stats);
         setBackups(b);
       })
@@ -136,6 +151,44 @@ export const SettingsPage: React.FC = () => {
 
   const handleAutoDetectBaseUrl = () => {
     setBaseUrl(window.location.origin);
+  };
+
+  const handleSaveAiKey = async () => {
+    const cleaned = geminiApiKeyInput.trim();
+    if (!cleaned) return;
+    setAiSaving(true);
+    setAiError(null);
+    try {
+      const updated = await api.updateSettings({ gemini_api_key: cleaned });
+      setAiConfigured(Boolean(updated.ai_configured));
+      setAiKeySource(updated.ai_key_source || "none");
+      setAiKeyHint(updated.gemini_api_key_hint || null);
+      setGeminiApiKeyInput("");
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err: any) {
+      setAiError(err?.error?.message || "Failed to save Gemini API key");
+    } finally {
+      setAiSaving(false);
+    }
+  };
+
+  const handleClearAiKey = async () => {
+    setAiSaving(true);
+    setAiError(null);
+    try {
+      const updated = await api.updateSettings({ clear_gemini_api_key: true });
+      setAiConfigured(Boolean(updated.ai_configured));
+      setAiKeySource(updated.ai_key_source || "none");
+      setAiKeyHint(updated.gemini_api_key_hint || null);
+      setGeminiApiKeyInput("");
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err: any) {
+      setAiError(err?.error?.message || "Failed to remove Gemini API key");
+    } finally {
+      setAiSaving(false);
+    }
   };
 
   const handleSavePin = async () => {
@@ -363,6 +416,90 @@ export const SettingsPage: React.FC = () => {
           >
             Save Preferences
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* AI Category Assistant */}
+      <Card sx={{ mb: { xs: 2, sm: 3 } }}>
+        <CardContent>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: { xs: "column", sm: "row" },
+              justifyContent: "space-between",
+              alignItems: { xs: "flex-start", sm: "center" },
+              gap: 1,
+              mb: 1,
+            }}
+          >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <AutoAwesomeIcon color="primary" />
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                AI Category Assistant (Gemini)
+              </Typography>
+            </Box>
+            <Chip
+              size="small"
+              color={aiConfigured ? "success" : "default"}
+              variant={aiConfigured ? "filled" : "outlined"}
+              label={
+                aiKeySource === "env"
+                  ? "Active (Server Env)"
+                  : aiKeySource === "settings"
+                  ? `Configured (${aiKeyHint || "Saved"})`
+                  : "Not Configured"
+              }
+            />
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Enable voice-, photo-, and prompt-driven AI tools across Categories, Items, Quick Capture Inbox, Bulk Extract, and Storage Locations using Gemini. Keys saved here are encrypted at rest on your server and never sent back to browsers.
+          </Typography>
+
+          {aiError && (
+            <Alert severity="error" onClose={() => setAiError(null)} sx={{ mb: 2 }}>
+              {aiError}
+            </Alert>
+          )}
+
+          {aiKeySource === "env" && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              A <code>GEMINI_API_KEY</code> environment variable is active on the server and takes priority over saved settings.
+            </Alert>
+          )}
+
+          <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: { xs: 1, sm: 1.5 } }}>
+            <TextField
+              type="password"
+              label={aiKeySource === "settings" ? "Replace Gemini API Key" : "Gemini API Key"}
+              placeholder="AIza..."
+              value={geminiApiKeyInput}
+              onChange={(e) => setGeminiApiKeyInput(e.target.value)}
+              fullWidth
+              disabled={aiSaving}
+              autoComplete="off"
+            />
+            <Button
+              variant="contained"
+              size={isMobile ? "small" : "medium"}
+              onClick={() => void handleSaveAiKey()}
+              disabled={aiSaving || !geminiApiKeyInput.trim()}
+              sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
+            >
+              Save Key
+            </Button>
+            {aiKeySource === "settings" && (
+              <Button
+                variant="outlined"
+                color="error"
+                size={isMobile ? "small" : "medium"}
+                onClick={() => void handleClearAiKey()}
+                disabled={aiSaving}
+                sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
+              >
+                Remove Key
+              </Button>
+            )}
+          </Box>
         </CardContent>
       </Card>
 

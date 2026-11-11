@@ -32,7 +32,9 @@ import {
   useTheme,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
+import Alert from "@mui/material/Alert";
 import AddIcon from "@mui/icons-material/Add";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
@@ -47,6 +49,7 @@ import { EmptyState } from "../../components/shared/EmptyState";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { LocationBreadcrumb } from "../../components/shared/LocationBreadcrumb";
 import { PhotoManager } from "../photos/PhotoManager";
+import { AILocationTreeDialog } from "./AILocationTreeDialog";
 import { LocationPicker } from "./LocationPicker";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { api, ApiException } from "../../api/client";
@@ -81,6 +84,8 @@ export const LocationsPage: React.FC = () => {
 
   // Add / Edit Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [aiDialogOpen, setAiDialogOpen] = useState(false);
+  const [aiNotice, setAiNotice] = useState<string | null>(null);
   const [editingLoc, setEditingLoc] = useState<any | null>(null);
   const [parentTargetId, setParentTargetId] = useState<number | null>(null);
   const [name, setName] = useState("");
@@ -393,15 +398,31 @@ export const LocationsPage: React.FC = () => {
         subtitle="Rooms, cupboards, shelves, and boxes"
         icon={<PlaceOutlinedIcon />}
         action={
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => handleOpenAdd(null)}
-          >
-            New Location
-          </Button>
+          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+            <Button
+              variant="outlined"
+              color="secondary"
+              startIcon={<AutoAwesomeIcon />}
+              onClick={() => setAiDialogOpen(true)}
+            >
+              AI Setup Tree
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => handleOpenAdd(null)}
+            >
+              New Location
+            </Button>
+          </Box>
         }
       />
+
+      {aiNotice && (
+        <Alert severity="success" sx={{ mb: 2.5 }} onClose={() => setAiNotice(null)}>
+          {aiNotice}
+        </Alert>
+      )}
 
       <AlertDialog
         open={Boolean(deleteError)}
@@ -667,6 +688,19 @@ export const LocationsPage: React.FC = () => {
         confirmColor="error"
         onConfirm={handleDeleteLocation}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      <AILocationTreeDialog
+        open={aiDialogOpen}
+        initialParentId={null}
+        onClose={() => setAiDialogOpen(false)}
+        onCreated={async (createdCount, summary) => {
+          setAiDialogOpen(false);
+          setAiNotice(
+            summary || `AI created ${createdCount} storage ${createdCount === 1 ? "location" : "locations"}.`
+          );
+          await loadTree();
+        }}
       />
     </Box>
   );

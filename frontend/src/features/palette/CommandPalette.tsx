@@ -15,6 +15,7 @@ import {
   Chip,
   CircularProgress,
   IconButton,
+  Fade,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
@@ -138,33 +139,35 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, onClose })
         </Box>
 
         {results.length > 0 ? (
-          <List disablePadding sx={{ maxHeight: isMobile ? "calc(100vh - 110px)" : 380, overflowY: "auto" }}>
-            {results.map((r, i) => (
-              <ListItem key={i} disablePadding sx={{ mb: 0.5 }}>
-                <ListItemButton
-                  onClick={() => handleSelect(r.url)}
-                  sx={{ borderRadius: 1, py: 1 }}
-                >
-                  <ListItemIcon sx={{ minWidth: 36 }}>{getIcon(r.type)}</ListItemIcon>
-                  <ListItemText
-                    primary={
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                          {r.title}
-                        </Typography>
-                        <Chip
-                          label={r.type}
-                          size="small"
-                          sx={{ height: 18, fontSize: "0.65rem", textTransform: "capitalize" }}
-                        />
-                      </Box>
-                    }
-                    secondary={r.subtitle}
-                  />
-                </ListItemButton>
-              </ListItem>
-            ))}
-          </List>
+          <Fade in appear timeout={180}>
+            <List disablePadding sx={{ maxHeight: isMobile ? "calc(100vh - 110px)" : 380, overflowY: "auto" }}>
+              {results.map((r, i) => (
+                <ListItem key={i} disablePadding sx={{ mb: 0.5 }}>
+                  <ListItemButton
+                    onClick={() => handleSelect(r.url)}
+                    sx={{ borderRadius: 1, py: 1 }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 36 }}>{getIcon(r.type)}</ListItemIcon>
+                    <ListItemText
+                      primary={
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {r.title}
+                          </Typography>
+                          <Chip
+                            label={r.type}
+                            size="small"
+                            sx={{ height: 18, fontSize: "0.65rem", textTransform: "capitalize" }}
+                          />
+                        </Box>
+                      }
+                      secondary={r.subtitle}
+                    />
+                  </ListItemButton>
+                </ListItem>
+              ))}
+            </List>
+          </Fade>
         ) : query.trim() && !loading ? (
           <Box sx={{ p: 3, textAlign: "center" }}>
             <Typography variant="body2" color="text.secondary">

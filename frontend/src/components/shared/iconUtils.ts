@@ -39,6 +39,32 @@ import GradeIcon from "@mui/icons-material/Grade";
 import CategoryIcon from "@mui/icons-material/Category";
 import InboxIcon from "@mui/icons-material/Inbox";
 import CreateNewFolderIcon from "@mui/icons-material/CreateNewFolder";
+import TvIcon from "@mui/icons-material/Tv";
+import HeadphonesIcon from "@mui/icons-material/Headphones";
+import SmartphoneIcon from "@mui/icons-material/Smartphone";
+import LaptopIcon from "@mui/icons-material/Laptop";
+import RouterIcon from "@mui/icons-material/Router";
+import PrintIcon from "@mui/icons-material/Print";
+import BatteryChargingFullIcon from "@mui/icons-material/BatteryChargingFull";
+import RestaurantIcon from "@mui/icons-material/Restaurant";
+import CoffeeMakerIcon from "@mui/icons-material/CoffeeMaker";
+import BlenderIcon from "@mui/icons-material/Blender";
+import LocalLaundryServiceIcon from "@mui/icons-material/LocalLaundryService";
+import HandymanIcon from "@mui/icons-material/Handyman";
+import PlumbingIcon from "@mui/icons-material/Plumbing";
+import YardIcon from "@mui/icons-material/Yard";
+import OutdoorGrillIcon from "@mui/icons-material/OutdoorGrill";
+import KeyIcon from "@mui/icons-material/Key";
+import DiamondIcon from "@mui/icons-material/Diamond";
+import ChildFriendlyIcon from "@mui/icons-material/ChildFriendly";
+import ToysIcon from "@mui/icons-material/Toys";
+import MenuBookIcon from "@mui/icons-material/MenuBook";
+import MedicalServicesIcon from "@mui/icons-material/MedicalServices";
+import TwoWheelerIcon from "@mui/icons-material/TwoWheeler";
+import ShoppingBagIcon from "@mui/icons-material/ShoppingBag";
+import AcUnitIcon from "@mui/icons-material/AcUnit";
+import { LazyMaterialIcon } from "./LazyMaterialIcon";
+import { normalizeMaterialIconKey } from "./materialIconCatalog";
 
 export const CURATED_ICONS: { name: string; label: string }[] = [
   { name: "Medication", label: "Medication" },
@@ -67,16 +93,40 @@ export const CURATED_ICONS: { name: string; label: string }[] = [
   { name: "ElectricalServices", label: "Cables / Electrical" },
   { name: "DirectionsCar", label: "Automotive" },
   { name: "Luggage", label: "Travel" },
-  { name: "Watch", label: "Watches / Jewelry" },
-  { name: "LocalPharmacy", label: "First Aid" },
+  { name: "Watch", label: "Watches" },
+  { name: "LocalPharmacy", label: "Pharmacy" },
   { name: "Science", label: "Science" },
   { name: "School", label: "Education" },
   { name: "LocalDrink", label: "Drinks" },
   { name: "Fastfood", label: "Food" },
   { name: "Shield", label: "Security" },
   { name: "LocalOffer", label: "Tagged" },
-  { name: "Grade", label: "Valuables" },
+  { name: "Grade", label: "Favorites" },
   { name: "Category", label: "General Category" },
+  { name: "Tv", label: "TV & Display" },
+  { name: "Headphones", label: "Audio & Headphones" },
+  { name: "Smartphone", label: "Phones & Mobile" },
+  { name: "Laptop", label: "Laptops & PCs" },
+  { name: "Router", label: "Networking & Wi-Fi" },
+  { name: "Print", label: "Printers & Scanners" },
+  { name: "BatteryChargingFull", label: "Batteries & Power" },
+  { name: "Restaurant", label: "Dining & Utensils" },
+  { name: "CoffeeMaker", label: "Coffee & Tea" },
+  { name: "Blender", label: "Appliances" },
+  { name: "LocalLaundryService", label: "Laundry" },
+  { name: "Handyman", label: "DIY & Repairs" },
+  { name: "Plumbing", label: "Plumbing" },
+  { name: "Yard", label: "Garden & Plants" },
+  { name: "OutdoorGrill", label: "Outdoor & Patio" },
+  { name: "Key", label: "Keys & Locks" },
+  { name: "Diamond", label: "Jewelry & Valuables" },
+  { name: "ChildFriendly", label: "Baby & Kids" },
+  { name: "Toys", label: "Toys & Games" },
+  { name: "MenuBook", label: "Manuals & Books" },
+  { name: "MedicalServices", label: "First Aid Kit" },
+  { name: "TwoWheeler", label: "Bikes & Scooters" },
+  { name: "ShoppingBag", label: "Bags & Gear" },
+  { name: "AcUnit", label: "Seasonal & Cooling" },
 ];
 
 const CURATED_ICON_MAP: Record<string, ComponentType<SvgIconProps>> = {
@@ -119,14 +169,55 @@ const CURATED_ICON_MAP: Record<string, ComponentType<SvgIconProps>> = {
   category: CategoryIcon,
   inbox: InboxIcon,
   createnewfolder: CreateNewFolderIcon,
+  tv: TvIcon,
+  headphones: HeadphonesIcon,
+  smartphone: SmartphoneIcon,
+  laptop: LaptopIcon,
+  router: RouterIcon,
+  print: PrintIcon,
+  batterychargingfull: BatteryChargingFullIcon,
+  restaurant: RestaurantIcon,
+  coffeemaker: CoffeeMakerIcon,
+  blender: BlenderIcon,
+  locallaundryservice: LocalLaundryServiceIcon,
+  handyman: HandymanIcon,
+  plumbing: PlumbingIcon,
+  yard: YardIcon,
+  outdoorgrill: OutdoorGrillIcon,
+  key: KeyIcon,
+  diamond: DiamondIcon,
+  childfriendly: ChildFriendlyIcon,
+  toys: ToysIcon,
+  menubook: MenuBookIcon,
+  medicalservices: MedicalServicesIcon,
+  twowheeler: TwoWheelerIcon,
+  shoppingbag: ShoppingBagIcon,
+  acunit: AcUnitIcon,
 };
 
-/** Render a curated category or template icon without importing the full icon pack. */
+/** Check whether a category icon identifier maps synchronously to a curated icon. */
+export function hasCuratedCategoryIcon(iconName?: string | null): boolean {
+  if (!iconName) return false;
+  return Boolean(CURATED_ICON_MAP[normalizeMaterialIconKey(iconName)]);
+}
+
+/** Render a curated category icon synchronously or resolve any custom Material Icon lazily. */
 export const renderMuiIcon = (
   iconName: string,
-  fontSize: "small" | "medium" | "large" = "medium"
+  fontSize: "small" | "medium" | "large" = "medium",
 ) => {
-  const key = (iconName || "").replaceAll("_", "").toLowerCase();
-  const IconComponent = CURATED_ICON_MAP[key] || CategoryIcon;
-  return React.createElement(IconComponent, { fontSize });
+  const trimmed = (iconName || "").trim();
+  if (!trimmed) {
+    return React.createElement(CategoryIcon, { fontSize });
+  }
+  const key = normalizeMaterialIconKey(trimmed);
+  const CuratedComponent = CURATED_ICON_MAP[key];
+  if (CuratedComponent) {
+    return React.createElement(CuratedComponent, { fontSize });
+  }
+  return React.createElement(LazyMaterialIcon, {
+    icon: trimmed,
+    fallbackType: "category",
+    fontSize,
+  });
 };

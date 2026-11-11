@@ -58,7 +58,11 @@ export const ColorSwatchPicker: React.FC<ColorSwatchPickerProps> = ({
                 border: isSelected ? "3px solid #ffffff" : "2px solid transparent",
                 boxShadow: isSelected ? "0 0 0 2px #1976d2" : "none",
                 transform: isSelected ? "scale(1.1)" : "scale(1)",
-                transition: "transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease",
+                transition: (theme) =>
+                  theme.transitions.create(["transform", "border-color", "box-shadow"], {
+                    duration: theme.transitions.duration.shortest,
+                    easing: theme.transitions.easing.easeInOut,
+                  }),
                 "&:hover": {
                   transform: "scale(1.15)",
                 },

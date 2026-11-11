@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Typography, Button } from "@mui/material";
+import { Box, Typography, Button, Fade } from "@mui/material";
 import InboxOutlinedIcon from "@mui/icons-material/InboxOutlined";
 
 interface EmptyStateProps {
@@ -18,45 +18,47 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   onAction,
 }) => {
   return (
-    <Box
-      sx={{
-        textAlign: "center",
-        py: 6,
-        px: 2,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-      }}
-    >
+    <Fade in appear timeout={250}>
       <Box
         sx={{
-          color: "text.secondary",
-          fontSize: 48,
-          mb: 1.5,
+          textAlign: "center",
+          py: 6,
+          px: 2,
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
-          justifyContent: "center",
         }}
       >
-        {icon || <InboxOutlinedIcon sx={{ fontSize: 56 }} />}
-      </Box>
-      <Typography variant="h6" sx={{ fontWeight: 600 }} gutterBottom>
-        {title}
-      </Typography>
-      {description && (
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{ maxWidth: 450, mb: 2.5 }}
+        <Box
+          sx={{
+            color: "text.secondary",
+            fontSize: 48,
+            mb: 1.5,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
         >
-          {description}
+          {icon || <InboxOutlinedIcon sx={{ fontSize: 56 }} />}
+        </Box>
+        <Typography variant="h6" sx={{ fontWeight: 600 }} gutterBottom>
+          {title}
         </Typography>
-      )}
-      {actionLabel && onAction && (
-        <Button variant="contained" onClick={onAction}>
-          {actionLabel}
-        </Button>
-      )}
-    </Box>
+        {description && (
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ maxWidth: 450, mb: 2.5 }}
+          >
+            {description}
+          </Typography>
+        )}
+        {actionLabel && onAction && (
+          <Button variant="contained" onClick={onAction}>
+            {actionLabel}
+          </Button>
+        )}
+      </Box>
+    </Fade>
   );
 };
