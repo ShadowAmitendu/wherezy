@@ -2,7 +2,7 @@
 """PyInstaller spec file for building a standalone single-file Wherezy binary."""
 
 from pathlib import Path
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata
 
 ROOT_DIR = Path(SPECPATH).parent.resolve()
 FRONTEND_DIST = ROOT_DIR / "frontend" / "dist"
@@ -14,13 +14,17 @@ if not (FRONTEND_DIST / "index.html").is_file():
         f"Built frontend not found at {FRONTEND_DIST}. Run 'npm --prefix frontend run build' first."
     )
 
-datas = [
-    (str(FRONTEND_DIST), "frontend/dist"),
-    (str(MIGRATIONS_DIR), "backend/app/migrations"),
-    (str(TEMPLATES_DIR), "backend/app/seed_templates"),
-    (str(ROOT_DIR / "packaging" / "wherezy.ico"), "packaging"),
-    (str(ROOT_DIR / "packaging" / "wherezy.icns"), "packaging"),
-]
+datas = (
+    [
+        (str(FRONTEND_DIST), "frontend/dist"),
+        (str(MIGRATIONS_DIR), "backend/app/migrations"),
+        (str(TEMPLATES_DIR), "backend/app/seed_templates"),
+        (str(ROOT_DIR / "packaging" / "wherezy.ico"), "packaging"),
+        (str(ROOT_DIR / "packaging" / "wherezy.icns"), "packaging"),
+    ]
+    + collect_data_files("ttkbootstrap.assets")
+    + copy_metadata("ttkbootstrap")
+)
 
 import sys as _spec_sys
 
@@ -41,6 +45,7 @@ else:
 hiddenimports = sorted(
     set(
         collect_submodules("backend.app")
+        + collect_submodules("ttkbootstrap")
         + _platform_hiddenimports
         + [
             "uvicorn.logging",

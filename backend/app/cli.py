@@ -12,7 +12,7 @@ import webbrowser
 from pathlib import Path
 from typing import Sequence
 
-APP_VERSION = "2.1.0"
+APP_VERSION = "2.2.1"
 
 
 class _NullStream:

@@ -9,6 +9,7 @@ import logging
 import os
 from pathlib import Path
 import socket
+import sys
 import threading
 import time
 from typing import Callable
@@ -325,8 +326,19 @@ class WherezyServerManager:
                 self._thread = None
                 if self._status != "error":
                     self._status = "stopped"
+        self._dispose_db_engine()
         self._emit_state()
         return self.snapshot()
+
+    def _dispose_db_engine(self) -> None:
+        """Close pooled SQLite connections when stopping the embedded server."""
+        db_mod = sys.modules.get("backend.app.core.db")
+        engine = getattr(db_mod, "engine", None) if db_mod is not None else None
+        if engine is not None:
+            try:
+                engine.dispose()
+            except Exception:
+                pass
 
     def restart(
         self,

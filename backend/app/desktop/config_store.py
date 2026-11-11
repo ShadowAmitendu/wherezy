@@ -10,6 +10,7 @@ import sys
 
 
 APP_DIR_NAME = "Wherezy"
+DEFAULT_DESKTOP_THEME = "bootstrap-dark"
 
 
 def is_frozen() -> bool:
@@ -73,6 +74,7 @@ class DesktopConfig:
     auto_start_server: bool = True
     open_browser_on_start: bool = False
     minimize_to_tray_on_close: bool = True
+    theme: str = DEFAULT_DESKTOP_THEME
 
     def normalized(self) -> "DesktopConfig":
         """Validate and normalize field bounds before save or launch."""
@@ -84,6 +86,7 @@ class DesktopConfig:
         if not (1 <= port <= 65535):
             port = 8000
         data_dir = (self.data_dir or "").strip() or str(get_default_desktop_data_dir())
+        theme = (self.theme or "").strip() or DEFAULT_DESKTOP_THEME
         return DesktopConfig(
             host=host,
             port=port,
@@ -91,6 +94,7 @@ class DesktopConfig:
             auto_start_server=bool(self.auto_start_server),
             open_browser_on_start=bool(self.open_browser_on_start),
             minimize_to_tray_on_close=bool(self.minimize_to_tray_on_close),
+            theme=theme,
         )
 
 
@@ -117,6 +121,7 @@ def load_desktop_config(path: Path | None = None) -> DesktopConfig:
         minimize_to_tray_on_close=raw.get(
             "minimize_to_tray_on_close", defaults.minimize_to_tray_on_close
         ),
+        theme=str(raw.get("theme") or defaults.theme),
     ).normalized()
 
 

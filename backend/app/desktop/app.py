@@ -12,15 +12,18 @@ import subprocess
 import sys
 import threading
 import tkinter as tk
-from tkinter import filedialog, messagebox, scrolledtext, ttk
+from tkinter import filedialog
 import webbrowser
 
 from PIL import ImageTk
 import pystray
+import ttkbootstrap as tb
+from ttkbootstrap.dialogs import Messagebox
 
 from backend.app.cli import APP_VERSION
 from backend.app.desktop.autostart import is_autostart_enabled, set_autostart_enabled
 from backend.app.desktop.config_store import (
+    DEFAULT_DESKTOP_THEME,
     DesktopConfig,
     get_app_support_dir,
     load_desktop_config,
@@ -28,7 +31,6 @@ from backend.app.desktop.config_store import (
     save_desktop_config,
 )
 from backend.app.desktop.icons import (
-    STATUS_COLORS,
     STATUS_LABELS,
     create_tray_icon_image,
     load_base_icon_image,
@@ -37,21 +39,25 @@ from backend.app.desktop.icons import (
 from backend.app.desktop.server_manager import ServerSnapshot, WherezyServerManager
 
 
-# Slate theme palette matching the Wherezy showcase & web UI
-BG_ROOT = "#0f172a"
-BG_CARD = "#1e293b"
-BG_INPUT = "#0b1220"
-BORDER_SUBTLE = "#334155"
-TEXT_PRIMARY = "#f8fafc"
-TEXT_SECONDARY = "#cbd5e1"
-TEXT_MUTED = "#94a3b8"
-ACCENT_BLUE = "#2563eb"
-ACCENT_BLUE_HOVER = "#1d4ed8"
-ACCENT_LINK = "#38bdf8"
-BTN_SECONDARY = "#334155"
-BTN_PAUSE = "#b45309"
-BTN_DANGER = "#dc2626"
-BTN_SUCCESS = "#15803d"
+CURATED_THEMES = (
+    "bootstrap-dark",
+    "bootstrap-light",
+    "tokyo-night-dark",
+    "nord-dark",
+    "catppuccin-dark",
+    "one-dark",
+    "dracula-dark",
+    "minty-light",
+    "sandstone-light",
+)
+
+STATUS_PILL_STYLES: dict[str, tuple[str, str]] = {
+    "running": ("●", "@success"),
+    "paused": ("⏸", "@warning"),
+    "starting": ("●", "@info"),
+    "error": ("●", "@danger"),
+    "stopped": ("■", "@secondary"),
+}
 
 
 def _set_windows_app_user_model_id(app_id: str = "com.wherezy.desktop") -> None:
@@ -167,7 +173,7 @@ class _SingleInstanceServer:
 
 
 class WherezyDesktopApp:
-    """Tkinter desktop server controller paired with system tray / macOS menu bar."""
+    """TTK Bootstrap + Tkinter desktop server controller with tray / menu bar."""
 
     def __init__(
         self,
@@ -207,7 +213,6 @@ class WherezyDesktopApp:
         self._darwin_nsapp = None
         self._tk_icon_photo = None
         self._header_logo_photo = None
-        self._logs_visible = True
 
         self._ipc: _SingleInstanceServer | None = None
         if self.enable_ipc:
@@ -216,15 +221,27 @@ class WherezyDesktopApp:
             if self._ipc.try_notify_existing(action=action):
                 raise SystemExit(0)
 
-        self.root = tk.Tk()
-        self.root.title(f"Wherezy Server Controller (v{APP_VERSION})")
-        self.root.configure(bg=BG_ROOT)
-        self.root.geometry("560x680")
-        self.root.minsize(500, 580)
+        self.root = tb.Window(
+            title=f"Wherezy Server Controller (v{APP_VERSION})",
+            themename=DEFAULT_DESKTOP_THEME,
+            light_theme="bootstrap-light",
+            dark_theme=DEFAULT_DESKTOP_THEME,
+            iconphoto=None,
+            size=(600, 720),
+            minsize=(540, 620),
+        )
+        self._available_themes = self._resolve_available_themes()
+        selected_theme = (
+            self.config.theme if self.config.theme in self._available_themes else DEFAULT_DESKTOP_THEME
+        )
+        if selected_theme != DEFAULT_DESKTOP_THEME:
+            self.root.theme_use(selected_theme)
+        self.config.theme = selected_theme
+
         self._configure_window_icons()
-        self._configure_ttk_theme()
 
         # Tk bound variables
+        self.var_theme = tk.StringVar(value=selected_theme)
         self.var_host = tk.StringVar(value=self.config.host)
         self.var_port = tk.StringVar(value=str(self.config.port))
         self.var_data_dir = tk.StringVar(value=self.config.data_dir)
@@ -291,380 +308,345 @@ class WherezyDesktopApp:
                     except Exception:
                         pass
 
-    def _configure_ttk_theme(self) -> None:
-        style = ttk.Style(self.root)
-        try:
-            style.theme_use("clam")
-        except tk.TclError:
-            pass
-        style.configure(
-            "Wherezy.TCombobox",
-            fieldbackground=BG_INPUT,
-            background=BG_CARD,
-            foreground=TEXT_PRIMARY,
-            bordercolor=BORDER_SUBTLE,
-            arrowcolor=TEXT_SECONDARY,
-        )
+    def _resolve_available_themes(self) -> tuple[str, ...]:
+        registered = list(self.root.theme_names())
+        curated = [name for name in CURATED_THEMES if name in registered]
+        extras = [name for name in registered if name not in curated]
+        return tuple(curated + extras) if (curated or extras) else (DEFAULT_DESKTOP_THEME,)
 
     def _build_ui(self) -> None:
-        container = tk.Frame(self.root, bg=BG_ROOT, padx=16, pady=14)
+        container = tb.Frame(self.root, padding=16)
         container.pack(fill="both", expand=True)
 
         # ── Header ────────────────────────────────────────────────────────────
-        header = tk.Frame(container, bg=BG_ROOT)
+        header = tb.Frame(container)
         header.pack(fill="x", pady=(0, 12))
 
-        title_left = tk.Frame(header, bg=BG_ROOT)
+        title_left = tb.Frame(header)
         title_left.pack(side="left", fill="x", expand=True)
 
         if self._header_logo_photo is not None:
-            tk.Label(
-                title_left,
-                image=self._header_logo_photo,
-                bg=BG_ROOT,
-            ).pack(side="left", padx=(0, 10))
+            tb.Label(title_left, image=self._header_logo_photo).pack(side="left", padx=(0, 10))
 
-        title_stack = tk.Frame(title_left, bg=BG_ROOT)
+        title_stack = tb.Frame(title_left)
         title_stack.pack(side="left")
-        tk.Label(
+        tb.Label(
             title_stack,
             text="Wherezy",
-            bg=BG_ROOT,
-            fg=TEXT_PRIMARY,
             font=("Segoe UI", 16, "bold"),
         ).pack(anchor="w")
-        tk.Label(
+        tb.Label(
             title_stack,
             text=f"Local Server & Tray Controller · v{APP_VERSION}",
-            bg=BG_ROOT,
-            fg=TEXT_MUTED,
+            bootstyle="secondary",
             font=("Segoe UI", 9),
         ).pack(anchor="w")
 
-        self.status_pill = tk.Label(
-            header,
-            text="● Stopped",
-            bg=BG_CARD,
-            fg=TEXT_SECONDARY,
-            font=("Segoe UI", 10, "bold"),
-            padx=12,
-            pady=6,
-            relief="solid",
-            bd=1,
+        header_right = tb.Frame(header)
+        header_right.pack(side="right", anchor="center")
+
+        self.theme_combo = tb.Combobox(
+            header_right,
+            textvariable=self.var_theme,
+            values=self._available_themes,
+            state="readonly",
+            bootstyle="secondary",
+            width=16,
         )
-        self.status_pill.pack(side="right", anchor="center")
+        self.theme_combo.pack(side="left", padx=(0, 8))
+        self.theme_combo.bind("<<ComboboxSelected>>", lambda _e: self.change_theme())
+
+        self.status_pill = tb.Label(
+            header_right,
+            text="■  Stopped",
+            bootstyle="@secondary",
+            font=("Segoe UI", 10, "bold"),
+            padding=(12, 6),
+        )
+        self.status_pill.pack(side="left")
 
         # ── Server Controls Card ──────────────────────────────────────────────
-        ctrl_card = tk.Frame(
-            container,
-            bg=BG_CARD,
-            padx=14,
-            pady=12,
-            highlightbackground=BORDER_SUBTLE,
-            highlightthickness=1,
-        )
+        ctrl_card = tb.Labelframe(container, text=" Server Controls ", padding=12)
         ctrl_card.pack(fill="x", pady=(0, 10))
 
-        btn_row = tk.Frame(ctrl_card, bg=BG_CARD)
+        btn_row = tb.Frame(ctrl_card)
         btn_row.pack(fill="x")
+        for col in range(4):
+            btn_row.columnconfigure(col, weight=1, uniform="ctrl")
 
-        self.btn_start = self._make_button(
-            btn_row, "▶  Start Server", self.handle_start_or_resume, bg=BTN_SUCCESS
+        self.btn_start = tb.Button(
+            btn_row,
+            text="▶  Start Server",
+            command=self.handle_start_or_resume,
+            bootstyle="success",
+            cursor="hand2",
         )
-        self.btn_start.pack(side="left", fill="x", expand=True, padx=(0, 6))
+        self.btn_start.grid(row=0, column=0, sticky="ew", padx=(0, 4))
 
-        self.btn_pause = self._make_button(
-            btn_row, "⏸  Pause", self.handle_pause, bg=BTN_PAUSE
+        self.btn_pause = tb.Button(
+            btn_row,
+            text="⏸  Pause",
+            command=self.handle_pause,
+            bootstyle="warning",
+            cursor="hand2",
         )
-        self.btn_pause.pack(side="left", fill="x", expand=True, padx=3)
+        self.btn_pause.grid(row=0, column=1, sticky="ew", padx=4)
 
-        self.btn_stop = self._make_button(
-            btn_row, "■  Stop", self.handle_stop, bg=BTN_DANGER
+        self.btn_stop = tb.Button(
+            btn_row,
+            text="■  Stop",
+            command=self.handle_stop,
+            bootstyle="danger",
+            cursor="hand2",
         )
-        self.btn_stop.pack(side="left", fill="x", expand=True, padx=3)
+        self.btn_stop.grid(row=0, column=2, sticky="ew", padx=4)
 
-        self.btn_restart = self._make_button(
-            btn_row, "↻  Restart", self.handle_restart, bg=BTN_SECONDARY
+        self.btn_restart = tb.Button(
+            btn_row,
+            text="↻  Restart",
+            command=self.handle_restart,
+            bootstyle="secondary-outline",
+            cursor="hand2",
         )
-        self.btn_restart.pack(side="left", fill="x", expand=True, padx=(6, 0))
+        self.btn_restart.grid(row=0, column=3, sticky="ew", padx=(4, 0))
 
-        quick_row = tk.Frame(ctrl_card, bg=BG_CARD)
-        quick_row.pack(fill="x", pady=(10, 0))
+        quick_row = tb.Frame(ctrl_card)
+        quick_row.pack(fill="x", pady=(8, 0))
+        for col in range(3):
+            quick_row.columnconfigure(col, weight=1, uniform="quick")
 
-        self.btn_open_web = self._make_button(
-            quick_row, "Open Web UI", self.open_web_ui, bg=ACCENT_BLUE
+        self.btn_open_web = tb.Button(
+            quick_row,
+            text="Open Web UI",
+            command=self.open_web_ui,
+            bootstyle="primary",
+            cursor="hand2",
         )
-        self.btn_open_web.pack(side="left", fill="x", expand=True, padx=(0, 6))
+        self.btn_open_web.grid(row=0, column=0, sticky="ew", padx=(0, 4))
 
-        self.btn_copy_url = self._make_button(
-            quick_row, "Copy LAN URL", self.copy_lan_url, bg=BTN_SECONDARY
+        self.btn_copy_url = tb.Button(
+            quick_row,
+            text="Copy LAN URL",
+            command=self.copy_lan_url,
+            bootstyle="info-outline",
+            cursor="hand2",
         )
-        self.btn_copy_url.pack(side="left", fill="x", expand=True, padx=3)
+        self.btn_copy_url.grid(row=0, column=1, sticky="ew", padx=4)
 
-        self.btn_open_data = self._make_button(
-            quick_row, "Open Data Folder", self.open_data_folder, bg=BTN_SECONDARY
+        self.btn_open_data = tb.Button(
+            quick_row,
+            text="Open Data Folder",
+            command=self.open_data_folder,
+            bootstyle="secondary-outline",
+            cursor="hand2",
         )
-        self.btn_open_data.pack(side="left", fill="x", expand=True, padx=(6, 0))
+        self.btn_open_data.grid(row=0, column=2, sticky="ew", padx=(4, 0))
 
-        # Endpoints display inside control card
-        urls_frame = tk.Frame(ctrl_card, bg=BG_INPUT, padx=10, pady=8)
-        urls_frame.pack(fill="x", pady=(10, 0))
+        urls_card = tb.Labelframe(
+            ctrl_card, text=" Endpoints ", padding=(10, 6), bootstyle="secondary"
+        )
+        urls_card.pack(fill="x", pady=(10, 0))
 
-        row_local = tk.Frame(urls_frame, bg=BG_INPUT)
+        row_local = tb.Frame(urls_card)
         row_local.pack(fill="x", pady=1)
-        tk.Label(
-            row_local, text="This Computer:", width=14, anchor="w", bg=BG_INPUT, fg=TEXT_MUTED,
+        tb.Label(
+            row_local,
+            text="This Computer:",
+            width=14,
+            anchor="w",
+            bootstyle="secondary",
             font=("Segoe UI", 9),
         ).pack(side="left")
-        local_link = tk.Label(
+        local_link = tb.Label(
             row_local,
             textvariable=self.var_local_url,
-            bg=BG_INPUT,
-            fg=ACCENT_LINK,
+            bootstyle="info",
             cursor="hand2",
             font=("Consolas", 9, "underline"),
         )
         local_link.pack(side="left")
         local_link.bind("<Button-1>", lambda _e: self.open_web_ui(use_lan=False))
 
-        row_lan = tk.Frame(urls_frame, bg=BG_INPUT)
+        row_lan = tb.Frame(urls_card)
         row_lan.pack(fill="x", pady=1)
-        tk.Label(
-            row_lan, text="LAN / Phone:", width=14, anchor="w", bg=BG_INPUT, fg=TEXT_MUTED,
+        tb.Label(
+            row_lan,
+            text="LAN / Phone:",
+            width=14,
+            anchor="w",
+            bootstyle="secondary",
             font=("Segoe UI", 9),
         ).pack(side="left")
-        lan_link = tk.Label(
+        lan_link = tb.Label(
             row_lan,
             textvariable=self.var_lan_url,
-            bg=BG_INPUT,
-            fg=ACCENT_LINK,
+            bootstyle="info",
             cursor="hand2",
             font=("Consolas", 9, "underline"),
         )
         lan_link.pack(side="left")
         lan_link.bind("<Button-1>", lambda _e: self.open_web_ui(use_lan=True))
 
-        self.feedback_label = tk.Label(
+        self.feedback_label = tb.Label(
             ctrl_card,
             textvariable=self.var_feedback,
-            bg=BG_CARD,
-            fg="#fbbf24",
+            bootstyle="warning",
             font=("Segoe UI", 9),
             anchor="w",
-            wraplength=500,
+            wraplength=540,
             justify="left",
         )
         self.feedback_label.pack(fill="x", pady=(6, 0))
 
         # ── Configuration & OS Startup Card ───────────────────────────────────
-        cfg_card = tk.Frame(
-            container,
-            bg=BG_CARD,
-            padx=14,
-            pady=12,
-            highlightbackground=BORDER_SUBTLE,
-            highlightthickness=1,
-        )
+        cfg_card = tb.Labelframe(container, text=" Server & Startup Settings ", padding=12)
         cfg_card.pack(fill="x", pady=(0, 10))
 
-        tk.Label(
-            cfg_card,
-            text="Server & Startup Settings",
-            bg=BG_CARD,
-            fg=TEXT_PRIMARY,
-            font=("Segoe UI", 10, "bold"),
-        ).pack(anchor="w", pady=(0, 8))
-
-        grid = tk.Frame(cfg_card, bg=BG_CARD)
+        grid = tb.Frame(cfg_card)
         grid.pack(fill="x")
         grid.columnconfigure(1, weight=1)
         grid.columnconfigure(3, weight=1)
 
-        tk.Label(grid, text="Host:", bg=BG_CARD, fg=TEXT_SECONDARY, font=("Segoe UI", 9)).grid(
+        tb.Label(grid, text="Host:", font=("Segoe UI", 9)).grid(
             row=0, column=0, sticky="w", padx=(0, 6), pady=4
         )
-        host_combo = ttk.Combobox(
+        host_combo = tb.Combobox(
             grid,
             textvariable=self.var_host,
             values=("0.0.0.0", "127.0.0.1"),
-            style="Wherezy.TCombobox",
+            bootstyle="primary",
             width=16,
         )
         host_combo.grid(row=0, column=1, sticky="ew", padx=(0, 12), pady=4)
 
-        tk.Label(grid, text="Port:", bg=BG_CARD, fg=TEXT_SECONDARY, font=("Segoe UI", 9)).grid(
+        tb.Label(grid, text="Port:", font=("Segoe UI", 9)).grid(
             row=0, column=2, sticky="w", padx=(0, 6), pady=4
         )
-        port_entry = tk.Entry(
+        port_entry = tb.Entry(
             grid,
             textvariable=self.var_port,
-            bg=BG_INPUT,
-            fg=TEXT_PRIMARY,
-            insertbackground=TEXT_PRIMARY,
-            relief="solid",
-            bd=1,
+            bootstyle="primary",
             width=10,
         )
         port_entry.grid(row=0, column=3, sticky="ew", pady=4)
 
-        tk.Label(grid, text="Data Dir:", bg=BG_CARD, fg=TEXT_SECONDARY, font=("Segoe UI", 9)).grid(
+        tb.Label(grid, text="Data Dir:", font=("Segoe UI", 9)).grid(
             row=1, column=0, sticky="w", padx=(0, 6), pady=4
         )
-        data_row = tk.Frame(grid, bg=BG_CARD)
+        data_row = tb.Frame(grid)
         data_row.grid(row=1, column=1, columnspan=3, sticky="ew", pady=4)
-        tk.Entry(
+        tb.Entry(
             data_row,
             textvariable=self.var_data_dir,
-            bg=BG_INPUT,
-            fg=TEXT_PRIMARY,
-            insertbackground=TEXT_PRIMARY,
-            relief="solid",
-            bd=1,
+            bootstyle="primary",
         ).pack(side="left", fill="x", expand=True, padx=(0, 6))
-        self._make_button(data_row, "Browse", self.browse_data_dir, bg=BTN_SECONDARY, padx=10).pack(
-            side="left"
-        )
+        tb.Button(
+            data_row,
+            text="Browse",
+            command=self.browse_data_dir,
+            bootstyle="secondary-outline",
+            cursor="hand2",
+        ).pack(side="left")
 
-        checks = tk.Frame(cfg_card, bg=BG_CARD)
-        checks.pack(fill="x", pady=(6, 4))
+        tb.Separator(cfg_card, orient="horizontal").pack(fill="x", pady=(8, 6))
 
-        self._make_checkbox(
+        checks = tb.Frame(cfg_card)
+        checks.pack(fill="x")
+
+        tb.Checkbutton(
             checks,
-            "Start with OS (launch minimized to tray / menu bar on login)",
-            self.var_start_with_os,
+            text="Start with OS (launch minimized to tray / menu bar on login)",
+            variable=self.var_start_with_os,
             command=self.toggle_autostart,
-        ).pack(anchor="w", pady=2)
-        self._make_checkbox(
+            bootstyle="success-round-toggle",
+            cursor="hand2",
+        ).pack(anchor="w", pady=3)
+        tb.Checkbutton(
             checks,
-            "Auto-start server when controller launches",
-            self.var_auto_start,
+            text="Auto-start server when controller launches",
+            variable=self.var_auto_start,
             command=self.save_preferences_only,
-        ).pack(anchor="w", pady=2)
-        self._make_checkbox(
+            bootstyle="primary-round-toggle",
+            cursor="hand2",
+        ).pack(anchor="w", pady=3)
+        tb.Checkbutton(
             checks,
-            "Minimize to tray / menu bar when window is closed",
-            self.var_minimize_on_close,
+            text="Minimize to tray / menu bar when window is closed",
+            variable=self.var_minimize_on_close,
             command=self.save_preferences_only,
-        ).pack(anchor="w", pady=2)
-        self._make_checkbox(
+            bootstyle="primary-round-toggle",
+            cursor="hand2",
+        ).pack(anchor="w", pady=3)
+        tb.Checkbutton(
             checks,
-            "Open browser automatically when server starts",
-            self.var_open_browser,
+            text="Open browser automatically when server starts",
+            variable=self.var_open_browser,
             command=self.save_preferences_only,
-        ).pack(anchor="w", pady=2)
+            bootstyle="primary-round-toggle",
+            cursor="hand2",
+        ).pack(anchor="w", pady=3)
 
-        apply_row = tk.Frame(cfg_card, bg=BG_CARD)
-        apply_row.pack(fill="x", pady=(6, 0))
-        self._make_button(
+        apply_row = tb.Frame(cfg_card)
+        apply_row.pack(fill="x", pady=(8, 0))
+        tb.Button(
             apply_row,
-            "Save & Apply Settings",
-            self.apply_settings_and_restart,
-            bg=ACCENT_BLUE,
-            padx=12,
+            text="Save & Apply Settings",
+            command=self.apply_settings_and_restart,
+            bootstyle="primary",
+            cursor="hand2",
         ).pack(side="right")
 
         # ── Activity Logs Card ────────────────────────────────────────────────
-        log_card = tk.Frame(
-            container,
-            bg=BG_CARD,
-            padx=14,
-            pady=10,
-            highlightbackground=BORDER_SUBTLE,
-            highlightthickness=1,
-        )
+        log_card = tb.Labelframe(container, text=" Server Logs ", padding=10)
         log_card.pack(fill="both", expand=True, pady=(0, 10))
 
-        log_head = tk.Frame(log_card, bg=BG_CARD)
-        log_head.pack(fill="x", pady=(0, 6))
-        tk.Label(
+        log_head = tb.Frame(log_card)
+        log_head.pack(fill="x", pady=(0, 4))
+        tb.Label(
             log_head,
-            text="Server Logs",
-            bg=BG_CARD,
-            fg=TEXT_PRIMARY,
-            font=("Segoe UI", 10, "bold"),
+            text="Embedded Uvicorn runtime output",
+            bootstyle="secondary",
+            font=("Segoe UI", 8),
         ).pack(side="left")
-        self._make_button(
-            log_head, "Clear", self.clear_logs, bg=BTN_SECONDARY, padx=8, pady=2
+        tb.Button(
+            log_head,
+            text="Clear",
+            command=self.clear_logs,
+            bootstyle="secondary-outline",
+            cursor="hand2",
         ).pack(side="right")
 
-        self.log_text = scrolledtext.ScrolledText(
+        self.log_text = tb.ScrolledText(
             log_card,
             height=8,
-            bg=BG_INPUT,
-            fg=TEXT_SECONDARY,
-            insertbackground=TEXT_PRIMARY,
-            font=("Consolas", 8),
-            relief="flat",
+            bootstyle="secondary-round",
+            auto_hide=True,
             wrap="word",
+            font=("Consolas", 8),
             state="disabled",
         )
         self.log_text.pack(fill="both", expand=True)
 
         # ── Footer ────────────────────────────────────────────────────────────
-        footer = tk.Frame(container, bg=BG_ROOT)
+        footer = tb.Frame(container)
         footer.pack(fill="x")
 
-        self.btn_hide_tray = self._make_button(
+        self.btn_hide_tray = tb.Button(
             footer,
-            "Hide to Tray / Menu Bar",
-            self.hide_to_tray,
-            bg=BTN_SECONDARY,
-            padx=12,
+            text="Hide to Tray / Menu Bar",
+            command=self.hide_to_tray,
+            bootstyle="secondary-outline",
+            cursor="hand2",
         )
         self.btn_hide_tray.pack(side="left")
 
-        self._make_button(
+        tb.Button(
             footer,
-            "Quit Wherezy",
-            self.quit_app,
-            bg=BTN_DANGER,
-            padx=14,
-        ).pack(side="right")
-
-    def _make_button(
-        self,
-        parent,
-        text: str,
-        command,
-        *,
-        bg: str,
-        fg: str = TEXT_PRIMARY,
-        padx: int = 10,
-        pady: int = 6,
-    ) -> tk.Button:
-        return tk.Button(
-            parent,
-            text=text,
-            command=command,
-            bg=bg,
-            fg=fg,
-            activebackground=bg,
-            activeforeground=fg,
-            disabledforeground="#94a3b8",
-            relief="flat",
-            bd=0,
-            padx=padx,
-            pady=pady,
+            text="Quit Wherezy",
+            command=self.quit_app,
+            bootstyle="danger-outline",
             cursor="hand2",
-            font=("Segoe UI", 9, "bold"),
-        )
-
-    def _make_checkbox(self, parent, text: str, variable: tk.BooleanVar, command) -> tk.Checkbutton:
-        return tk.Checkbutton(
-            parent,
-            text=text,
-            variable=variable,
-            command=command,
-            bg=BG_CARD,
-            fg=TEXT_SECONDARY,
-            activebackground=BG_CARD,
-            activeforeground=TEXT_PRIMARY,
-            selectcolor=BG_INPUT,
-            highlightthickness=0,
-            bd=0,
-            anchor="w",
-            font=("Segoe UI", 9),
-        )
+        ).pack(side="right")
 
     def _bind_events(self) -> None:
         self.root.protocol("WM_DELETE_WINDOW", self._on_window_close)
@@ -719,6 +701,7 @@ class WherezyDesktopApp:
             auto_start_server=bool(self.var_auto_start.get()),
             open_browser_on_start=bool(self.var_open_browser.get()),
             minimize_to_tray_on_close=bool(self.var_minimize_on_close.get()),
+            theme=(self.var_theme.get() or DEFAULT_DESKTOP_THEME).strip() or DEFAULT_DESKTOP_THEME,
         ).normalized()
         self.config = cfg
         save_desktop_config(cfg)
@@ -732,9 +715,24 @@ class WherezyDesktopApp:
             auto_start_server=bool(self.var_auto_start.get()),
             open_browser_on_start=bool(self.var_open_browser.get()),
             minimize_to_tray_on_close=bool(self.var_minimize_on_close.get()),
+            theme=(self.var_theme.get() or self.config.theme).strip() or DEFAULT_DESKTOP_THEME,
         ).normalized()
         self.config = cfg
         save_desktop_config(cfg)
+
+    def change_theme(self, theme_name: str | None = None) -> str:
+        """Apply and persist the selected ttkbootstrap theme."""
+        target = (theme_name or self.var_theme.get() or DEFAULT_DESKTOP_THEME).strip()
+        if target not in self._available_themes:
+            target = DEFAULT_DESKTOP_THEME
+        self.root.theme_use(target)
+        self.var_theme.set(target)
+        try:
+            self.theme_combo.selection_clear()
+        except tk.TclError:
+            pass
+        self.save_preferences_only()
+        return target
 
     def toggle_autostart(self) -> None:
         desired = bool(self.var_start_with_os.get())
@@ -812,13 +810,15 @@ class WherezyDesktopApp:
             )
 
     def _prompt_relaunch_for_data_dir(self) -> None:
-        answer = messagebox.askyesno(
-            "Relaunch Required",
+        choice = Messagebox.yesno(
             "Changing the Data Folder requires restarting the Wherezy desktop controller.\n\n"
             "Save settings and relaunch now?",
+            title="Relaunch Required",
             parent=self.root,
+            buttons=["Cancel:secondary", "Relaunch:primary"],
+            localize=False,
         )
-        if answer:
+        if choice == "Relaunch":
             self._relaunch_on_exit = True
             self.quit_app()
         else:
@@ -874,10 +874,9 @@ class WherezyDesktopApp:
     def _apply_snapshot(self, snap: ServerSnapshot) -> None:
         status = snap.status
         label = STATUS_LABELS.get(status, status.title())
-        color = STATUS_COLORS.get(status, "#64748b")
-        prefix = "⏸" if status == "paused" else ("■" if status == "stopped" else "●")
+        prefix, pill_style = STATUS_PILL_STYLES.get(status, ("●", "@secondary"))
 
-        self.status_pill.configure(text=f"{prefix}  {label}", fg=color)
+        self.status_pill.configure(text=f"{prefix}  {label}", bootstyle=pill_style)
         self.var_local_url.set(snap.local_url)
         self.var_lan_url.set(snap.lan_url)
 
@@ -885,25 +884,29 @@ class WherezyDesktopApp:
             self.var_feedback.set(snap.error_message)
 
         if status == "paused":
-            self.btn_start.configure(text="▶  Resume", state="normal", bg=BTN_SUCCESS)
+            self.btn_start.configure(text="▶  Resume", state="normal", bootstyle="success")
             self.btn_pause.configure(state="disabled")
             self.btn_stop.configure(state="normal")
             self.btn_restart.configure(state="normal")
             self.btn_open_web.configure(state="normal")
         elif status == "running":
-            self.btn_start.configure(text="▶  Running", state="disabled", bg=BTN_SECONDARY)
+            self.btn_start.configure(
+                text="▶  Running", state="disabled", bootstyle="secondary-outline"
+            )
             self.btn_pause.configure(state="normal")
             self.btn_stop.configure(state="normal")
             self.btn_restart.configure(state="normal")
             self.btn_open_web.configure(state="normal")
         elif status == "starting":
-            self.btn_start.configure(text="Starting...", state="disabled", bg=BTN_SECONDARY)
+            self.btn_start.configure(
+                text="Starting...", state="disabled", bootstyle="secondary-outline"
+            )
             self.btn_pause.configure(state="disabled")
             self.btn_stop.configure(state="normal")
             self.btn_restart.configure(state="disabled")
             self.btn_open_web.configure(state="disabled")
         else:
-            self.btn_start.configure(text="▶  Start Server", state="normal", bg=BTN_SUCCESS)
+            self.btn_start.configure(text="▶  Start Server", state="normal", bootstyle="success")
             self.btn_pause.configure(state="disabled")
             self.btn_stop.configure(state="disabled")
             self.btn_restart.configure(state="normal")

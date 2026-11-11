@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wherezy"
-version = "2.1.0"
+version = "2.2.1"
 description = "Self-hosted home inventory tracker with QR/barcode labels, custom schemas, and AI categorization."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -21,6 +21,7 @@ dependencies = [
     "bcrypt>=4.0.0",
     "openpyxl>=3.1.0",
     "pystray>=0.19.5",
+    "ttkbootstrap>=2.0.0",
     "pyobjc-framework-Cocoa>=10.0; sys_platform == 'darwin'",
 ]
 

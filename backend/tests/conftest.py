@@ -21,6 +21,10 @@ def init_db():
     run_migrations()
     yield
     try:
+        engine.dispose()
+    except Exception:
+        pass
+    try:
         shutil.rmtree(TEST_DATA_DIR, ignore_errors=True)
     except Exception:
         pass

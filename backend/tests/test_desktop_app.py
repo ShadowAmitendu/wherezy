@@ -21,6 +21,7 @@ from backend.app.desktop.autostart import (
     set_autostart_enabled,
 )
 from backend.app.desktop.config_store import (
+    DEFAULT_DESKTOP_THEME,
     DesktopConfig,
     get_desktop_config_path,
     load_desktop_config,
@@ -114,6 +115,7 @@ def test_desktop_config_roundtrip_and_bounds(tmp_path, monkeypatch):
     default_cfg = load_desktop_config()
     assert default_cfg.port == 8000
     assert default_cfg.minimize_to_tray_on_close is True
+    assert default_cfg.theme == DEFAULT_DESKTOP_THEME
 
     bad_cfg = DesktopConfig(
         host="127.0.0.1",
@@ -122,6 +124,7 @@ def test_desktop_config_roundtrip_and_bounds(tmp_path, monkeypatch):
         auto_start_server=False,
         open_browser_on_start=True,
         minimize_to_tray_on_close=False,
+        theme="  ",
     )
     save_desktop_config(bad_cfg)
     reloaded = load_desktop_config()
@@ -130,6 +133,7 @@ def test_desktop_config_roundtrip_and_bounds(tmp_path, monkeypatch):
     assert reloaded.auto_start_server is False
     assert reloaded.open_browser_on_start is True
     assert reloaded.minimize_to_tray_on_close is False
+    assert reloaded.theme == DEFAULT_DESKTOP_THEME
 
 
 def test_autostart_windows_macos_linux(tmp_path):
@@ -284,6 +288,7 @@ def test_server_manager_start_pause_resume_stop_lifecycle():
 def test_desktop_gui_window_and_tray_smoke(tmp_path, monkeypatch):
     import os
     import tkinter as tk
+    import ttkbootstrap as tb
     from backend.app.desktop.app import WherezyDesktopApp
 
     if sys.platform.startswith("linux") and not (
@@ -309,6 +314,9 @@ def test_desktop_gui_window_and_tray_smoke(tmp_path, monkeypatch):
         pytest.skip(f"Tk display unavailable: {exc}")
 
     try:
+        assert isinstance(desktop.root, tb.Window)
+        assert desktop.root.style.theme.name == DEFAULT_DESKTOP_THEME
+
         # Process initial scheduled startup callback
         for _ in range(15):
             desktop.root.update()
@@ -321,8 +329,15 @@ def test_desktop_gui_window_and_tray_smoke(tmp_path, monkeypatch):
 
         snap = desktop.server_manager.snapshot()
         assert snap.status == "running"
+        assert desktop.status_pill.cget("style") == "@success.TLabel"
         if desktop._tray_active:
             assert desktop._tray_icon is not None
+
+        # Verify theme switcher updates ttkbootstrap style and persists to disk
+        assert desktop.change_theme("bootstrap-light") == "bootstrap-light"
+        desktop.root.update()
+        assert desktop.root.style.theme.name == "bootstrap-light"
+        assert load_desktop_config(cfg_path).theme == "bootstrap-light"
 
         paused = desktop.handle_pause()
         assert paused.status == "paused"
@@ -334,6 +349,7 @@ def test_desktop_gui_window_and_tray_smoke(tmp_path, monkeypatch):
 
             time.sleep(0.03)
         assert "Paused" in desktop.status_pill.cget("text")
+        assert desktop.status_pill.cget("style") == "@warning.TLabel"
 
         resumed = desktop.handle_start_or_resume()
         assert resumed.status == "running"
@@ -345,6 +361,7 @@ def test_desktop_gui_window_and_tray_smoke(tmp_path, monkeypatch):
 
             time.sleep(0.03)
         assert "Running" in desktop.status_pill.cget("text")
+        assert desktop.status_pill.cget("style") == "@success.TLabel"
 
         stopped = desktop.handle_stop()
         assert stopped.status == "stopped"
@@ -356,6 +373,7 @@ def test_desktop_gui_window_and_tray_smoke(tmp_path, monkeypatch):
 
             time.sleep(0.03)
         assert "Stopped" in desktop.status_pill.cget("text")
+        assert desktop.status_pill.cget("style") == "@secondary.TLabel"
     finally:
         desktop.quit_app()
         set_server_paused(False)

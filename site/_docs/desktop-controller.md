@@ -9,9 +9,11 @@ summary: Small native controller window, Windows taskbar/tray, macOS menu bar, a
 
 [&larr; Back to Overview]({{ '/' | relative_url }})
 
-Double-clicking `wherezy.exe` (Windows), `wherezy` (macOS), or running `wherezy-desktop` launches the lightweight native **Wherezy Server Controller** alongside a system tray / menu bar icon.
+Double-clicking `wherezy.exe` (Windows), `wherezy` (macOS), or running `wherezy-desktop` launches the lightweight native **Wherezy Server Controller** built with **TTK Bootstrap + Tkinter**, paired with a system tray / menu bar icon.
 
 ## Server Controls & Status Indicator
+
+- **TTK Bootstrap UI & Theme Switcher**: Styled controls (`round-toggle` switches, Bootstrap status pills, auto-hiding log scrollbar) with persisted live theme selection (`bootstrap-dark`, `bootstrap-light`, `tokyo-night-dark`, `nord-dark`, `catppuccin-dark`, `one-dark`, `dracula-dark`, `minty-light`, and `sandstone-light`).
 
 - **Start / Resume Server**: Boots the embedded Uvicorn + FastAPI server on your configured host, port, and data folder (or instantly un-pauses if paused).
 - **Pause Server**: Holds incoming web/API requests cleanly with HTTP `503` (`Retry-After: 5`) without releasing the port or risking mid-write SQLite state.
