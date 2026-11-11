@@ -17,6 +17,7 @@ import {
 import EventNoteOutlinedIcon from "@mui/icons-material/EventNoteOutlined";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { EmptyState } from "../../components/shared/EmptyState";
+import { useOnUndoRefresh } from "../../components/shared/UndoContext";
 import { ExpiryChip } from "../../components/shared/ExpiryChip";
 import { CoverThumb } from "../photos/CoverThumb";
 import { ItemDetailDialog } from "../items/ItemDetailDialog";
@@ -41,6 +42,8 @@ export const ExpiryPage: React.FC = () => {
       setIsLoading(false);
     }
   };
+
+  useOnUndoRefresh(loadExpiringItems);
 
   useEffect(() => {
     let active = true;
@@ -167,7 +170,7 @@ export const ExpiryPage: React.FC = () => {
         open={Boolean(selectedItemId)}
         onClose={() => setSelectedItemId(null)}
         onEdit={() => {}}
-        onDelete={() => {
+        onDeleted={() => {
           setSelectedItemId(null);
           loadExpiringItems();
         }}

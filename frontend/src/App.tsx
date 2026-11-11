@@ -4,8 +4,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Box, CircularProgress } from "@mui/material";
 import { AppThemeProvider } from "./theme";
 import { AuthProvider } from "./auth/AuthContext";
+import { UndoProvider } from "./components/shared/UndoContext";
 import { AppLayout } from "./layout/AppLayout";
-import { ProtectedRoute } from "./auth/ProtectedRoute";
+import { AuthGuard } from "./auth/AuthGuard";
 
 // Lazy-loaded pages for mobile-friendly code-splitting
 const LoginPage = lazy(() => import("./features/auth/LoginPage").then(m => ({ default: m.LoginPage })));
@@ -64,8 +65,9 @@ export const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <AppThemeProvider>
-        <AuthProvider>
-          <HashRouter>
+        <UndoProvider>
+          <AuthProvider>
+            <HashRouter>
             <Suspense
               fallback={
                 <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "50vh" }}>
@@ -74,19 +76,23 @@ export const App: React.FC = () => {
               }
             >
               <Routes>
-                {/* Public Auth routes */}
-                <Route path="/login" element={<LoginPage />} />
+                {/* Public & guest-only auth routes */}
+                <Route element={<AuthGuard guestOnly />}>
+                  <Route path="/login" element={<LoginPage />} />
+                </Route>
                 <Route path="/lock" element={<NetflixUserPicker />} />
 
-                {/* Standalone Wall Display Mode for Kitchen Tablets (redirects on 401/403) */}
-                <Route path="/wall" element={<WallPage />} />
+                {/* Standalone Wall Display Mode for Kitchen Tablets (allows is_display profiles) */}
+                <Route element={<AuthGuard allowDisplay loginPath="/lock" />}>
+                  <Route path="/wall" element={<WallPage />} />
+                </Route>
 
-                {/* Direct QR scan redirects */}
-                <Route path="/i/:id" element={<DirectItemShortcut />} />
-                <Route path="/l/:id" element={<DirectLocationShortcut />} />
+                {/* Protected routes (blocks unauthenticated + display-kiosk profiles) */}
+                <Route element={<AuthGuard />}>
+                  {/* Direct QR scan redirects */}
+                  <Route path="/i/:id" element={<DirectItemShortcut />} />
+                  <Route path="/l/:id" element={<DirectLocationShortcut />} />
 
-                {/* Protected routes */}
-                <Route element={<ProtectedRoute />}>
                   {/* Standalone Printable Routes (without app chrome) */}
                   <Route path="/print/location/:id" element={<PrintShelfPage />} />
                   <Route path="/labels" element={<LabelSheetPage />} />
@@ -100,7 +106,9 @@ export const App: React.FC = () => {
                     <Route path="/categories" element={<CategoriesPage />} />
                     <Route path="/categories/:id" element={<CategoryDetailPage />} />
                     <Route path="/locations" element={<LocationsPage />} />
-                    <Route path="/users" element={<UsersPage />} />
+                    <Route element={<AuthGuard permission="profiles:write" />}>
+                      <Route path="/users" element={<UsersPage />} />
+                    </Route>
                     <Route path="/account" element={<AccountProfilePage />} />
                     <Route path="/profile" element={<Navigate to="/account" replace />} />
                     <Route path="/health" element={<HealthPage />} />
@@ -120,7 +128,8 @@ export const App: React.FC = () => {
               </Routes>
             </Suspense>
           </HashRouter>
-        </AuthProvider>
+          </AuthProvider>
+        </UndoProvider>
       </AppThemeProvider>
     </QueryClientProvider>
   );

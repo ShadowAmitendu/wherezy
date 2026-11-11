@@ -60,6 +60,18 @@ describe("materialIconCatalog", () => {
     );
 
     expect(searchMaterialIcons("definitely_no_such_icon_xyz")).toEqual([]);
+
+    for (const iconKey of [
+      "celebration",
+      "templehindu",
+      "kingbed",
+      "diamond",
+      "power",
+      "umbrella",
+      "checkroom",
+    ]) {
+      expect(getCachedMaterialIconEntry(iconKey)).not.toBeNull();
+    }
   });
 });
 

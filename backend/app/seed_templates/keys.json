@@ -18,11 +18,12 @@
       "type": "dropdown",
       "required": false,
       "options": [
-        "House Key",
+        "House / Main Gate Key",
+        "Almirah / Godrej / Safe Key",
         "Padlock + Key",
-        "Vehicle Key / Fob",
-        "Cabinet / Safe Key",
-        "RFID / Access Card",
+        "Scooter / Bike / Car Key",
+        "Bank Locker Key",
+        "RFID / Society / Access Card",
         "Luggage Lock",
         "Combination Lock"
       ],

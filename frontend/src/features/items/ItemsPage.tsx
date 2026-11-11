@@ -11,8 +11,6 @@ import {
   IconButton,
   Tooltip,
   Grid,
-  Snackbar,
-  Alert,
   Fade,
   Grow,
   Stack,
@@ -34,7 +32,7 @@ import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { EmptyState } from "../../components/shared/EmptyState";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
-import { UndoSnackbar } from "../../components/shared/UndoSnackbar";
+import { useUndo, useOnUndoRefresh } from "../../components/shared/UndoContext";
 import { ExpiryChip } from "../../components/shared/ExpiryChip";
 import { CoverThumb } from "../photos/CoverThumb";
 import { ItemDetailDialog } from "./ItemDetailDialog";
@@ -60,6 +58,7 @@ export const ItemsPage: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [searchParams] = useSearchParams();
+  const { showUndo } = useUndo();
 
   // View mode: 'table', 'card', or 'room' (grouped by higher Room), remembered in localStorage
   const [viewMode, setViewMode] = useState<"table" | "card" | "room">(() => {
@@ -107,16 +106,10 @@ export const ItemsPage: React.FC = () => {
   const [bulkAddInitialTab, setBulkAddInitialTab] = useState<BulkAddTab>(
     initialAction === "import" ? "csv" : "list"
   );
-  const [bulkSuccessMsg, setBulkSuccessMsg] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [movingItem, setMovingItem] = useState<Item | null>(null);
   const [takenOutTarget, setTakenOutTarget] = useState<TakenOutTarget | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Item | null>(null);
-
-  // Undo Snackbar
-  const [undoSnackbarOpen, setUndoSnackbarOpen] = useState(false);
-  const [undoItemId, setUndoItemId] = useState<number | null>(null);
-  const [undoItemName, setUndoItemName] = useState("");
 
   const handleViewModeChange = (_: any, newMode: "table" | "card" | "room" | null) => {
     if (newMode) {
@@ -248,35 +241,52 @@ export const ItemsPage: React.FC = () => {
       setTakenOutTarget(item);
       return;
     }
+    const prevTaken = Boolean(item.taken_out);
+    const prevQty = getItemTakenOutQuantity(item);
+    const prevBy = item.taken_by ?? null;
+    const prevDue = item.taken_due ?? null;
+    const prevProfileId = item.taken_by_profile_id ?? null;
+    const prevContactId = item.taken_by_contact_id ?? null;
     try {
-      await api.toggleTaken(item.id, !item.taken_out);
+      await api.toggleTaken(item.id, !prevTaken);
       await loadItems();
+      showUndo({
+        message: !prevTaken
+          ? `Marked "${item.name}" as taken out`
+          : `Marked "${item.name}" as returned`,
+        onUndo: async () => {
+          await api.toggleTaken(item.id, {
+            taken_out: prevTaken,
+            taken_out_quantity: prevQty,
+            taken_by: prevBy,
+            taken_due: prevDue,
+            taken_by_profile_id: prevProfileId,
+            taken_by_contact_id: prevContactId,
+          });
+        },
+      });
     } catch (err) {
       console.error(err);
     }
   };
+
+  useOnUndoRefresh(loadItems);
 
   const handleDeleteItem = async () => {
     if (!deleteTarget) return;
+    const deletedId = deleteTarget.id;
+    const deletedName = deleteTarget.name;
     try {
-      await api.deleteItem(deleteTarget.id);
-      setUndoItemId(deleteTarget.id);
-      setUndoItemName(deleteTarget.name);
-      setUndoSnackbarOpen(true);
+      await api.deleteItem(deletedId);
       setDeleteTarget(null);
-      if (detailItemId === deleteTarget.id) setDetailItemId(null);
+      if (detailItemId === deletedId) setDetailItemId(null);
       await loadItems();
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleUndoDelete = async () => {
-    if (!undoItemId) return;
-    try {
-      await api.restoreItem(undoItemId);
-      setUndoSnackbarOpen(false);
-      await loadItems();
+      showUndo({
+        message: `Deleted "${deletedName}"`,
+        onUndo: async () => {
+          await api.restoreItem(deletedId);
+        },
+      });
     } catch (err) {
       console.error(err);
     }
@@ -708,8 +718,15 @@ export const ItemsPage: React.FC = () => {
         initialLocationId={selectedLocation}
         initialTab={bulkAddInitialTab}
         onClose={() => setBulkAddOpen(false)}
-        onAdded={(_count, message) => {
-          setBulkSuccessMsg(message || "Items added successfully");
+        onAdded={(_count, message, batchId) => {
+          if (batchId) {
+            showUndo({
+              message: message || "Items added successfully",
+              onUndo: async () => {
+                await api.undoBatch(batchId);
+              },
+            });
+          }
           loadItems();
         }}
       />
@@ -724,25 +741,6 @@ export const ItemsPage: React.FC = () => {
         onConfirm={handleDeleteItem}
         onCancel={() => setDeleteTarget(null)}
       />
-
-      {/* 10-Second Undo Snackbar */}
-      <UndoSnackbar
-        open={undoSnackbarOpen}
-        message={`Deleted "${undoItemName}"`}
-        onUndo={handleUndoDelete}
-        onClose={() => setUndoSnackbarOpen(false)}
-      />
-
-      <Snackbar
-        open={Boolean(bulkSuccessMsg)}
-        autoHideDuration={5000}
-        onClose={() => setBulkSuccessMsg(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-      >
-        <Alert severity="success" onClose={() => setBulkSuccessMsg(null)} variant="filled">
-          {bulkSuccessMsg}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 };

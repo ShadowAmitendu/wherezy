@@ -162,3 +162,72 @@ def test_api_404_and_removed_saved_filters(client):
     for path in ("/api/nonexistent-endpoint", "/api/saved-filters"):
         res = client.get(path)
         assert res.status_code == 404
+
+
+def test_list_profiles_include_inactive_requires_profiles_write(client, anon_client, db_session):
+    """Listing inactive profiles requires admin/co_admin or custom profiles:write permission."""
+    import json
+    from fastapi.testclient import TestClient
+    from backend.app.main import app
+    from backend.app.models import Profile
+    from backend.app.core.security import create_session_token, SESSION_COOKIE_NAME
+
+    inactive = Profile(name="Inactive User", username="inactive_u", role="viewer", is_active=0)
+    member = Profile(name="Member User", username="member_u", role="member", is_active=1)
+    custom_writer = Profile(
+        name="Custom Manager",
+        username="custom_mgr",
+        role="custom",
+        is_active=1,
+        custom_permissions_json=json.dumps(["profiles:write"]),
+    )
+    display_prof = Profile(
+        name="Kiosk",
+        username="kiosk_u",
+        role="viewer",
+        is_active=1,
+        is_display=1,
+    )
+    db_session.add_all([inactive, member, custom_writer, display_prof])
+    db_session.commit()
+    for p in (inactive, member, custom_writer, display_prof):
+        db_session.refresh(p)
+
+    # Active-only remains accessible for the lock screen profile picker
+    pub_res = anon_client.get("/api/profiles")
+    assert pub_res.status_code == 200
+    assert "inactive_u" not in [p["username"] for p in pub_res.json()]
+
+    # Unauthenticated request for inactive profiles is rejected (401)
+    assert anon_client.get("/api/profiles?include_inactive=true").status_code == 401
+
+    # Member & display profiles cannot enumerate inactive profiles (403)
+    for prof in (member, display_prof):
+        c = TestClient(app)
+        token = create_session_token(
+            {"authenticated": True, "profile_id": prof.id, "role": prof.role, "username": prof.username}
+        )
+        c.cookies.set(SESSION_COOKIE_NAME, token)
+        assert c.get("/api/profiles?include_inactive=true").status_code == 403
+
+    # Admin and custom user with profiles:write succeed and see inactive profiles
+    for auth_client in (client,):
+        res = auth_client.get("/api/profiles?include_inactive=true")
+        assert res.status_code == 200
+        assert "inactive_u" in [p["username"] for p in res.json()]
+
+    c_custom = TestClient(app)
+    c_custom.cookies.set(
+        SESSION_COOKIE_NAME,
+        create_session_token(
+            {
+                "authenticated": True,
+                "profile_id": custom_writer.id,
+                "role": custom_writer.role,
+                "username": custom_writer.username,
+            }
+        ),
+    )
+    res_custom = c_custom.get("/api/profiles?include_inactive=true")
+    assert res_custom.status_code == 200
+    assert "inactive_u" in [p["username"] for p in res_custom.json()]

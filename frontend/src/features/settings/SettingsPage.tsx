@@ -9,6 +9,7 @@ import {
   FormControl,
   InputLabel,
   Select,
+  Menu,
   MenuItem,
   Dialog,
   DialogTitle,
@@ -41,14 +42,25 @@ import ComputerOutlinedIcon from "@mui/icons-material/ComputerOutlined";
 import CloudOutlinedIcon from "@mui/icons-material/CloudOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import BoltOutlinedIcon from "@mui/icons-material/BoltOutlined";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { ThemePalettePicker } from "../../components/shared/ThemePalettePicker";
+import { notifyDataChanged, useUndo } from "../../components/shared/UndoContext";
 import { BulkAddDialog } from "../items/BulkAddDialog";
 import { useAppTheme } from "../../theme/themeConstants";
 import { useAuth } from "../../auth/useAuth";
-import { api, type AiProviderType, type SettingsResponse } from "../../api/client";
+import { AuthGuard } from "../../auth/AuthGuard";
+import { hasPermission } from "../../auth/permissions";
+import {
+  api,
+  handleHttpUnauthorized,
+  type AiProviderType,
+  type ImportFormat,
+  type SettingsResponse,
+} from "../../api/client";
+import { DATA_FORMAT_OPTIONS } from "../../utils/exportImportFormats";
 
 const LOCAL_LLM_PRESETS: Array<{ label: string; baseUrl: string; modelHint: string }> = [
   { label: "Ollama", baseUrl: "http://127.0.0.1:11434/v1", modelHint: "qwen2.5:7b" },
@@ -69,7 +81,13 @@ export const SettingsPage: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { mode, setMode, preset, setPreset } = useAppTheme();
-  const { pinSet, refreshAuth } = useAuth();
+  const { pinSet, currentProfile, refreshAuth } = useAuth();
+  const canManageSettings = hasPermission(currentProfile, "admin:settings");
+  const canManageBackups = hasPermission(currentProfile, "admin:backup");
+  const exportOptions = DATA_FORMAT_OPTIONS.filter((opt) =>
+    hasPermission(currentProfile, opt.format === "xlsx" ? "admin:book" : "admin:export")
+  );
+  const { showUndo } = useUndo();
 
   // Settings State
   const [expiryDays, setExpiryDays] = useState(30);
@@ -128,17 +146,24 @@ export const SettingsPage: React.FC = () => {
   const [restoreMessage, setRestoreMessage] = useState<string | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
   const [csvImportOpen, setCsvImportOpen] = useState(false);
+  const [importFormat, setImportFormat] = useState<ImportFormat>("csv");
   const [importMessage, setImportMessage] = useState<string | null>(null);
+  const [exportMenuAnchor, setExportMenuAnchor] = useState<HTMLElement | null>(null);
+  const [importMenuAnchor, setImportMenuAnchor] = useState<HTMLElement | null>(null);
 
   const restoreInputRef = React.useRef<HTMLInputElement>(null);
 
-  const loadSettingsAndStats = useCallback(async () => {
-    try {
-      const [s, stats, b] = await Promise.all([
-        api.getSettings(),
-        api.getStorage(),
-        api.getBackups(),
-      ]);
+  const fetchSettingsData = useCallback(async () => {
+    const [s, stats, b] = await Promise.all([
+      api.getSettings(),
+      canManageSettings ? api.getStorage() : Promise.resolve(null),
+      canManageBackups ? api.getBackups() : Promise.resolve([]),
+    ]);
+    return { s, stats, b };
+  }, [canManageBackups, canManageSettings]);
+
+  const applySettingsData = useCallback(
+    ({ s, stats, b }: { s: SettingsResponse; stats: any | null; b: any[] }) => {
       setExpiryDays(s.expiry_warn_days || 30);
       setBaseUrl(s.base_url || "");
       setLabelPreset(s.label_preset || "medium");
@@ -146,23 +171,24 @@ export const SettingsPage: React.FC = () => {
       applyAiSettingsState(s);
       setStorageStats(stats);
       setBackups(b);
+    },
+    [applyAiSettingsState]
+  );
+
+  const loadSettingsAndStats = useCallback(async () => {
+    try {
+      const data = await fetchSettingsData();
+      applySettingsData(data);
     } catch (err) {
       console.error(err);
     }
-  }, [applyAiSettingsState]);
+  }, [applySettingsData, fetchSettingsData]);
 
   useEffect(() => {
     let active = true;
-    Promise.all([api.getSettings(), api.getStorage(), api.getBackups()])
-      .then(([s, stats, b]) => {
-        if (!active) return;
-        setExpiryDays(s.expiry_warn_days || 30);
-        setBaseUrl(s.base_url || "");
-        setLabelPreset(s.label_preset || "medium");
-        setBackupKeep(s.backup_keep || 7);
-        applyAiSettingsState(s);
-        setStorageStats(stats);
-        setBackups(b);
+    fetchSettingsData()
+      .then((data) => {
+        if (active) applySettingsData(data);
       })
       .catch((err) => {
         if (active) console.error(err);
@@ -170,7 +196,7 @@ export const SettingsPage: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [applyAiSettingsState]);
+  }, [applySettingsData, fetchSettingsData]);
 
   const handleSaveGeneral = async () => {
     try {
@@ -332,6 +358,7 @@ export const SettingsPage: React.FC = () => {
     try {
       const response = await fetch(url, { method, credentials: "same-origin" });
       if (!response.ok) {
+        handleHttpUnauthorized(url, response.status);
         let msg = `Download failed (HTTP ${response.status})`;
         try {
           const data = await response.json();
@@ -457,7 +484,8 @@ export const SettingsPage: React.FC = () => {
         </CardContent>
       </Card>
 
-      {/* Network & QR Base URL */}
+      {/* Network & QR Base URL, Preferences, and AI Provider */}
+      <AuthGuard permission="admin:settings">
       <Card sx={{ mb: { xs: 2, sm: 3 } }}>
         <CardContent>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
@@ -804,6 +832,7 @@ export const SettingsPage: React.FC = () => {
           </Box>
         </CardContent>
       </Card>
+      </AuthGuard>
 
       {/* Theme */}
       <Card sx={{ mb: { xs: 2, sm: 3 } }}>
@@ -844,6 +873,7 @@ export const SettingsPage: React.FC = () => {
       </Card>
 
       {/* Backup, Restore & Storage */}
+      <AuthGuard anyPermissions={["admin:settings", "admin:backup"]}>
       <Card sx={{ mb: { xs: 2, sm: 3 } }}>
         <CardContent>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
@@ -887,6 +917,7 @@ export const SettingsPage: React.FC = () => {
             </Box>
           )}
 
+          <AuthGuard permission="admin:backup">
           <Box sx={{ display: "flex", gap: { xs: 1, sm: 2 }, flexWrap: "wrap", mb: 2 }}>
             <Button
               variant="contained"
@@ -947,10 +978,13 @@ export const SettingsPage: React.FC = () => {
               </List>
             </Box>
           )}
+          </AuthGuard>
         </CardContent>
       </Card>
+      </AuthGuard>
 
       {/* Export & Reports */}
+      <AuthGuard anyPermissions={["admin:export", "admin:book", "admin:import"]}>
       <Card>
         <CardContent>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
@@ -960,50 +994,99 @@ export const SettingsPage: React.FC = () => {
             </Typography>
           </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Export all items with custom fields into standard spreadsheet formats, or bulk import items from CSV.
+            Export your inventory in CSV, JSON, or Excel (.xlsx), or bulk import items using the same formats.
           </Typography>
           <Box sx={{ display: "flex", gap: { xs: 1, sm: 2 }, flexWrap: "wrap" }}>
-            <Button
-              variant="outlined"
-              size={isMobile ? "small" : "medium"}
-              onClick={() => void downloadFromEndpoint("/api/admin/export?format=csv", "wherezy_export.csv")}
-            >
-              Export as CSV
-            </Button>
-            <Button
-              variant="outlined"
-              size={isMobile ? "small" : "medium"}
-              onClick={() => void downloadFromEndpoint("/api/admin/export?format=json", "wherezy_export.json")}
-            >
-              Export as JSON
-            </Button>
-            <Button
-              variant="outlined"
-              size={isMobile ? "small" : "medium"}
-              onClick={() => void downloadFromEndpoint("/api/admin/export/book.xlsx", "wherezy_book.xlsx")}
-            >
-              Export Excel (.xlsx)
-            </Button>
-            <Button
-              variant="outlined"
-              size={isMobile ? "small" : "medium"}
-              startIcon={<UploadFileOutlinedIcon />}
-              onClick={() => setCsvImportOpen(true)}
-            >
-              Import Items (CSV)
-            </Button>
+            <AuthGuard anyPermissions={["admin:export", "admin:book"]}>
+              <Button
+                variant="outlined"
+                size={isMobile ? "small" : "medium"}
+                startIcon={<FileDownloadOutlinedIcon />}
+                endIcon={<KeyboardArrowDownIcon />}
+                aria-haspopup="menu"
+                aria-expanded={Boolean(exportMenuAnchor)}
+                onClick={(e) => setExportMenuAnchor(e.currentTarget)}
+              >
+                Export
+              </Button>
+              <Menu
+                anchorEl={exportMenuAnchor}
+                open={Boolean(exportMenuAnchor)}
+                onClose={() => setExportMenuAnchor(null)}
+              >
+                {exportOptions.map((opt) => (
+                  <MenuItem
+                    key={`export-${opt.format}`}
+                    onClick={() => {
+                      setExportMenuAnchor(null);
+                      void downloadFromEndpoint(opt.exportEndpoint, opt.exportFilename);
+                    }}
+                  >
+                    <ListItemText primary={opt.label} secondary={opt.exportDescription} />
+                  </MenuItem>
+                ))}
+              </Menu>
+            </AuthGuard>
+
+            <AuthGuard permission="admin:import">
+              <Button
+                variant="outlined"
+                size={isMobile ? "small" : "medium"}
+                startIcon={<UploadFileOutlinedIcon />}
+                endIcon={<KeyboardArrowDownIcon />}
+                aria-haspopup="menu"
+                aria-expanded={Boolean(importMenuAnchor)}
+                onClick={(e) => setImportMenuAnchor(e.currentTarget)}
+              >
+                Import
+              </Button>
+              <Menu
+                anchorEl={importMenuAnchor}
+                open={Boolean(importMenuAnchor)}
+                onClose={() => setImportMenuAnchor(null)}
+              >
+                {DATA_FORMAT_OPTIONS.map((opt) => (
+                  <MenuItem
+                    key={`import-${opt.format}`}
+                    onClick={() => {
+                      setImportMenuAnchor(null);
+                      setImportFormat(opt.format);
+                      setCsvImportOpen(true);
+                    }}
+                  >
+                    <ListItemText primary={opt.label} secondary={opt.importDescription} />
+                  </MenuItem>
+                ))}
+              </Menu>
+            </AuthGuard>
           </Box>
         </CardContent>
       </Card>
+      </AuthGuard>
 
-      <BulkAddDialog
-        open={csvImportOpen}
-        initialTab="csv"
-        onClose={() => setCsvImportOpen(false)}
-        onAdded={(_count, message) => {
-          setImportMessage(message || "Items imported successfully");
-        }}
-      />
+      <AuthGuard permission="admin:import">
+        <BulkAddDialog
+          open={csvImportOpen}
+          initialTab="csv"
+          initialImportFormat={importFormat}
+          onClose={() => setCsvImportOpen(false)}
+          onAdded={(_count, message, batchId) => {
+            notifyDataChanged("items");
+            const summary = message || "Items imported successfully";
+            if (batchId) {
+              showUndo({
+                message: summary,
+                onUndo: async () => {
+                  await api.undoBatch(batchId);
+                  notifyDataChanged("items");
+                },
+              });
+            } else {
+              setImportMessage(summary);
+            }
+          }}
+        />
+      </AuthGuard>
 
       <AlertDialog
         open={Boolean(importMessage)}

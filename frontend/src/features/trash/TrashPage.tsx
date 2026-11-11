@@ -25,8 +25,10 @@ import { api } from "../../api/client";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { PageHeader } from "../../components/shared/PageHeader";
+import { useUndo, useOnUndoRefresh } from "../../components/shared/UndoContext";
 
 export const TrashPage: React.FC = () => {
+  const { showUndo } = useUndo();
   const [tabIndex, setTabIndex] = useState<number>(0);
   const [allTrash, setAllTrash] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,11 +81,26 @@ export const TrashPage: React.FC = () => {
   const currentType = tabIndex === 0 ? "item" : tabIndex === 1 ? "location" : "category";
   const totalTrashed = allTrash.length;
 
+  useOnUndoRefresh(() => {
+    void loadTrash();
+  });
+
   const handleRestore = async (type: string, id: number, name: string) => {
     try {
       await api.restoreTrash(type, id);
-      setSuccessMsg(`Restored '${name}'`);
       loadTrash();
+      showUndo({
+        message: `Restored "${name}" from trash`,
+        onUndo: async () => {
+          if (type === "location") {
+            await api.deleteLocation(id);
+          } else if (type === "category") {
+            await api.deleteCategory(id);
+          } else {
+            await api.deleteItem(id);
+          }
+        },
+      });
     } catch (err: any) {
       setErrorMsg(err.error?.message || `Failed to restore ${type}`);
     }

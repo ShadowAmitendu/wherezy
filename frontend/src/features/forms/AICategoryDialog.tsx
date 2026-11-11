@@ -39,9 +39,10 @@ import { useAiMediaRecorder } from "../../components/shared/useAiMediaRecorder";
 import { Category } from "./types";
 
 const EXAMPLE_PROMPTS = [
-  "Kitchen spices with origin, heat level, organic flag & best before",
+  "Kitchen masalas & ration dabbas with group, steel container status & best before",
+  "Festival diyas, lights & puja samagri with festival, fragility & expiry check",
   "Camera gear & lenses with brand, mount, focal length & serial number",
-  "Prescription & OTC medicines with dosage, form & expiry warning",
+  "Prescription & Ayurvedic medicines with dosage, system, form & expiry warning",
   "Board games with player count, play duration, age rating & condition",
 ];
 

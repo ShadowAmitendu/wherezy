@@ -53,11 +53,22 @@ def test_category_crud_and_fields(client):
     res = client.post(f"/api/categories/{cat_id}/fields/reorder", json={"field_ids": [field_id]})
     assert res.status_code == 200
 
-    # 7. Apply all registered templates (including new household presets)
+    # 7. Apply all registered templates (including festival & Indian household presets)
     tpl_res = client.get("/api/templates")
     assert tpl_res.status_code == 200
     all_tpls = tpl_res.json()
-    assert len(all_tpls) >= 21  # 20 household templates + blank
+    assert len(all_tpls) >= 28  # 27 household templates + blank
+    slugs = {t["slug"] for t in all_tpls}
+    for expected_slug in (
+        "festivals",
+        "puja",
+        "traditional_wear",
+        "bedding",
+        "jewelry_valuables",
+        "power_backup",
+        "monsoon_seasonal",
+    ):
+        assert expected_slug in slugs
     for tpl in all_tpls:
         slug = tpl["slug"]
         res = client.post(f"/api/templates/{slug}/apply")

@@ -35,6 +35,7 @@ import { LocationPicker } from "../locations/LocationPicker";
 import { AiCapturePanel } from "../../components/shared/AiCapturePanel";
 import { useAiMediaRecorder } from "../../components/shared/useAiMediaRecorder";
 import { AlertDialog } from "../../components/shared/AlertDialog";
+import { useUndo } from "../../components/shared/UndoContext";
 import { api, ApiException } from "../../api/client";
 import {
   getItemQuantity,
@@ -76,6 +77,7 @@ export const ItemFormDialog: React.FC<ItemFormDialogProps> = ({
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const { showUndo } = useUndo();
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategoryId, setSelectedCategoryId] = useState<number | "">("");
   const [categoryFields, setCategoryFields] = useState<FieldDef[]>([]);
@@ -267,6 +269,18 @@ export const ItemFormDialog: React.FC<ItemFormDialogProps> = ({
 
     try {
       let saved: Item;
+      const previousSnapshot = item
+        ? {
+            name: item.name,
+            category_id: item.category_id,
+            location_id: item.location_id ?? null,
+            quantity: Math.max(1, Number(item.quantity || 1)),
+            expiry_date: item.expiry_date ?? null,
+            notes: item.notes ?? null,
+            values: { ...(item.values || {}) },
+          }
+        : null;
+
       if (item) {
         saved = await api.updateItem(item.id, {
           name: name.trim(),
@@ -296,6 +310,24 @@ export const ItemFormDialog: React.FC<ItemFormDialogProps> = ({
         } catch (uploadErr) {
           console.error("Failed to attach AI photo to saved item", uploadErr);
         }
+      }
+
+      if (previousSnapshot) {
+        const editedId = saved.id;
+        showUndo({
+          message: `Updated "${saved.name}"`,
+          onUndo: async () => {
+            await api.updateItem(editedId, previousSnapshot);
+          },
+        });
+      } else {
+        const createdId = saved.id;
+        showUndo({
+          message: `Added "${saved.name}"`,
+          onUndo: async () => {
+            await api.deleteItem(createdId);
+          },
+        });
       }
 
       onSaved(saved);

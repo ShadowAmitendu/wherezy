@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import List
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from backend.app.models import Item, Location, ItemTag, BoxItem, Profile, Activity
+from backend.app.models import Item, Location, ItemTag, BoxItem, Profile, Activity, utc_now_iso
 from backend.app.schemas import BulkRequest, BulkResponse, BulkSkipItem, BatchUndoResponse
 from backend.app.services.visibility import items_visible
 from backend.app.services.activity import record
@@ -216,9 +216,19 @@ def undo_batch(db: Session, batch_id: str, actor: Profile) -> BatchUndoResponse:
 
     reverted_count = 0
     for act in events:
-        if act.entity_type == "item" and act.diff_json and act.entity_id:
+        if act.entity_type == "item" and act.entity_id:
             item = db.query(Item).filter(Item.id == act.entity_id).first()
             if not item:
+                continue
+
+            if act.action == "created":
+                if item.deleted_at is None:
+                    item.deleted_at = utc_now_iso()
+                    item.deleted_by = actor.id
+                    reverted_count += 1
+                continue
+
+            if not act.diff_json:
                 continue
             diff = json.loads(act.diff_json)
 

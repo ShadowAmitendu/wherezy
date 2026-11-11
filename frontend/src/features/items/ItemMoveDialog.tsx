@@ -9,6 +9,7 @@ import {
 } from "@mui/material";
 import { Item } from "./types";
 import { LocationPicker } from "../locations/LocationPicker";
+import { useUndo } from "../../components/shared/UndoContext";
 import { api } from "../../api/client";
 
 interface ItemMoveDialogProps {
@@ -27,6 +28,7 @@ export const ItemMoveDialog: React.FC<ItemMoveDialogProps> = ({
   const [prevItem, setPrevItem] = useState<Item | null>(item);
   const [selectedLoc, setSelectedLoc] = useState<number | null>(item?.location_id || null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { showUndo } = useUndo();
 
   if (item !== prevItem) {
     setPrevItem(item);
@@ -35,10 +37,19 @@ export const ItemMoveDialog: React.FC<ItemMoveDialogProps> = ({
 
   const handleMove = async () => {
     if (!item) return;
+    const itemId = item.id;
+    const itemName = item.name;
+    const prevLocationId = item.location_id ?? null;
     setIsSubmitting(true);
     try {
-      await api.moveItem(item.id, selectedLoc);
+      await api.moveItem(itemId, selectedLoc);
       onMoved();
+      showUndo({
+        message: `Moved "${itemName}"`,
+        onUndo: async () => {
+          await api.moveItem(itemId, prevLocationId);
+        },
+      });
       onClose();
     } catch (err) {
       console.error(err);

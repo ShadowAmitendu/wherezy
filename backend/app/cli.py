@@ -15,8 +15,59 @@ from typing import Sequence
 APP_VERSION = "2.0.0"
 
 
-def _configure_stdio() -> None:
-    """Use UTF-8 with replacement characters on consoles such as Windows cp1252."""
+class _NullStream:
+    """Fallback text stream used in console-less GUI launches on Windows/macOS."""
+
+    encoding = "utf-8"
+    errors = "replace"
+
+    def write(self, data: str) -> int:
+        return len(data)
+
+    def writelines(self, lines) -> None:
+        return None
+
+    def flush(self) -> None:
+        return None
+
+    def isatty(self) -> bool:
+        return False
+
+
+def _has_flag(argv: Sequence[str], flags: Sequence[str]) -> bool:
+    for arg in argv:
+        for flag in flags:
+            if arg == flag or arg.startswith(f"{flag}="):
+                return True
+    return False
+
+
+def _configure_stdio(raw_args: Sequence[str] | None = None) -> None:
+    """Ensure valid UTF-8 stdio streams even inside Windows GUI (`console=False`) binaries."""
+    args_list = list(raw_args) if raw_args is not None else sys.argv[1:]
+    wants_console_output = _has_flag(
+        args_list,
+        ("-h", "--help", "--version", "--headless", "--cli", "--host", "--port", "--data-dir"),
+    )
+
+    if sys.platform == "win32" and wants_console_output:
+        if sys.stdout is None or sys.stderr is None:
+            try:
+                import ctypes
+
+                if ctypes.windll.kernel32.AttachConsole(-1):
+                    if sys.stdout is None:
+                        sys.stdout = open("CONOUT$", "w", encoding="utf-8", errors="replace", buffering=1)
+                    if sys.stderr is None:
+                        sys.stderr = open("CONOUT$", "w", encoding="utf-8", errors="replace", buffering=1)
+            except Exception:
+                pass
+
+    if sys.stdout is None:
+        sys.stdout = _NullStream()
+    if sys.stderr is None:
+        sys.stderr = _NullStream()
+
     for stream_name in ("stdout", "stderr"):
         stream = getattr(sys, stream_name, None)
         reconfigure = getattr(stream, "reconfigure", None)
@@ -25,6 +76,37 @@ def _configure_stdio() -> None:
                 reconfigure(encoding="utf-8", errors="replace")
             except Exception:
                 pass
+
+
+def should_launch_gui(
+    argv: Sequence[str],
+    *,
+    default_reload: bool = False,
+    platform: str | None = None,
+    environ: dict[str, str] | os._Environ[str] | None = None,
+) -> bool:
+    """Decide whether to start the desktop GUI/tray controller or headless CLI server."""
+    args_list = list(argv)
+    env = environ if environ is not None else os.environ
+    plat = platform or sys.platform
+
+    if _has_flag(args_list, ("-h", "--help", "--version")):
+        return False
+    if _has_flag(args_list, ("--gui", "--tray", "--minimized")):
+        return True
+    if _has_flag(args_list, ("--headless", "--cli")):
+        return False
+    if _has_flag(args_list, ("--host", "--port", "--data-dir", "--reload", "--no-reload")):
+        return False
+    if default_reload:
+        return False
+
+    if env.get("CI") or env.get("GITHUB_ACTIONS"):
+        return False
+
+    if plat in {"win32", "darwin"}:
+        return True
+    return bool(env.get("DISPLAY") or env.get("WAYLAND_DISPLAY"))
 
 
 def get_local_ip() -> str:
@@ -62,7 +144,7 @@ def build_parser(default_reload: bool = False) -> argparse.ArgumentParser:
 
     parser = argparse.ArgumentParser(
         prog="wherezy",
-        description="Start the Wherezy home inventory server.",
+        description="Start the Wherezy home inventory server or desktop controller.",
     )
     parser.add_argument(
         "--host",
@@ -73,30 +155,52 @@ def build_parser(default_reload: bool = False) -> argparse.ArgumentParser:
         "--port",
         type=int,
         default=default_port,
-        help=f"TCP port to listen on (default: {default_port})",
+        help=f"Port to listen on (default: {default_port})",
     )
     parser.add_argument(
         "--data-dir",
         default=None,
-        help="Persistent directory for SQLite DB, photos, files, and backups.",
+        help="Directory for SQLite database and uploaded images.",
     )
     parser.add_argument(
         "--reload",
         dest="reload",
         action="store_true",
         default=default_reload,
-        help="Enable auto-reload on backend code changes (disabled in frozen binaries).",
+        help="Enable Uvicorn auto-reload (development only).",
     )
     parser.add_argument(
         "--no-reload",
         dest="reload",
         action="store_false",
-        help="Disable auto-reload.",
+        help="Disable Uvicorn auto-reload.",
     )
     parser.add_argument(
         "--open",
         action="store_true",
         help="Open the web UI in the default browser after startup.",
+    )
+    parser.add_argument(
+        "--gui",
+        action="store_true",
+        help="Launch the Wherezy desktop GUI controller with system tray / menu bar icon.",
+    )
+    parser.add_argument(
+        "--tray",
+        action="store_true",
+        help="Alias for --gui (launch desktop controller and tray/menu bar icon).",
+    )
+    parser.add_argument(
+        "--minimized",
+        action="store_true",
+        help="Start the desktop GUI controller minimized in the tray / menu bar.",
+    )
+    parser.add_argument(
+        "--headless",
+        "--cli",
+        dest="headless",
+        action="store_true",
+        help="Run headless server directly in terminal without desktop GUI.",
     )
     parser.add_argument(
         "--version",
@@ -115,11 +219,30 @@ def _ensure_source_import_path() -> None:
 
 def main(argv: Sequence[str] | None = None, *, default_reload: bool = False) -> int:
     multiprocessing.freeze_support()
-    _configure_stdio()
+    raw_args = list(sys.argv[1:] if argv is None else argv)
+    _configure_stdio(raw_args)
     _ensure_source_import_path()
 
     parser = build_parser(default_reload=default_reload)
-    args = parser.parse_args(list(argv) if argv is not None else None)
+    args = parser.parse_args(raw_args)
+
+    explicit_gui = bool(args.gui or args.tray or args.minimized)
+    if should_launch_gui(raw_args, default_reload=default_reload):
+        try:
+            from backend.app.desktop.app import run_desktop_app
+
+            return run_desktop_app(
+                host=args.host if _has_flag(raw_args, ("--host",)) else None,
+                port=args.port if _has_flag(raw_args, ("--port",)) else None,
+                data_dir=args.data_dir,
+                minimized=bool(args.minimized),
+                open_browser=bool(args.open),
+            )
+        except Exception as exc:
+            if explicit_gui:
+                raise
+            print(f"Desktop GUI unavailable ({exc}); falling back to headless CLI mode.")
+
     apply_cli_env(args)
 
     from backend.app.core import config as app_config

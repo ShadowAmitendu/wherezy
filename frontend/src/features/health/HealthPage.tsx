@@ -33,6 +33,7 @@ import PhotoCameraOutlinedIcon from "@mui/icons-material/PhotoCameraOutlined";
 import EventBusyOutlinedIcon from "@mui/icons-material/EventBusyOutlined";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { PageHeader } from "../../components/shared/PageHeader";
+import { useUndo, useOnUndoRefresh } from "../../components/shared/UndoContext";
 import ContentCopyOutlinedIcon from "@mui/icons-material/ContentCopyOutlined";
 import MoveToInboxOutlinedIcon from "@mui/icons-material/MoveToInboxOutlined";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
@@ -48,6 +49,7 @@ import { formatItemCode } from "../items/itemCodeUtils";
 type HealthCheckKey = "no_location" | "no_photo" | "long_expired" | "duplicate" | "stale_inbox";
 
 export const HealthPage: React.FC = () => {
+  const { showUndo } = useUndo();
   const [activeTab, setActiveTab] = useState<HealthCheckKey>("no_location");
   const [counts, setCounts] = useState<Record<string, number>>({
     no_location: 0,
@@ -129,10 +131,22 @@ export const HealthPage: React.FC = () => {
     setActiveTab(key);
   };
 
+  useOnUndoRefresh(() => {
+    void loadData();
+  });
+
   const handleIgnore = async (itemId: number, otherItemId?: number) => {
+    const checkKey = activeTab;
+    const itemName = items.find((it) => it.id === itemId)?.name;
     try {
-      await api.ignoreHealthFinding(activeTab, itemId, otherItemId);
+      await api.ignoreHealthFinding(checkKey, itemId, otherItemId);
       loadData();
+      showUndo({
+        message: itemName ? `Ignored finding for "${itemName}"` : "Ignored health finding",
+        onUndo: async () => {
+          await api.unignoreHealthFinding(checkKey, itemId, otherItemId);
+        },
+      });
     } catch (err: any) {
       setErrorMsg(err.error?.message || "Failed to ignore finding");
     }
@@ -140,10 +154,19 @@ export const HealthPage: React.FC = () => {
 
   const handleSaveMove = async () => {
     if (!moveItem) return;
+    const target = moveItem;
     try {
-      await api.moveItem(moveItem.id, newLocId);
+      const existing = await api.getItem(target.id).catch(() => null);
+      const prevLocationId = existing?.location_id ?? null;
+      await api.moveItem(target.id, newLocId);
       setMoveItem(null);
       loadData();
+      showUndo({
+        message: `Moved "${target.name}"`,
+        onUndo: async () => {
+          await api.moveItem(target.id, prevLocationId);
+        },
+      });
     } catch (err: any) {
       setErrorMsg(err.error?.message || "Failed to move item");
     }
@@ -151,15 +174,22 @@ export const HealthPage: React.FC = () => {
 
   const handleSaveRetire = async () => {
     if (!retireItem) return;
+    const target = retireItem;
     try {
       await api.retireItem(
-        retireItem.id,
+        target.id,
         retireReason,
         retireDate,
         retireNote.trim() || undefined
       );
       setRetireItem(null);
       loadData();
+      showUndo({
+        message: `Retired "${target.name}"`,
+        onUndo: async () => {
+          await api.unretireItem(target.id);
+        },
+      });
     } catch (err: any) {
       setErrorMsg(err.error?.message || "Failed to retire item");
     }

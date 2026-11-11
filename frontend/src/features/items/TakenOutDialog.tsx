@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import { Add as AddIcon, Remove as RemoveIcon } from "@mui/icons-material";
 import { api, ApiException } from "../../api/client";
+import { useUndo } from "../../components/shared/UndoContext";
 import {
   clampTakenOutQuantity,
   getItemQuantity,
@@ -52,10 +53,13 @@ function TakenOutDialogBody({ item, onClose, onSaved }: TakenOutDialogBodyProps)
   const [takenBy, setTakenBy] = useState<string>(item.taken_by || "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { showUndo } = useUndo();
 
   const availableAfterSave = Math.max(0, total - outQty);
 
   const handleSave = async () => {
+    const prevQty = initialOut;
+    const prevTakenBy = item.taken_by ?? null;
     setSaving(true);
     setError(null);
     try {
@@ -65,6 +69,18 @@ function TakenOutDialogBody({ item, onClose, onSaved }: TakenOutDialogBodyProps)
         taken_by: clamped > 0 ? takenBy.trim() || null : null,
       });
       await onSaved();
+      showUndo({
+        message:
+          clamped === 0
+            ? `Returned all units of "${item.name}"`
+            : `Updated taken-out (${clamped}/${total}) for "${item.name}"`,
+        onUndo: async () => {
+          await api.toggleTaken(item.id, {
+            taken_out_quantity: prevQty,
+            taken_by: prevTakenBy,
+          });
+        },
+      });
       onClose();
     } catch (err) {
       if (err instanceof ApiException) {

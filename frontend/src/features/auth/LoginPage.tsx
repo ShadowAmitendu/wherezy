@@ -20,6 +20,7 @@ import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
 import { useAuth } from "../../auth/useAuth";
+import { getSafeRedirectTarget } from "../../auth/permissions";
 import { ApiException } from "../../api/client";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
@@ -36,7 +37,7 @@ export const LoginPage: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const from = (location.state as any)?.from?.pathname || "/";
+  const from = getSafeRedirectTarget(location.state);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

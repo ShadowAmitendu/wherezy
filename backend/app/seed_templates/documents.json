@@ -10,15 +10,25 @@
       "label": "Document type",
       "type": "dropdown",
       "options": [
-        "ID",
-        "Certificate",
-        "Warranty",
-        "Bill/Receipt",
-        "Insurance",
-        "Agreement",
-        "Medical",
+        "ID (Aadhaar / PAN / Voter)",
+        "Passport / Visa",
+        "Property Deed / Rent Agreement",
+        "Vehicle RC / PUC / Insurance",
+        "Bank / FD / Tax (ITR)",
+        "Education / Degree Certificate",
+        "Insurance / Mediclaim",
+        "Warranty / AMC",
+        "Bill / GST Receipt",
+        "Medical Record",
         "Other"
       ],
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Holder / Family member",
+      "type": "text",
       "required": false,
       "show_in_list": true,
       "hint": ""

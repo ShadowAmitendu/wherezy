@@ -11,15 +11,17 @@
       "type": "dropdown",
       "required": true,
       "options": [
-        "Grains & Pasta",
-        "Flour & Baking",
-        "Pulses & Beans",
-        "Spices & Herbs",
-        "Oils & Sauces",
-        "Tea & Coffee",
-        "Canned & Jarred",
-        "Snacks & Nuts",
-        "Breakfast",
+        "Atta, Rice & Grains",
+        "Dal, Pulses & Lentils",
+        "Whole & Ground Masalas",
+        "Ghee & Cooking Oils",
+        "Pickles, Chutneys & Papad",
+        "Sugar, Jaggery & Salt",
+        "Tea, Coffee & Beverages",
+        "Dry Fruits, Nuts & Snacks",
+        "Poha, Suji & Breakfast",
+        "Baking & Flour",
+        "Canned, Sauces & Condiments",
         "Other"
       ],
       "show_in_list": true,
@@ -41,13 +43,15 @@
       "hint": ""
     },
     {
-      "label": "Seal status",
+      "label": "Container / Seal status",
       "type": "dropdown",
       "required": false,
       "options": [
-        "Unopened",
-        "Opened",
-        "Running low"
+        "Unopened Packet",
+        "In Steel Dabba",
+        "In Masala Box",
+        "Opened Pouch / Jar",
+        "Running Low"
       ],
       "show_in_list": true,
       "hint": ""

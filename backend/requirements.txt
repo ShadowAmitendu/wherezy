@@ -10,3 +10,5 @@ pytest==9.2.0
 httpx==0.28.1
 bcrypt==5.0.0
 openpyxl==3.1.5
+pystray==0.19.5
+pyobjc-framework-Cocoa>=10.0; sys_platform == "darwin"

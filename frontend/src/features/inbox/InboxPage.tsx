@@ -42,6 +42,7 @@ import { AiItemSuggestion, api, ApiException } from "../../api/client";
 import { AiCapturePanel } from "../../components/shared/AiCapturePanel";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { PageHeader } from "../../components/shared/PageHeader";
+import { useUndo, useOnUndoRefresh } from "../../components/shared/UndoContext";
 import { PhotoCaptureButtons } from "../../components/shared/PhotoCaptureButtons";
 import { useAiMediaRecorder } from "../../components/shared/useAiMediaRecorder";
 import { DynamicFields } from "../forms/DynamicFields";
@@ -52,6 +53,7 @@ import { LocationPicker } from "../locations/LocationPicker";
 export const InboxPage: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const { showUndo } = useUndo();
   const [inboxItems, setInboxItems] = useState<any[]>([]);
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -326,6 +328,10 @@ export const InboxPage: React.FC = () => {
       return;
     }
 
+    const prevName = item.name;
+    const prevLocationId = item.location_id ?? null;
+    const prevQty = Math.max(1, Number(item.quantity || 1));
+
     setQuickSavingId(item.id);
     setErrorMsg(null);
     try {
@@ -344,6 +350,17 @@ export const InboxPage: React.FC = () => {
         return next;
       });
       await loadData();
+      showUndo({
+        message: `Sorted "${itemName}" into inventory`,
+        onUndo: async () => {
+          await api.unsortInboxItem(item.id, {
+            name: prevName,
+            location_id: prevLocationId,
+            quantity: prevQty,
+            values: {},
+          });
+        },
+      });
     } catch (err: any) {
       setErrorMsg(
         err instanceof ApiException ? err.error.message : err.message || "Failed to quick-save item"
@@ -352,6 +369,10 @@ export const InboxPage: React.FC = () => {
       setQuickSavingId(null);
     }
   };
+
+  useOnUndoRefresh(() => {
+    void loadData();
+  });
 
   const handleSaveSort = async () => {
     if (!sortingItem || !sortCatId || !sortName.trim()) {
@@ -364,9 +385,15 @@ export const InboxPage: React.FC = () => {
       return;
     }
 
+    const targetId = sortingItem.id;
+    const nextName = sortName.trim();
+    const prevName = sortingItem.name;
+    const prevLocationId = sortingItem.location_id ?? null;
+    const prevQty = Math.max(1, Number(sortingItem.quantity || 1));
+
     try {
-      await api.sortInboxItem(sortingItem.id, {
-        name: sortName.trim(),
+      await api.sortInboxItem(targetId, {
+        name: nextName,
         category_id: Number(sortCatId),
         location_id: sortLocId,
         quantity: parsedQty,
@@ -376,17 +403,29 @@ export const InboxPage: React.FC = () => {
       });
       setAiSuggestions((prev) => {
         const next = { ...prev };
-        delete next[sortingItem.id];
+        delete next[targetId];
         return next;
       });
       handleCloseSort();
       await loadData();
+      showUndo({
+        message: `Sorted "${nextName}" into inventory`,
+        onUndo: async () => {
+          await api.unsortInboxItem(targetId, {
+            name: prevName,
+            location_id: prevLocationId,
+            quantity: prevQty,
+            values: {},
+          });
+        },
+      });
     } catch (err: any) {
       setErrorMsg(err instanceof ApiException ? err.error.message : err.message || "Failed to sort item");
     }
   };
 
   const handleDiscard = async (itemId: number) => {
+    const targetName = inboxItems.find((it) => it.id === itemId)?.name || "inbox item";
     try {
       await api.deleteInboxItem(itemId);
       setAiSuggestions((prev) => {
@@ -395,6 +434,12 @@ export const InboxPage: React.FC = () => {
         return next;
       });
       await loadData();
+      showUndo({
+        message: `Discarded "${targetName}"`,
+        onUndo: async () => {
+          await api.restoreItem(itemId);
+        },
+      });
     } catch (err) {
       console.error(err);
     }

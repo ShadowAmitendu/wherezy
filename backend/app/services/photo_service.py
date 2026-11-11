@@ -1,4 +1,5 @@
 import os
+import shutil
 import uuid
 from pathlib import Path
 from typing import Tuple
@@ -104,3 +105,10 @@ def delete_photo_files(owner_type: str, owner_id: int, file_name: str, thumb_nam
             tp.unlink()
         except OSError:
             pass
+
+
+def delete_owner_photo_dir(owner_type: str, owner_id: int) -> None:
+    """Best-effort removal of an entire owner's photo directory (e.g. deleted profile)."""
+    owner_dir = PHOTOS_DIR / owner_type / str(owner_id)
+    if owner_dir.exists():
+        shutil.rmtree(owner_dir, ignore_errors=True)

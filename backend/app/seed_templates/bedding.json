@@ -1,0 +1,78 @@
+{
+  "name": "Bedding, Linens & Guest Comfort",
+  "slug": "bedding",
+  "icon": "kingbed",
+  "color": "#5e35b1",
+  "track_expiry": false,
+  "expiry_label": "Expiry date",
+  "fields": [
+    {
+      "label": "Item type",
+      "type": "dropdown",
+      "required": true,
+      "options": [
+        "Bedsheet & Pillow Cover Set",
+        "Heavy Quilt / Razai / Blanket",
+        "Summer Dohar / AC Comforter",
+        "Foldable Guest Mattress (Gadda)",
+        "Pillow / Cushion / Bolster (Masand)",
+        "Curtain / Drapery Panel",
+        "Bath / Hand Towel Set",
+        "Sofa Throw / Diwan Set / Tablecloth",
+        "Mattress Protector / Fit Sheet",
+        "Other"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Size",
+      "type": "dropdown",
+      "required": false,
+      "options": [
+        "Single",
+        "Double / Queen",
+        "King",
+        "Diwan Set",
+        "Standard / Free Size"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Season / Use",
+      "type": "dropdown",
+      "required": false,
+      "options": [
+        "Daily Cotton / Summer",
+        "Winter Heavy Warmth",
+        "Guest Reserve Pack",
+        "Festive / Drawing Room",
+        "Monsoon Quick-Dry"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Material / Thread count",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": "e.g. Jaipuri cotton 300 TC, Mink fleece"
+    },
+    {
+      "label": "Washed & sealed for storage",
+      "type": "checkbox",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    },
+    {
+      "label": "Notes",
+      "type": "longtext",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    }
+  ]
+}

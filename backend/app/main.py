@@ -36,6 +36,28 @@ async def custom_http_exception_handler(request: Request, exc: HTTPException):
         content={"error": {"code": "HTTP_ERROR", "message": str(exc.detail)}}
     )
 
+@app.middleware("http")
+async def desktop_pause_middleware(request: Request, call_next):
+    from starlette.responses import HTMLResponse
+    from backend.app.core.runtime_state import (
+        build_paused_html,
+        get_pause_reason,
+        is_server_paused,
+    )
+
+    if is_server_paused():
+        reason = get_pause_reason()
+        headers = {"Cache-Control": "no-store", "Retry-After": "5"}
+        if request.url.path.startswith("/api"):
+            return JSONResponse(
+                status_code=503,
+                headers=headers,
+                content={"error": {"code": "SERVER_PAUSED", "message": reason}},
+            )
+        return HTMLResponse(content=build_paused_html(reason), status_code=503, headers=headers)
+    return await call_next(request)
+
+
 # CORS for Vite dev server proxying/testing
 app.add_middleware(
     CORSMiddleware,

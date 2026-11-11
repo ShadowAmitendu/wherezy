@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { api, type ProfileOut } from "../api/client";
+import { api, setUnauthorizedHandler, type ProfileOut } from "../api/client";
 import { UpdatePasswordDialog } from "../features/auth/UpdatePasswordDialog";
 import { AuthContext } from "./useAuth";
 
@@ -55,6 +55,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       active = false;
     };
   }, [applyAuthStatus]);
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      setAuthenticated(false);
+      setCurrentProfile(null);
+    });
+    return () => {
+      setUnauthorizedHandler(null);
+    };
+  }, []);
 
   const login = async (usernameOrPin: string, password?: string) => {
     try {

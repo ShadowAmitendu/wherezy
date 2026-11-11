@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Box,
   Typography,
@@ -24,6 +24,8 @@ export const NetflixProfileCard: React.FC<NetflixProfileCardProps> = ({
   onClick,
 }) => {
   const profileColor = profile.color || "#486B85";
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const showPhoto = Boolean(profile.avatar_url) && failedUrl !== profile.avatar_url;
 
   return (
     <Grow in={!loading} timeout={300 + index * 80}>
@@ -66,11 +68,28 @@ export const NetflixProfileCard: React.FC<NetflixProfileCardProps> = ({
             },
           }}
         >
-          <AccountIcon
-            icon={profile.avatar_emoji}
-            name={profile.name}
-            sx={{ fontSize: { xs: 44, sm: 60 }, color: "#ffffff" }}
-          />
+          {showPhoto && profile.avatar_url ? (
+            <Box
+              component="img"
+              src={profile.avatar_url}
+              alt={`${profile.name} profile picture`}
+              onError={() => {
+                if (profile.avatar_url) setFailedUrl(profile.avatar_url);
+              }}
+              sx={{
+                width: "100%",
+                height: "100%",
+                objectFit: "cover",
+                display: "block",
+              }}
+            />
+          ) : (
+            <AccountIcon
+              icon={profile.avatar_emoji}
+              name={profile.name}
+              sx={{ fontSize: { xs: 44, sm: 60 }, color: "#ffffff" }}
+            />
+          )}
 
           {profile.has_pin && (
             <Box
@@ -78,6 +97,7 @@ export const NetflixProfileCard: React.FC<NetflixProfileCardProps> = ({
                 position: "absolute",
                 bottom: 8,
                 right: 8,
+                zIndex: 1,
                 bgcolor: "rgba(0,0,0,0.65)",
                 borderRadius: "50%",
                 p: 0.5,

@@ -1,0 +1,82 @@
+{
+  "name": "Puja Mandir & Samagri",
+  "slug": "puja",
+  "icon": "templehindu",
+  "color": "#d84315",
+  "track_expiry": true,
+  "expiry_label": "Refill / Best before",
+  "fields": [
+    {
+      "label": "Item category",
+      "type": "dropdown",
+      "required": true,
+      "options": [
+        "Idol / Murti / Photo Frame",
+        "Aarti Thali, Diya, Bell & Kalash",
+        "Agarbatti, Dhoop & Loban",
+        "Camphor (Kapoor) & Cotton Wicks (Batti)",
+        "Kumkum, Haldi, Chandan & Vibhuti",
+        "Til Oil, Ghee, Attar & Gangajal",
+        "Samagridaan / Panchapatra & Lota",
+        "Asan, Chunri & Mandir Cloth",
+        "Havan Samagri & Sacred Herbs",
+        "Scripture / Aarti / Panchang Book",
+        "Other"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Material",
+      "type": "dropdown",
+      "required": false,
+      "options": [
+        "Brass",
+        "Copper",
+        "Silver / Silver-Plated",
+        "Panchdhatu",
+        "Marble / Stone",
+        "Wood / Earthenware",
+        "Textile / Silk",
+        "Consumable Samagri"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Usage & stock status",
+      "type": "dropdown",
+      "required": false,
+      "options": [
+        "Daily Mandir Use",
+        "Well Stocked",
+        "Running Low",
+        "Festival / Special Puja Only",
+        "Heirloom / Keep Safe"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Deity / Occasion",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": "e.g. Daily Nitya Puja, Satyanarayan, Navratri"
+    },
+    {
+      "label": "Care / Polish note",
+      "type": "text",
+      "required": false,
+      "show_in_list": false,
+      "hint": "e.g. Polish with Pitambari before packing"
+    },
+    {
+      "label": "Notes",
+      "type": "longtext",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    }
+  ]
+}

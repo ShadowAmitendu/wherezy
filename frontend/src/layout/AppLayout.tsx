@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation, Outlet } from "react-router-dom";
 import {
   Box,
@@ -15,7 +15,6 @@ import {
   Badge,
   Menu,
   MenuItem,
-  Avatar,
   Button,
   Divider,
   Paper,
@@ -44,9 +43,11 @@ import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import SearchIcon from "@mui/icons-material/Search";
 import { useAppTheme, THEME_PRESETS, ThemePreset } from "../theme/themeConstants";
 import { useAuth } from "../auth/useAuth";
-import { AccountIcon } from "../components/shared/AccountIcon";
+import { hasPermission } from "../auth/permissions";
+import { ProfileAvatar } from "../components/shared/ProfileAvatar";
 import { CommandPalette } from "../features/palette/CommandPalette";
 import { SidebarNav } from "./SidebarNav";
+import { useOnUndoRefresh } from "../components/shared/UndoContext";
 import { api } from "../api/client";
 
 const DRAWER_WIDTH = 220;
@@ -106,17 +107,33 @@ export const AppLayout: React.FC = () => {
 
   const currentProfile = authProfile;
 
+  const fetchRemindersCount = useCallback(async () => {
+    try {
+      const remCount = await api.getRemindersCount().catch(() => ({ total: 0 }));
+      if (remCount) setRemindersCount(remCount.total || 0);
+    } catch (err) {
+      console.error(err);
+    }
+  }, []);
+
   useEffect(() => {
-    const fetchRemindersCount = async () => {
-      try {
-        const remCount = await api.getRemindersCount().catch(() => ({ total: 0 }));
-        if (remCount) setRemindersCount(remCount.total || 0);
-      } catch (err) {
-        console.error(err);
-      }
+    let active = true;
+    api
+      .getRemindersCount()
+      .catch(() => ({ total: 0 }))
+      .then((remCount) => {
+        if (active && remCount) {
+          setRemindersCount(remCount.total || 0);
+        }
+      });
+    return () => {
+      active = false;
     };
-    fetchRemindersCount();
   }, [location.pathname]);
+
+  useOnUndoRefresh(() => {
+    void fetchRemindersCount();
+  });
 
   // Global Ctrl+K / Cmd+K listener
   useEffect(() => {
@@ -142,7 +159,7 @@ export const AppLayout: React.FC = () => {
     }
   };
 
-  const isUserAdminOrCoAdmin = currentProfile?.role === "admin" || currentProfile?.role === "co_admin";
+  const isUserAdminOrCoAdmin = hasPermission(currentProfile, "profiles:write");
 
   const handleNavSelect = (path: string) => {
     navigate(path);
@@ -475,20 +492,14 @@ export const AppLayout: React.FC = () => {
                     aria-expanded={profileAnchorEl ? "true" : undefined}
                     sx={{ p: 0.5 }}
                   >
-                    <Avatar
-                      sx={{
-                        width: isMobile ? 28 : 32,
-                        height: isMobile ? 28 : 32,
-                        bgcolor: currentProfile.color || "primary.main",
-                      }}
-                    >
-                      <AccountIcon
-                        icon={currentProfile.avatar_emoji}
-                        name={currentProfile.name}
-                        fontSize="small"
-                        sx={{ color: "#ffffff" }}
-                      />
-                    </Avatar>
+                    <ProfileAvatar
+                      name={currentProfile.name}
+                      color={currentProfile.color}
+                      avatarEmoji={currentProfile.avatar_emoji}
+                      avatarUrl={currentProfile.avatar_url}
+                      size={isMobile ? 28 : 32}
+                      iconFontSize="small"
+                    />
                   </IconButton>
                 </Tooltip>
 

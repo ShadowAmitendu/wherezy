@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -30,6 +30,7 @@ import { renderMuiIcon } from "../../components/shared/iconUtils";
 import { LocationIcon } from "../locations/LocationIcon";
 import { api } from "../../api/client";
 import { formatTakenOutStatusLabel, getItemQuantity } from "../items/quantityUtils";
+import { useOnUndoRefresh } from "../../components/shared/UndoContext";
 
 const sectionTitleSx = {
   fontWeight: 700,
@@ -51,6 +52,17 @@ export const DashboardPage: React.FC = () => {
   const [data, setData] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const loadDashboard = useCallback(async () => {
+    try {
+      const res = await api.getDashboard();
+      setData(res);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let active = true;
     api
@@ -68,6 +80,10 @@ export const DashboardPage: React.FC = () => {
       active = false;
     };
   }, []);
+
+  useOnUndoRefresh(() => {
+    void loadDashboard();
+  });
 
   if (!data && !isLoading) return null;
 

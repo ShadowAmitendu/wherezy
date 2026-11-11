@@ -8,6 +8,7 @@ import {
   Typography,
 } from "@mui/material";
 import { LocationPicker } from "../locations/LocationPicker";
+import { useUndo } from "../../components/shared/UndoContext";
 import { api } from "../../api/client";
 
 interface BulkMoveDialogProps {
@@ -25,13 +26,24 @@ export const BulkMoveDialog: React.FC<BulkMoveDialogProps> = ({
 }) => {
   const [selectedLoc, setSelectedLoc] = useState<number | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { showUndo } = useUndo();
 
   const handleBulkMove = async () => {
     if (itemIds.length === 0) return;
     setIsSubmitting(true);
     try {
-      await api.bulkMove(itemIds, selectedLoc);
+      const res = await api.bulkMove(itemIds, selectedLoc);
       onMoved();
+      if (res.batch_id) {
+        const batchId = res.batch_id;
+        const count = res.moved_count;
+        showUndo({
+          message: `Moved ${count} ${count === 1 ? "item" : "items"}`,
+          onUndo: async () => {
+            await api.undoBatch(batchId);
+          },
+        });
+      }
       onClose();
     } catch (err) {
       console.error(err);

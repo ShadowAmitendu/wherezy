@@ -19,6 +19,7 @@ import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import ZoomInOutlinedIcon from "@mui/icons-material/ZoomInOutlined";
 import { api, ApiException } from "../../api/client";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
+import { useUndo, useOnUndoRefresh } from "../../components/shared/UndoContext";
 
 export interface Photo {
   id: number;
@@ -57,6 +58,7 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
 
   // Delete state
   const [deleteTarget, setDeleteTarget] = useState<Photo | null>(null);
+  const { showUndo } = useUndo();
 
   const loadPhotos = useCallback(async () => {
     if (!ownerId) return;
@@ -123,13 +125,27 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
   };
 
   const handleSetCover = async (photoId: number) => {
+    const prevCover = photos.find((p) => p.is_cover && p.id !== photoId);
     try {
       await api.setCoverPhoto(photoId);
       await loadPhotos();
+      if (prevCover) {
+        const prevCoverId = prevCover.id;
+        showUndo({
+          message: "Changed cover photo",
+          onUndo: async () => {
+            await api.setCoverPhoto(prevCoverId);
+          },
+        });
+      }
     } catch (err) {
       console.error(err);
     }
   };
+
+  useOnUndoRefresh(() => {
+    void loadPhotos();
+  });
 
   const handleDeletePhoto = async () => {
     if (!deleteTarget) return;

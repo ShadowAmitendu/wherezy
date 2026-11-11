@@ -1,0 +1,69 @@
+{
+  "name": "Monsoon & Seasonal Protection",
+  "slug": "monsoon_seasonal",
+  "icon": "umbrella",
+  "color": "#0277bd",
+  "track_expiry": true,
+  "expiry_label": "Refill / Inspect before",
+  "fields": [
+    {
+      "label": "Season",
+      "type": "multiselect",
+      "required": true,
+      "options": [
+        "Monsoon (Rain & Damp)",
+        "Summer (Heat & Cooling)",
+        "Winter (Warmth)",
+        "Year-Round"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Item type",
+      "type": "dropdown",
+      "required": true,
+      "options": [
+        "Umbrella (Compact / Long)",
+        "Raincoat / Windcheater / Bag Cover",
+        "Waterproof Footwear / Gumboots",
+        "Mosquito Net / Electric Racket / Liquidator",
+        "Silica Gel / Dehumidifier / Moisture Absorber",
+        "Tarpaulin / Outdoor & AC Cover",
+        "Room Heater / Blower / Hot Water Bag",
+        "Cooler Pads / Submersible Pump",
+        "Insulated Flask / Thermos",
+        "Other"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Member / Size",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": "e.g. Kids M, Queen Bed Net, UK 8"
+    },
+    {
+      "label": "Condition",
+      "type": "dropdown",
+      "required": false,
+      "options": [
+        "Dry & Ready",
+        "Needs Drying / Airing",
+        "Refill / Replacement Needed",
+        "Needs Repair"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Storage & damp-proofing notes",
+      "type": "longtext",
+      "required": false,
+      "show_in_list": false,
+      "hint": ""
+    }
+  ]
+}

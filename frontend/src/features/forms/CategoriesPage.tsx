@@ -29,6 +29,8 @@ import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { IconPicker } from "../../components/shared/IconPicker";
 import { renderMuiIcon } from "../../components/shared/iconUtils";
 import { AlertDialog } from "../../components/shared/AlertDialog";
+import { useUndo, useOnUndoRefresh } from "../../components/shared/UndoContext";
+import { useAuth } from "../../auth/useAuth";
 import { ColorSwatchPicker } from "../../components/shared/ColorSwatchPicker";
 import { AICategoryDialog } from "./AICategoryDialog";
 import { CategoryCard } from "./CategoryCard";
@@ -39,6 +41,8 @@ export const CategoriesPage: React.FC = () => {
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const { currentProfile } = useAuth();
+  const { showUndo } = useUndo();
   const [categories, setCategories] = useState<Category[]>([]);
   const [templates, setTemplates] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -129,21 +133,43 @@ export const CategoriesPage: React.FC = () => {
     setErrorMsg(null);
     try {
       if (editingCategory) {
-        await api.updateCategory(editingCategory.id, {
+        const editedId = editingCategory.id;
+        const prevSnapshot = {
+          name: editingCategory.name,
+          icon: editingCategory.icon,
+          color: editingCategory.color,
+          track_expiry: editingCategory.track_expiry,
+          expiry_label: editingCategory.expiry_label || null,
+        };
+        const updated = await api.updateCategory(editedId, {
           name: name.trim(),
           icon,
           color,
           track_expiry: trackExpiry,
           expiry_label: expiryLabel.trim() || null,
+        });
+        showUndo({
+          message: `Updated category "${updated.name}"`,
+          onUndo: async () => {
+            await api.updateCategory(editedId, prevSnapshot);
+          },
         });
       } else {
-        await api.createCategory({
+        const created = await api.createCategory({
           name: name.trim(),
           icon,
           color,
           track_expiry: trackExpiry,
           expiry_label: expiryLabel.trim() || null,
         });
+        if (created?.id) {
+          showUndo({
+            message: `Created category "${created.name}"`,
+            onUndo: async () => {
+              await api.deleteCategory(created.id);
+            },
+          });
+        }
       }
       setCategoryDialogOpen(false);
       await loadCategories();
@@ -153,6 +179,10 @@ export const CategoriesPage: React.FC = () => {
       setIsSubmitting(false);
     }
   };
+
+  useOnUndoRefresh(() => {
+    void loadCategories();
+  });
 
   const closeTemplateDialog = () => {
     setTemplateDialogOpen(false);
@@ -165,6 +195,14 @@ export const CategoriesPage: React.FC = () => {
       const created = await api.applyTemplate(slug);
       closeTemplateDialog();
       await loadCategories();
+      if (created?.id) {
+        showUndo({
+          message: `Created "${created.name}" from template`,
+          onUndo: async () => {
+            await api.deleteCategory(created.id);
+          },
+        });
+      }
       navigate(`/categories/${created.id}`);
     } catch (err: any) {
       console.error(err);
@@ -175,10 +213,20 @@ export const CategoriesPage: React.FC = () => {
 
   const handleDeleteCategory = async () => {
     if (!deleteTarget) return;
+    const deletedId = deleteTarget.id;
+    const deletedName = deleteTarget.name;
     try {
-      await api.deleteCategory(deleteTarget.id);
+      await api.deleteCategory(deletedId);
       setDeleteTarget(null);
       await loadCategories();
+      if (currentProfile?.role === "admin") {
+        showUndo({
+          message: `Deleted category "${deletedName}"`,
+          onUndo: async () => {
+            await api.restoreTrash("category", deletedId);
+          },
+        });
+      }
     } catch (err: any) {
       if (err instanceof ApiException) {
         setDeleteError(err.error.message);
@@ -233,7 +281,7 @@ export const CategoriesPage: React.FC = () => {
       {categories.length === 0 && !isLoading ? (
         <EmptyState
           title="No Categories Yet"
-          description="Create your first category from 20 ready-made starter templates, generate one with AI, or start from scratch!"
+          description={`Create your first category from ${Math.max(templates.filter((t) => t.slug !== "blank").length, 27)} ready-made starter templates, generate one with AI, or start from scratch!`}
           actionLabel="Start from Template"
           onAction={() => setTemplateDialogOpen(true)}
         />
@@ -272,7 +320,7 @@ export const CategoriesPage: React.FC = () => {
           <TextField
             size="small"
             fullWidth
-            placeholder="Search templates (e.g. Pantry, Electronics, Tools, First Aid)..."
+            placeholder="Search templates (e.g. Festivals, Puja, Pantry, Sarees, Inverter)..."
             value={templateSearch}
             onChange={(e) => setTemplateSearch(e.target.value)}
             sx={{ mb: 2 }}

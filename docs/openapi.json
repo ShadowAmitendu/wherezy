@@ -156,6 +156,48 @@
         }
       }
     },
+    "/api/health/unignore": {
+      "post": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Unignore Health Finding",
+        "description": "Remove an ignore record matching check_key, item_id, and other_item_id.",
+        "operationId": "unignore_health_finding_api_health_unignore_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HealthIgnoreRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/status": {
       "get": {
         "tags": [
@@ -552,6 +594,211 @@
         }
       }
     },
+    "/api/profiles/me/avatar": {
+      "post": {
+        "tags": [
+          "Profiles"
+        ],
+        "summary": "Upload My Avatar",
+        "description": "Upload or replace the signed-in user's own profile picture.",
+        "operationId": "upload_my_avatar_api_profiles_me_avatar_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_my_avatar_api_profiles_me_avatar_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Profiles"
+        ],
+        "summary": "Remove My Avatar",
+        "description": "Remove the signed-in user's own uploaded profile picture.",
+        "operationId": "remove_my_avatar_api_profiles_me_avatar_delete",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/profiles/{profile_id}/avatar": {
+      "get": {
+        "tags": [
+          "Profiles"
+        ],
+        "summary": "Get Profile Avatar",
+        "description": "Serve an uploaded profile picture (public for active picker profiles; restricted for inactive).",
+        "operationId": "get_profile_avatar_api_profiles__profile_id__avatar_get",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Profile Id"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "thumb",
+              "title": "Size"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Profiles"
+        ],
+        "summary": "Upload Profile Avatar",
+        "description": "Admin or Co-Admin uploads/replaces a user's profile picture.",
+        "operationId": "upload_profile_avatar_api_profiles__profile_id__avatar_post",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Profile Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_profile_avatar_api_profiles__profile_id__avatar_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Profiles"
+        ],
+        "summary": "Remove Profile Avatar",
+        "description": "Admin or Co-Admin removes a user's uploaded profile picture.",
+        "operationId": "remove_profile_avatar_api_profiles__profile_id__avatar_delete",
+        "parameters": [
+          {
+            "name": "profile_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Profile Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/profiles/{profile_id}/prefs": {
       "put": {
         "tags": [
@@ -661,9 +908,9 @@
         "tags": [
           "Profiles"
         ],
-        "summary": "Deactivate Profile",
-        "description": "Deactivate profile (profiles with history are never deleted to preserve actor names).",
-        "operationId": "deactivate_profile_api_profiles__profile_id__delete",
+        "summary": "Delete Profile",
+        "description": "Permanently delete a user profile (preserves inventory records & borrower names; blocks last admin and self).",
+        "operationId": "delete_profile_api_profiles__profile_id__delete",
         "parameters": [
           {
             "name": "profile_id",
@@ -1626,6 +1873,48 @@
         }
       }
     },
+    "/api/reminders/restore": {
+      "post": {
+        "tags": [
+          "Reminders"
+        ],
+        "summary": "Restore Reminder",
+        "description": "Restore a reminder back to its previous snoozed/dismissed/active state.",
+        "operationId": "restore_reminder_api_reminders_restore_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReminderRestoreRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/admin/webhook-test": {
       "post": {
         "tags": [
@@ -2347,6 +2636,59 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/InboxSortRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/inbox/{item_id}/unsort": {
+      "post": {
+        "tags": [
+          "Inbox & Capture"
+        ],
+        "summary": "Unsort Inbox Item",
+        "description": "Return a recently sorted active item back to the capture inbox.",
+        "operationId": "unsort_inbox_item_api_inbox__item_id__unsort_post",
+        "parameters": [
+          {
+            "name": "item_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Item Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InboxUnsortRequest"
               }
             }
           }
@@ -3341,6 +3683,59 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/BoxUnpackRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoxUnpackResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/boxes/{box_id}/unpack/undo": {
+      "post": {
+        "tags": [
+          "Moving-House Mode"
+        ],
+        "summary": "Undo Unpack Box",
+        "description": "Restore unpacked items back into their box and undo their location move batch.",
+        "operationId": "undo_unpack_box_api_boxes__box_id__unpack_undo_post",
+        "parameters": [
+          {
+            "name": "box_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Box Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BoxUnpackUndoRequest"
               }
             }
           }
@@ -6469,6 +6864,174 @@
         }
       }
     },
+    "/api/admin/import/template": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Download Import Template",
+        "operationId": "download_import_template_api_admin_import_template_get",
+        "parameters": [
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "csv",
+                "json",
+                "xlsx"
+              ],
+              "type": "string",
+              "default": "csv",
+              "title": "Format"
+            }
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/import": {
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Import Items",
+        "operationId": "import_items_api_admin_import_post",
+        "parameters": [
+          {
+            "name": "format",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "csv",
+                    "json",
+                    "xlsx"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Format"
+            }
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category Id"
+            }
+          },
+          {
+            "name": "dry_run",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": true,
+              "title": "Dry Run"
+            }
+          },
+          {
+            "name": "location_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Location Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_items_api_admin_import_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportCsvResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/admin/import-csv": {
       "post": {
         "tags": [
@@ -8202,6 +8765,20 @@
         ],
         "title": "Body_import_csv_api_admin_import_csv_post"
       },
+      "Body_import_items_api_admin_import_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_import_items_api_admin_import_post"
+      },
       "Body_quick_capture_api_inbox_post": {
         "properties": {
           "photos": {
@@ -8296,6 +8873,20 @@
         ],
         "title": "Body_upload_attachment_api_items__item_id__attachments_post"
       },
+      "Body_upload_my_avatar_api_profiles_me_avatar_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_my_avatar_api_profiles_me_avatar_post"
+      },
       "Body_upload_photo_api_photos_post": {
         "properties": {
           "owner_type": {
@@ -8319,6 +8910,20 @@
           "file"
         ],
         "title": "Body_upload_photo_api_photos_post"
+      },
+      "Body_upload_profile_avatar_api_profiles__profile_id__avatar_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_profile_avatar_api_profiles__profile_id__avatar_post"
       },
       "BoxCreate": {
         "properties": {
@@ -8570,6 +9175,92 @@
           "location_id"
         ],
         "title": "BoxUnpackRequest"
+      },
+      "BoxUnpackResponse": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok",
+            "default": true
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "default": ""
+          },
+          "batch_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch Id"
+          },
+          "previous_status": {
+            "type": "string",
+            "enum": [
+              "packing",
+              "packed",
+              "unpacked"
+            ],
+            "title": "Previous Status",
+            "default": "packed"
+          },
+          "unpacked_item_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Unpacked Item Ids",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "BoxUnpackResponse"
+      },
+      "BoxUnpackUndoRequest": {
+        "properties": {
+          "batch_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch Id"
+          },
+          "item_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Item Ids",
+            "default": []
+          },
+          "previous_status": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "packing",
+                  "packed",
+                  "unpacked"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Previous Status"
+          }
+        },
+        "type": "object",
+        "title": "BoxUnpackUndoRequest"
       },
       "BoxUpdate": {
         "properties": {
@@ -8938,6 +9629,17 @@
           "moved_count": {
             "type": "integer",
             "title": "Moved Count"
+          },
+          "batch_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch Id"
           }
         },
         "type": "object",
@@ -10187,6 +10889,17 @@
             "type": "array",
             "title": "Errors",
             "default": []
+          },
+          "batch_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch Id"
           }
         },
         "type": "object",
@@ -10376,6 +11089,70 @@
           "category_id"
         ],
         "title": "InboxSortRequest"
+      },
+      "InboxUnsortRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "location_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Id"
+          },
+          "quantity": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000000.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quantity"
+          },
+          "values": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Values"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "expiry_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expiry Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "InboxUnsortRequest"
       },
       "ItemCreate": {
         "properties": {
@@ -12760,6 +13537,17 @@
             "type": "string",
             "title": "Avatar Emoji"
           },
+          "avatar_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Avatar Url"
+          },
           "role": {
             "type": "string",
             "enum": [
@@ -13390,6 +14178,67 @@
           "lead_days"
         ],
         "title": "ReminderOut"
+      },
+      "ReminderRestoreRequest": {
+        "properties": {
+          "source_type": {
+            "type": "string",
+            "enum": [
+              "expiry",
+              "field",
+              "loan"
+            ],
+            "title": "Source Type"
+          },
+          "item_id": {
+            "type": "integer",
+            "title": "Item Id"
+          },
+          "field_key": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field Key"
+          },
+          "due_date": {
+            "type": "string",
+            "title": "Due Date"
+          },
+          "snoozed_until": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snoozed Until"
+          },
+          "dismissed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dismissed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_type",
+          "item_id",
+          "due_date"
+        ],
+        "title": "ReminderRestoreRequest"
       },
       "ReminderSnoozeRequest": {
         "properties": {

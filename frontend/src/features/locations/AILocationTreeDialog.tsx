@@ -119,7 +119,7 @@ export interface AILocationTreeDialogProps {
   open: boolean;
   initialParentId?: number | null;
   onClose: () => void;
-  onCreated: (createdCount: number, summary?: string) => void;
+  onCreated: (createdCount: number, summary?: string, createdLocations?: Array<{ id: number; name: string }>) => void;
 }
 
 export const AILocationTreeDialog: React.FC<AILocationTreeDialogProps> = ({
@@ -203,10 +203,11 @@ export const AILocationTreeDialog: React.FC<AILocationTreeDialogProps> = ({
 
       if (autoCreate && res.created && res.created_locations.length > 0) {
         const createdCount = res.created_locations.length;
+        const createdLocs = res.created_locations;
         const summary =
           res.plan.summary || `Created ${createdCount} storage locations with AI.`;
         resetAllState();
-        onCreated(createdCount, summary);
+        onCreated(createdCount, summary, createdLocs);
       } else {
         setReviewSummary(res.plan.summary || null);
         setReviewNodes(res.plan.nodes || []);
@@ -285,8 +286,9 @@ export const AILocationTreeDialog: React.FC<AILocationTreeDialogProps> = ({
       const summary =
         reviewSummary ||
         `Created ${res.created_count} storage ${res.created_count === 1 ? "location" : "locations"}.`;
+      const createdLocs = res.locations || [];
       resetAllState();
-      onCreated(res.created_count, summary);
+      onCreated(res.created_count, summary, createdLocs);
     } catch (err: any) {
       if (err instanceof ApiException) {
         setErrorMsg(err.error.message);

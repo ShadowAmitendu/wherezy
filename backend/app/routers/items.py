@@ -493,7 +493,7 @@ def bulk_move_items(
         BulkRequest(ids=payload.item_ids, action="move", params={"location_id": payload.location_id}),
         actor=current,
     )
-    return BulkMoveResponse(ok=True, moved_count=result.changed)
+    return BulkMoveResponse(ok=True, moved_count=result.changed, batch_id=result.batch_id)
 
 
 @router.post("/items/bulk-create", response_model=BulkCreateResponse)

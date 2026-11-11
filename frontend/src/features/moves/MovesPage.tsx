@@ -32,10 +32,12 @@ import { LocationPicker } from "../locations/LocationPicker";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { PageHeader } from "../../components/shared/PageHeader";
+import { useUndo, useOnUndoRefresh } from "../../components/shared/UndoContext";
 
 export const MovesPage: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const { showUndo } = useUndo();
   const [activeMove, setActiveMove] = useState<any | null>(null);
   const [boxes, setBoxes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -185,16 +187,29 @@ export const MovesPage: React.FC = () => {
     }
   };
 
+  useOnUndoRefresh(() => {
+    void loadMoveData();
+  });
+
   const handlePackItem = async (itemId: number) => {
     if (!selectedBox) return;
+    const boxId = selectedBox.id;
+    const boxNum = selectedBox.number;
+    const packedName = searchResults.find((it: any) => it.id === itemId)?.name;
     try {
-      await api.addItemsToBox(selectedBox.id, [itemId]);
-      setSuccessMsg("Item packed into box");
+      await api.addItemsToBox(boxId, [itemId]);
       setItemQuery("");
       setSearchResults([]);
-      const updated = await api.getBox(selectedBox.id);
+      const updated = await api.getBox(boxId);
       setBoxItems(updated.items || []);
       loadMoveData();
+      showUndo({
+        message: packedName ? `Packed "${packedName}" into Box #${boxNum}` : `Packed item into Box #${boxNum}`,
+        onUndo: async () => {
+          await api.removeItemFromBox(boxId, itemId);
+          setBoxItems((prev) => prev.filter((it: any) => it.id !== itemId));
+        },
+      });
     } catch (err: any) {
       setErrorMsg(err.error?.message || "Failed to pack item");
     }
@@ -211,13 +226,22 @@ export const MovesPage: React.FC = () => {
     try {
       const b = await api.getBox(boxId);
       const itemIds = (b.items || []).map((i: any) => i.id);
-      await api.unpackBox(boxId, itemIds, b.destination_location_id || 1);
+      const res = await api.unpackBox(boxId, itemIds, b.destination_location_id || 1);
       setUnpackBoxTargetId(null);
-      setSuccessMsg("Box unpacked successfully!");
       if (selectedBox && selectedBox.id === boxId) {
         setSelectedBox(null);
       }
       loadMoveData();
+      showUndo({
+        message: `Unpacked Box #${b.number}`,
+        onUndo: async () => {
+          await api.undoUnpackBox(boxId, {
+            batch_id: res.batch_id,
+            item_ids: res.unpacked_item_ids || itemIds,
+            previous_status: res.previous_status || "packed",
+          });
+        },
+      });
     } catch (err: any) {
       setUnpackBoxTargetId(null);
       setErrorMsg(err.error?.message || "Failed to unpack box");

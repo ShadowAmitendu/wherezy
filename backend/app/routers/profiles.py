@@ -1,20 +1,88 @@
 import json
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from pathlib import Path
+from typing import List, Optional
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+from backend.app.core.config import PHOTOS_DIR
 from backend.app.core.db import get_db
 from backend.app.core.security import (
     hash_pin, verify_pin, create_session_token, is_rate_limited,
     record_failed_attempt, clear_failed_attempts, SESSION_COOKIE_NAME
 )
-from backend.app.models import Profile
+from backend.app.models import (
+    Activity,
+    Attachment,
+    Audit,
+    Category,
+    HealthIgnore,
+    Item,
+    LabelTemplate,
+    Location,
+    Move,
+    Profile,
+    ReminderState,
+    SavedFilter,
+)
 from backend.app.schemas import (
     ProfileOut, ProfileCreate, ProfileUpdate, ProfilePrefsUpdate,
     ProfileSelectRequest, SuccessResponse
 )
 from backend.app.services.permissions import require, get_current_profile
+from backend.app.services.photo_service import (
+    delete_owner_photo_dir,
+    delete_photo_files,
+    process_and_save_image,
+)
 
 router = APIRouter(prefix="/profiles", tags=["Profiles"])
+
+
+def _profile_avatar_url(p: Profile) -> Optional[str]:
+    if not p.avatar_photo_filename:
+        return None
+    return f"/api/profiles/{p.id}/avatar?v={p.avatar_photo_filename}"
+
+
+def _thumb_name_for(file_name: str) -> str:
+    return f"{Path(file_name).stem}_thumb.jpg"
+
+
+def _clear_profile_avatar_files(profile_id: int, file_name: Optional[str]) -> None:
+    if not file_name:
+        return
+    delete_photo_files("profile", profile_id, file_name, _thumb_name_for(file_name))
+
+
+def _resolve_profile_avatar_path(profile_id: int, file_name: str, prefer_thumb: bool = True) -> Path:
+    base_dir = (PHOTOS_DIR / "profile" / str(profile_id)).resolve()
+    candidates = [_thumb_name_for(file_name), file_name] if prefer_thumb else [file_name, _thumb_name_for(file_name)]
+    for candidate in candidates:
+        resolved = (base_dir / candidate).resolve()
+        if resolved.is_relative_to(base_dir) and resolved.is_file():
+            return resolved
+    raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Profile picture file not found"}})
+
+
+def _save_uploaded_profile_avatar(db: Session, prof: Profile, upload_file: UploadFile) -> ProfileOut:
+    old_file_name = prof.avatar_photo_filename
+    file_name, _, _, _, _ = process_and_save_image(upload_file, "profile", prof.id)
+    prof.avatar_photo_filename = file_name
+    db.commit()
+    db.refresh(prof)
+    if old_file_name and old_file_name != file_name:
+        _clear_profile_avatar_files(prof.id, old_file_name)
+    return _profile_to_out(prof)
+
+
+def _delete_profile_avatar(db: Session, prof: Profile) -> ProfileOut:
+    old_file_name = prof.avatar_photo_filename
+    prof.avatar_photo_filename = None
+    db.commit()
+    db.refresh(prof)
+    _clear_profile_avatar_files(prof.id, old_file_name)
+    return _profile_to_out(prof)
+
 
 def _profile_to_out(p: Profile) -> ProfileOut:
     perms = None
@@ -29,6 +97,7 @@ def _profile_to_out(p: Profile) -> ProfileOut:
         username=p.username or p.name.lower().replace(" ", ""),
         color=p.color,
         avatar_emoji=p.avatar_emoji,
+        avatar_url=_profile_avatar_url(p),
         role=p.role,
         is_active=bool(p.is_active),
         must_change_password=bool(p.must_change_password),
@@ -45,8 +114,10 @@ def _profile_to_out(p: Profile) -> ProfileOut:
     )
 
 @router.get("", response_model=List[ProfileOut])
-def list_profiles(include_inactive: bool = False, db: Session = Depends(get_db)):
+def list_profiles(request: Request, include_inactive: bool = False, db: Session = Depends(get_db)):
     """List profiles for the 'Who's using?' picker or admin settings."""
+    if include_inactive:
+        require("profiles:write")(request, db)
     q = db.query(Profile)
     if not include_inactive:
         q = q.filter(Profile.is_active == 1)
@@ -187,6 +258,87 @@ def update_my_prefs(
     db.refresh(prof)
     return _profile_to_out(prof)
 
+
+@router.post("/me/avatar", response_model=ProfileOut)
+def upload_my_avatar(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    prof: Profile = Depends(require("prefs:write_own"))
+):
+    """Upload or replace the signed-in user's own profile picture."""
+    return _save_uploaded_profile_avatar(db, prof, file)
+
+
+@router.delete("/me/avatar", response_model=ProfileOut)
+def remove_my_avatar(
+    db: Session = Depends(get_db),
+    prof: Profile = Depends(require("prefs:write_own"))
+):
+    """Remove the signed-in user's own uploaded profile picture."""
+    return _delete_profile_avatar(db, prof)
+
+
+@router.get("/{profile_id}/avatar")
+def get_profile_avatar(
+    profile_id: int,
+    request: Request,
+    size: str = Query("thumb"),
+    db: Session = Depends(get_db),
+):
+    """Serve an uploaded profile picture (public for active picker profiles; restricted for inactive)."""
+    prof = db.query(Profile).filter(Profile.id == profile_id).first()
+    if not prof or not prof.avatar_photo_filename:
+        raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Profile picture not found"}})
+
+    if not prof.is_active:
+        current = get_current_profile(request, db)
+        if not current or current.role not in ("admin", "co_admin"):
+            raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Profile picture not found"}})
+
+    file_path = _resolve_profile_avatar_path(prof.id, prof.avatar_photo_filename, prefer_thumb=(size != "full"))
+    return FileResponse(
+        str(file_path),
+        media_type="image/jpeg",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
+
+
+@router.post("/{profile_id}/avatar", response_model=ProfileOut)
+def upload_profile_avatar(
+    profile_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("profiles:write"))
+):
+    """Admin or Co-Admin uploads/replaces a user's profile picture."""
+    prof = db.query(Profile).filter(Profile.id == profile_id).first()
+    if not prof:
+        raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Profile not found"}})
+    if prof.role == "admin" and current.role != "admin" and prof.id != current.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": {"code": "FORBIDDEN", "message": "Co-Admins cannot modify Admin accounts"}}
+        )
+    return _save_uploaded_profile_avatar(db, prof, file)
+
+
+@router.delete("/{profile_id}/avatar", response_model=ProfileOut)
+def remove_profile_avatar(
+    profile_id: int,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("profiles:write"))
+):
+    """Admin or Co-Admin removes a user's uploaded profile picture."""
+    prof = db.query(Profile).filter(Profile.id == profile_id).first()
+    if not prof:
+        raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Profile not found"}})
+    if prof.role == "admin" and current.role != "admin" and prof.id != current.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": {"code": "FORBIDDEN", "message": "Co-Admins cannot modify Admin accounts"}}
+        )
+    return _delete_profile_avatar(db, prof)
+
 @router.put("/{profile_id}/prefs", response_model=ProfileOut)
 def update_other_prefs(
     profile_id: int,
@@ -282,24 +434,61 @@ def update_profile(
     return _profile_to_out(prof)
 
 @router.delete("/{profile_id}", response_model=SuccessResponse)
-def deactivate_profile(
+def delete_profile(
     profile_id: int,
     db: Session = Depends(get_db),
     current: Profile = Depends(require("admin"))
 ):
-    """Deactivate profile (profiles with history are never deleted to preserve actor names)."""
+    """Permanently delete a user profile (preserves inventory records & borrower names; blocks last admin and self)."""
     prof = db.query(Profile).filter(Profile.id == profile_id).first()
     if not prof:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Profile not found"}})
 
-    if prof.role == "admin":
-        admin_count = db.query(Profile).filter(Profile.role == "admin", Profile.is_active == 1).count()
-        if admin_count <= 1:
+    if prof.role == "admin" and prof.is_active == 1:
+        other_active_admins = (
+            db.query(Profile)
+            .filter(Profile.role == "admin", Profile.is_active == 1, Profile.id != prof.id)
+            .count()
+        )
+        if other_active_admins == 0:
             raise HTTPException(
                 status_code=400,
-                detail={"error": {"code": "LAST_ADMIN", "message": "Cannot deactivate the last remaining active Admin"}}
+                detail={"error": {"code": "LAST_ADMIN", "message": "Cannot delete the last remaining active Admin"}}
             )
 
-    prof.is_active = 0
+    if prof.id == current.id:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": {"code": "SELF_DELETE", "message": "Cannot delete the currently signed-in account"}}
+        )
+
+    prof_name = prof.name
+    prof_id = prof.id
+
+    # Preserve borrower name on loaned items while detaching profile foreign key
+    loaned_items = db.query(Item).filter(Item.taken_by_profile_id == prof_id).all()
+    for it in loaned_items:
+        if not (it.taken_by and it.taken_by.strip()):
+            it.taken_by = prof_name
+        it.taken_by_profile_id = None
+
+    # Detach optional historical foreign keys and remove user-owned preferences/state
+    db.query(Activity).filter(Activity.actor_id == prof_id).update({"actor_id": None})
+    db.query(Item).filter(Item.retired_by == prof_id).update({"retired_by": None})
+    db.query(Item).filter(Item.deleted_by == prof_id).update({"deleted_by": None})
+    db.query(Location).filter(Location.deleted_by == prof_id).update({"deleted_by": None})
+    db.query(Category).filter(Category.deleted_by == prof_id).update({"deleted_by": None})
+    db.query(Attachment).filter(Attachment.uploaded_by == prof_id).update({"uploaded_by": None})
+    db.query(Audit).filter(Audit.started_by == prof_id).update({"started_by": None})
+    db.query(HealthIgnore).filter(HealthIgnore.ignored_by == prof_id).update({"ignored_by": None})
+    db.query(Move).filter(Move.created_by == prof_id).update({"created_by": None})
+
+    db.query(ReminderState).filter(ReminderState.profile_id == prof_id).delete()
+    db.query(SavedFilter).filter(SavedFilter.profile_id == prof_id).delete()
+    db.query(LabelTemplate).filter(LabelTemplate.owner_id == prof_id).delete()
+
+    db.delete(prof)
     db.commit()
-    return SuccessResponse(ok=True, message=f"Profile '{prof.name}' deactivated")
+
+    delete_owner_photo_dir("profile", prof_id)
+    return SuccessResponse(ok=True, message=f"Profile '{prof_name}' deleted")

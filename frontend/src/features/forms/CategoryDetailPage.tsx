@@ -5,6 +5,7 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import { PageHeader } from "../../components/shared/PageHeader";
+import { useOnUndoRefresh } from "../../components/shared/UndoContext";
 import { FormBuilder } from "./FormBuilder";
 import { renderMuiIcon } from "../../components/shared/iconUtils";
 import { api } from "../../api/client";
@@ -38,6 +39,10 @@ export const CategoryDetailPage: React.FC = () => {
       setIsLoading(false);
     }
   }, [id, navigate]);
+
+  useOnUndoRefresh(() => {
+    void loadData();
+  });
 
   useEffect(() => {
     if (!id) return;

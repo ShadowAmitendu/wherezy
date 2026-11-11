@@ -1,0 +1,83 @@
+{
+  "name": "Sarees, Ethnic & Heritage Wear",
+  "slug": "traditional_wear",
+  "icon": "checkroom",
+  "color": "#c2185b",
+  "track_expiry": false,
+  "expiry_label": "Expiry date",
+  "fields": [
+    {
+      "label": "Garment type",
+      "type": "dropdown",
+      "required": true,
+      "options": [
+        "Silk Saree (Kanjivaram / Banarasi / Paithani)",
+        "Handloom / Cotton / Party Saree",
+        "Salwar Suit / Anarkali / Kurti Set",
+        "Lehenga / Bridal / Heavy Gown",
+        "Kurta-Pyjama / Nehru Jacket",
+        "Sherwani / Bandhgala",
+        "Dupatta / Pashmina / Shawl",
+        "Stitched Blouse / Petticoat",
+        "Kids Ethnic Wear",
+        "Other"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Owner",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Fabric & Zari / Work",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": "e.g. Pure Silk Zari, Chanderi, Chikankari"
+    },
+    {
+      "label": "Color",
+      "type": "text",
+      "required": false,
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Care status",
+      "type": "dropdown",
+      "required": false,
+      "options": [
+        "Clean in Saree Cover / Mulmul",
+        "Needs Dry Cleaning",
+        "Airing / Refold Due",
+        "At Tailor / Alteration"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Occasion",
+      "type": "multiselect",
+      "required": false,
+      "options": [
+        "Wedding / Reception",
+        "Festival / Puja",
+        "Family Function",
+        "Daily / Work Ethnic"
+      ],
+      "show_in_list": false,
+      "hint": ""
+    },
+    {
+      "label": "Matching blouse / Packing notes",
+      "type": "longtext",
+      "required": false,
+      "show_in_list": false,
+      "hint": "e.g. Includes silica gel pouch & matching gold blouse"
+    }
+  ]
+}

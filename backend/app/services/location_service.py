@@ -187,3 +187,21 @@ def compute_location_tree_metrics(
 def get_location_path_str(db: Session, location_id: int) -> str:
     crumbs = get_location_breadcrumbs(db, location_id)
     return " > ".join(c.name for c in crumbs) if crumbs else ""
+
+
+def build_location_path_map(db: Session) -> Dict[int, str]:
+    """Build an in-memory map of active location_id -> full breadcrumb path string."""
+    locations = db.query(Location).filter(Location.deleted_at.is_(None)).all()
+    by_id = {loc.id: loc for loc in locations}
+    paths: Dict[int, str] = {}
+    for loc in locations:
+        parts: List[str] = []
+        curr: Optional[Location] = loc
+        visited: Set[int] = set()
+        while curr is not None and curr.id not in visited:
+            visited.add(curr.id)
+            parts.append(curr.name)
+            curr = by_id.get(curr.parent_id) if curr.parent_id is not None else None
+        parts.reverse()
+        paths[loc.id] = " > ".join(parts)
+    return paths

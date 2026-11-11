@@ -9,7 +9,6 @@ import {
   DialogActions,
   TextField,
   Button,
-  Avatar,
   IconButton,
   InputAdornment,
   Fade,
@@ -22,7 +21,7 @@ import { api, ApiException, ProfileOut } from "../../api/client";
 import { useAuth } from "../../auth/useAuth";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { NetflixProfileCard } from "./NetflixProfileCard";
-import { AccountIcon } from "../../components/shared/AccountIcon";
+import { ProfileAvatar } from "../../components/shared/ProfileAvatar";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 
 interface NetflixUserPickerProps {
@@ -247,22 +246,15 @@ export const NetflixUserPicker: React.FC<NetflixUserPickerProps> = ({
       >
         <form onSubmit={handlePasswordSubmit}>
           <DialogTitle sx={{ textAlign: "center", pt: 3.5, pb: 1 }}>
-            <Avatar
-              sx={{
-                width: 68,
-                height: 68,
-                bgcolor: selectedProfile?.color || "primary.main",
-                mx: "auto",
-                mb: 1.5,
-                boxShadow: 3,
-              }}
-            >
-              <AccountIcon
-                icon={selectedProfile?.avatar_emoji}
-                name={selectedProfile?.name}
-                sx={{ fontSize: 36, color: "#ffffff" }}
-              />
-            </Avatar>
+            <ProfileAvatar
+              name={selectedProfile?.name}
+              color={selectedProfile?.color}
+              avatarEmoji={selectedProfile?.avatar_emoji}
+              avatarUrl={selectedProfile?.avatar_url}
+              size={68}
+              iconSx={{ fontSize: 36, color: "#ffffff" }}
+              sx={{ mx: "auto", mb: 1.5, boxShadow: 3 }}
+            />
             <Typography variant="h5" sx={{ fontWeight: 700, color: "#ffffff" }}>
               {selectedProfile?.name}
             </Typography>

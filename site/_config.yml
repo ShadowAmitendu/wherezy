@@ -1,0 +1,39 @@
+title: Wherezy
+description: >-
+  Local-first household inventory app with custom category schemas, QR & barcode labels,
+  Desktop Tray Controller, and Local LLM or Gemini AI.
+logo: /assets/img/logo.svg
+theme: jekyll-theme-minimal
+show_downloads: false
+repository: ShadowAmitendu/wherezy
+url: https://shadowamitendu.github.io
+baseurl: /wherezy
+lang: en-US
+
+markdown: kramdown
+highlighter: rouge
+
+collections:
+  docs:
+    output: true
+    permalink: /:name/
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default
+  - scope:
+      path: ""
+      type: docs
+    values:
+      layout: default
+
+plugins:
+  - jekyll-seo-tag
+  - jekyll-relative-links
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - README.md

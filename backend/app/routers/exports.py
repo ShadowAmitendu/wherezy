@@ -11,6 +11,7 @@ from backend.app.models import Item, Category, Location, Tag, ItemTag, Contact, 
 from backend.app.services.permissions import require
 from backend.app.services.visibility import items_visible
 from backend.app.services.activity import record
+from backend.app.services.location_service import build_location_path_map
 import openpyxl
 from openpyxl.styles import Font, PatternFill
 from openpyxl.utils import get_column_letter
@@ -44,6 +45,7 @@ def export_inventory_book_excel(
     items = items_visible(db).all()
     categories = db.query(Category).filter(Category.deleted_at.is_(None)).all()
     locations = db.query(Location).filter(Location.deleted_at.is_(None)).all()
+    location_paths = build_location_path_map(db)
     tags = db.query(Tag).all()
     profiles_by_id = {p.id: p for p in db.query(Profile).all()}
     contacts_by_id = {c.id: c for c in db.query(Contact).all()}
@@ -81,7 +83,7 @@ def export_inventory_book_excel(
             it.id,
             escape_formula(it.name),
             escape_formula(it.category.name if it.category else ""),
-            escape_formula(it.location.name if it.location else ""),
+            escape_formula(location_paths.get(it.location_id, it.location.name) if it.location else ""),
             qty,
             escape_formula(tag_names),
             it.expiry_date or "",
@@ -119,7 +121,7 @@ def export_inventory_book_excel(
             ws_cat.append([
                 it.id,
                 escape_formula(it.name),
-                escape_formula(it.location.name if it.location else ""),
+                escape_formula(location_paths.get(it.location_id, it.location.name) if it.location else ""),
                 max(1, int(it.quantity or 1)),
                 it.expiry_date or "",
             ] + custom_vals)

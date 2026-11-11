@@ -17,7 +17,7 @@ A lightweight, local-network (LAN-first) household inventory management web appl
    - Build custom form schemas per category with drag-and-drop field reordering.
    - Field types: `text`, `longtext`, `number` (with optional units like `V`, `W`, `kg`), `date`, `dropdown`, `multiselect`, and `checkbox`.
    - Safe evolution: labels and hints can be edited without losing data; archived fields retain existing records.
-   - 20 ready-to-use starter templates including **Medicines**, **First Aid**, **Lights**, **Tools**, **Hardware & Plumbing**, **Documents**, **Electronics**, **Cables & Chargers**, **Batteries**, **Pantry & Dry Goods**, **Kitchen & Cookware**, **Cleaning & Laundry**, **Clothing**, **Keys & Locks**, **Books**, **Automotive**, **Garden**, **Pets**, **Travel & Camping**, and **Games & Crafts**.
+   - 27 ready-to-use starter templates including **Medicines**, **First Aid**, **Festival & Celebration Supplies**, **Puja Mandir & Samagri**, **Lights**, **Tools**, **Hardware & Plumbing**, **Documents**, **Inverter, Appliances & Water Systems**, **Electronics**, **Cables & Chargers**, **Batteries**, **Pantry & Dry Goods**, **Kitchen & Cookware**, **Cleaning & Laundry**, **Clothing**, **Sarees, Ethnic & Heritage Wear**, **Bedding & Linens**, **Jewelry, Silver & Heirlooms**, **Monsoon & Seasonal Protection**, **Keys & Locks**, **Books**, **Automotive**, **Garden**, **Pets**, **Travel & Camping**, and **Games & Crafts**.
 
 2. **Storage Location Hierarchy**:
    - Nestable storage locations (e.g. *Garage > Storage Rack > Shelf 2 > Parts Bin A*).
@@ -58,8 +58,12 @@ A lightweight, local-network (LAN-first) household inventory management web appl
    - Configure **Local LLM / OpenAI-compatible** servers (Ollama, LM Studio, `llama.cpp`, vLLM) with optional Whisper STT, **or** **Google Gemini API** (Fernet-encrypted keys at rest).
    - Generate category schemas from voice or prompts, auto-fill item forms from photos/voice, sort Quick Capture Inbox items, extract multi-item bulk batches, and build nested location trees.
 
-10. **Showcase Static Site (`site/`)**:
-    - Includes a self-contained static landing page in `site/` (auto-deployed to GitHub Pages via `.github/workflows/pages.yml`) with direct binary/wheel download buttons, feature tour, and setup instructions.
+10. **Desktop Tray & Menu Bar Controller**:
+    - Standalone binaries and desktop installations open a native **Wherezy Server Controller** window with **Windows Taskbar + System Tray (Background Apps)** and **macOS Menu Bar** icons showing live color-coded server status dots (*Running*, *Paused*, *Stopped*).
+    - One-click **Start**, **Pause** (returns HTTP `503` without unbinding the port), **Stop**, **Restart**, **Start with OS** (launches minimized on login), live log console, and `--headless` / `--cli` flag for servers and scripts.
+
+11. **GitHub Pages Jekyll Showcase (`site/`)**:
+    - Pure minimal Markdown documentation & download site powered by GitHub Pages Jekyll (`theme: jekyll-theme-minimal` in `site/_config.yml`) with a `_docs` page collection linked in the sidebar and automated CI builds in `.github/workflows/pages.yml`.
 
 ---
 
@@ -72,20 +76,23 @@ Wherezy can be packaged and deployed onto any target machine without installing 
    ```bash
    python scripts/build_binary.py --install-pyinstaller
    ```
-   - Produces `dist/wherezy.exe` on Windows or `dist/wherezy` on Linux/macOS with the React UI, SQLite migrations, and starter templates embedded inside.
-2. Copy that single binary file to any matching-OS machine and run:
+   - Produces `dist/wherezy.exe` on Windows or `dist/wherezy` on Linux/macOS with the React UI, SQLite migrations, starter templates, and Desktop Tray/Menu Bar GUI controller embedded inside.
+2. Double-click `wherezy.exe` / `wherezy` to open the **Desktop Server Controller** (minimizes cleanly to your Windows System Tray / Background Apps or macOS Menu Bar, and supports **Start / Pause / Stop / Restart** plus **Start with OS**), or run headless CLI mode:
    ```bash
-   ./wherezy --open
-   # Custom port and persistent data location:
-   ./wherezy --port 8080 --data-dir /srv/wherezy-data
+   # Launch GUI controller explicitly (or start minimized to tray/menu bar):
+   ./wherezy --gui --minimized
+
+   # Run headless server for scripts, SSH, or NAS hosts:
+   ./wherezy --headless --port 8080 --data-dir /srv/wherezy-data
    ```
-   By default, the binary stores `inventory.db`, `photos/`, `files/`, and `backups/` in a `./data` folder next to the executable (outside temporary runtime unpack dirs).
+   In GUI mode, data defaults cleanly to your per-user app data folder (`%APPDATA%\Wherezy\data` on Windows, `~/Library/Application Support/Wherezy/data` on macOS, `~/.local/share/wherezy/data` on Linux) or portable `./data` next to the binary if present; in CLI mode (`--host` / `--port` / `--data-dir` / `--headless`), `./data` or `--data-dir` is used.
 
 ### Option 2: Python CLI Package (`pip` / `pipx`)
 ```bash
 python scripts/build_binary.py --sync-wheel-assets --skip-frontend  # after frontend build
 pipx install .
-wherezy --host 0.0.0.0 --port 8000 --open
+wherezy --host 0.0.0.0 --port 8000 --open   # headless server
+wherezy-desktop                              # desktop tray / menu bar controller
 ```
 
 ### Option 3: Docker Container (Linux / NAS / Any Architecture)

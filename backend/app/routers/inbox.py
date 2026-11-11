@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from backend.app.core.db import get_db
 from backend.app.models import Item, Category, Location, Photo, ItemTag, Profile
 from backend.app.schemas import (
-    InboxItemOut, InboxSortRequest, InboxBulkRequest, SuccessResponse, PhotoOut
+    InboxItemOut, InboxSortRequest, InboxUnsortRequest, InboxBulkRequest, SuccessResponse, PhotoOut
 )
 from backend.app.services.permissions import require
 from backend.app.services.activity import record
@@ -213,6 +213,43 @@ def sort_inbox_item(
     db.commit()
 
     return SuccessResponse(ok=True, message=f"Item '{item.name}' sorted into inventory")
+
+@router.post("/{item_id}/unsort", response_model=SuccessResponse)
+def unsort_inbox_item(
+    item_id: int,
+    payload: InboxUnsortRequest,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("inbox:write"))
+):
+    """Return a recently sorted active item back to the capture inbox."""
+    item = db.query(Item).filter(
+        Item.id == item_id,
+        Item.status == "active",
+        Item.deleted_at.is_(None),
+    ).first()
+    if not item:
+        raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Sorted item not found"}})
+
+    validated_loc_id = _validate_location_id(db, payload.location_id)
+    item.name = payload.name.strip() or item.name
+    item.category_id = _get_placeholder_category_id(db)
+    item.location_id = validated_loc_id
+    if payload.quantity is not None:
+        item.quantity = payload.quantity
+    item.values_json = json.dumps(payload.values or {})
+    item.notes = payload.notes
+    item.expiry_date = payload.expiry_date
+    item.status = "inbox"
+    db.query(ItemTag).filter(ItemTag.item_id == item.id).delete()
+    db.commit()
+
+    record(
+        db, "item", "unsorted",
+        f"Returned '{item.name}' back to capture inbox",
+        entity_id=item.id, actor=current,
+    )
+    db.commit()
+    return SuccessResponse(ok=True, message=f"Returned '{item.name}' to inbox")
 
 @router.post("/bulk", response_model=SuccessResponse)
 def bulk_inbox_action(

@@ -59,6 +59,7 @@ import { ExpiryChip } from "../../components/shared/ExpiryChip";
 import { LocationBreadcrumb } from "../../components/shared/LocationBreadcrumb";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
+import { useUndo, useOnUndoRefresh } from "../../components/shared/UndoContext";
 import { api } from "../../api/client";
 
 interface ItemDetailDialogProps {
@@ -87,6 +88,7 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const { showUndo } = useUndo();
   const [item, setItem] = useState<Item | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [tabIndex, setTabIndex] = useState<number>(0);
@@ -227,9 +229,16 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
 
   const handleSetTakenOutQty = async (nextQty: number) => {
     if (!item) return;
+    const itemIdVal = item.id;
+    const itemName = item.name;
+    const prevQty = getItemTakenOutQuantity(item);
+    const prevBy = item.taken_by ?? null;
+    const prevDue = item.taken_due ?? null;
+    const prevProfileId = item.taken_by_profile_id ?? null;
+    const prevContactId = item.taken_by_contact_id ?? null;
     const clamped = clampTakenOutQuantity(nextQty, getItemQuantity(item));
     try {
-      const updated = await api.toggleTaken(item.id, {
+      const updated = await api.toggleTaken(itemIdVal, {
         taken_out_quantity: clamped,
         taken_by: clamped > 0 ? takenBy.trim() || null : null,
       });
@@ -237,11 +246,32 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
       setTakenOut(updated.taken_out);
       if (clamped === 0) setEditingTakenBy(false);
       notifyChange();
+      showUndo({
+        message:
+          clamped === 0
+            ? `Marked "${itemName}" as returned`
+            : `Updated taken-out (${clamped}) for "${itemName}"`,
+        onUndo: async () => {
+          await api.toggleTaken(itemIdVal, {
+            taken_out_quantity: prevQty,
+            taken_by: prevBy,
+            taken_due: prevDue,
+            taken_by_profile_id: prevProfileId,
+            taken_by_contact_id: prevContactId,
+          });
+        },
+      });
     } catch (err) {
       console.error(err);
       setErrorMsg(err instanceof Error ? err.message : "Failed to update taken out status");
     }
   };
+
+  useOnUndoRefresh(() => {
+    if (open && itemId) {
+      void loadItem();
+    }
+  });
 
   const handleToggleTaken = async (checked: boolean) => {
     await handleSetTakenOutQty(checked ? 1 : 0);
@@ -249,15 +279,27 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
 
   const handleSaveTakenBy = async () => {
     if (!item) return;
+    const itemIdVal = item.id;
+    const itemName = item.name;
+    const currentOut = Math.max(1, getItemTakenOutQuantity(item));
+    const prevBy = item.taken_by ?? null;
     try {
-      const currentOut = Math.max(1, getItemTakenOutQuantity(item));
-      const updated = await api.toggleTaken(item.id, {
+      const updated = await api.toggleTaken(itemIdVal, {
         taken_out_quantity: currentOut,
         taken_by: takenBy.trim() || null,
       });
       setItem(updated);
       setEditingTakenBy(false);
       notifyChange();
+      showUndo({
+        message: `Updated borrower for "${itemName}"`,
+        onUndo: async () => {
+          await api.toggleTaken(itemIdVal, {
+            taken_out_quantity: currentOut,
+            taken_by: prevBy,
+          });
+        },
+      });
     } catch (err) {
       console.error(err);
       setErrorMsg(err instanceof Error ? err.message : "Failed to update borrower");
@@ -266,9 +308,19 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
 
   const handleDuplicate = async () => {
     if (!item) return;
+    const itemName = item.name;
     try {
-      await api.duplicateItem(item.id);
+      const dup = await api.duplicateItem(item.id);
       notifyChange();
+      if (dup?.id) {
+        const dupId = dup.id;
+        showUndo({
+          message: `Duplicated "${itemName}"`,
+          onUndo: async () => {
+            await api.deleteItem(dupId);
+          },
+        });
+      }
       onClose();
     } catch (err) {
       console.error(err);
@@ -311,11 +363,19 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
 
   const handleRetire = async () => {
     if (!item) return;
+    const itemIdVal = item.id;
+    const itemName = item.name;
     try {
-      await api.retireItem(item.id, retireReason, retireDate, retireNote.trim() || undefined);
+      await api.retireItem(itemIdVal, retireReason, retireDate, retireNote.trim() || undefined);
       setRetireDialogOpen(false);
       notifyChange();
       await loadItem();
+      showUndo({
+        message: `Retired "${itemName}"`,
+        onUndo: async () => {
+          await api.unretireItem(itemIdVal);
+        },
+      });
     } catch (err: any) {
       setErrorMsg(err.error?.message || "Failed to retire item");
     }
@@ -323,10 +383,21 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
 
   const handleBringBack = async () => {
     if (!item) return;
+    const itemIdVal = item.id;
+    const itemName = item.name;
+    const prevReason = item.retired_reason || "broken";
+    const prevDate = item.retired_on || new Date().toISOString().slice(0, 10);
+    const prevNote = item.retired_note || undefined;
     try {
-      await api.unretireItem(item.id);
+      await api.unretireItem(itemIdVal);
       notifyChange();
       await loadItem();
+      showUndo({
+        message: `Brought "${itemName}" back to inventory`,
+        onUndo: async () => {
+          await api.retireItem(itemIdVal, prevReason, prevDate, prevNote);
+        },
+      });
     } catch (err: any) {
       setErrorMsg(err.error?.message || "Failed to return item to inventory");
     }
@@ -343,12 +414,20 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
 
   const handleConfirmDeleteItem = async () => {
     if (!item) return;
+    const deletedId = item.id;
+    const deletedName = item.name;
     setIsConfirmingAction(true);
     try {
-      await api.deleteItem(item.id);
+      await api.deleteItem(deletedId);
       setDeleteItemConfirmOpen(false);
       if (onDeleted) onDeleted();
       notifyChange();
+      showUndo({
+        message: `Deleted "${deletedName}"`,
+        onUndo: async () => {
+          await api.restoreItem(deletedId);
+        },
+      });
       onClose();
     } catch (err: any) {
       setDeleteItemConfirmOpen(false);

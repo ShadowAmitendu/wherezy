@@ -50,6 +50,7 @@ import {
   api,
   ApiException,
   type ImportCsvResult,
+  type ImportFormat,
 } from "../../api/client";
 import { AiCapturePanel } from "../../components/shared/AiCapturePanel";
 import { useAiMediaRecorder } from "../../components/shared/useAiMediaRecorder";
@@ -60,6 +61,11 @@ import {
   FlatLocationOption,
   flattenLocationTree,
 } from "../locations/locationUtils";
+import {
+  DATA_FORMAT_OPTIONS,
+  detectImportFormatFromFilename,
+  getDataFormatOption,
+} from "../../utils/exportImportFormats";
 import { parsePositiveInt } from "./quantityUtils";
 
 export type BulkAddTab = "list" | "ai" | "csv";
@@ -89,31 +95,30 @@ interface BulkAddDialogProps {
   initialCategoryId?: number | null;
   initialLocationId?: number | null;
   initialTab?: BulkAddTab;
+  initialImportFormat?: ImportFormat;
+  disablePortal?: boolean;
   onClose: () => void;
-  onAdded: (createdCount: number, message?: string) => void;
+  onAdded: (createdCount: number, message?: string, batchId?: string | null) => void;
 }
 
 const MAX_BULK_ITEMS = 500;
 
-function escapeCsvCell(value: string): string {
-  if (/[",\r\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
-  }
-  return value;
-}
-
-function getCsvHeadersForCategory(category: Category | null, fields: FieldDef[]): string[] {
+function getImportHeadersForCategory(category: Category | null, fields: FieldDef[]): string[] {
   const hasCustomQtyField = fields.some(
     (f) => !f.archived && f.label.trim().toLowerCase() === "quantity"
   );
-  const headers = ["Name", "Location"];
+  const headers = ["Name"];
+  if (!category) {
+    headers.push("Category");
+  }
+  headers.push("Location");
   if (!hasCustomQtyField) {
     headers.push("Quantity");
   }
+  headers.push("Notes");
   if (category?.track_expiry) {
     headers.push("Expiry Date");
   }
-  headers.push("Notes");
   for (const field of fields) {
     if (!field.archived) {
       headers.push(field.label);
@@ -122,29 +127,13 @@ function getCsvHeadersForCategory(category: Category | null, fields: FieldDef[])
   return headers;
 }
 
-function downloadCategoryCsvTemplate(category: Category | null, fields: FieldDef[]): void {
-  const headers = getCsvHeadersForCategory(category, fields);
-  const csvContent = `${headers.map(escapeCsvCell).join(",")}\r\n`;
-  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const slug = (category?.name || "items")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = `wherezy-${slug || "items"}-template.csv`;
-  document.body.appendChild(anchor);
-  anchor.click();
-  document.body.removeChild(anchor);
-  URL.revokeObjectURL(url);
-}
-
 export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
   open,
   initialCategoryId,
   initialLocationId = null,
   initialTab = "list",
+  initialImportFormat = "csv",
+  disablePortal = false,
   onClose,
   onAdded,
 }) => {
@@ -165,9 +154,14 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
   const [expiryDate, setExpiryDate] = useState("");
   const [notes, setNotes] = useState("");
 
-  // CSV state
-  const [csvFile, setCsvFile] = useState<File | null>(null);
-  const [csvResult, setCsvResult] = useState<ImportCsvResult | null>(null);
+  // File Import state (CSV / JSON / Excel)
+  const [importFormat, setImportFormat] = useState<ImportFormat>(initialImportFormat);
+  const [importCategoryMode, setImportCategoryMode] = useState<"auto" | number>("auto");
+  const [importPreviewCategory, setImportPreviewCategory] = useState<Category | null>(null);
+  const [importPreviewFields, setImportPreviewFields] = useState<FieldDef[]>([]);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importResult, setImportResult] = useState<ImportCsvResult | null>(null);
+  const [downloadingTemplate, setDownloadingTemplate] = useState(false);
 
   // AI Extract state
   const [aiConfigured, setAiConfigured] = useState(true);
@@ -228,9 +222,10 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
       .then(([cats, tree, settings]) => {
         if (cancelled) return;
         setTab(initialTab);
+        setImportFormat(initialImportFormat);
         setErrorMsg(null);
-        setCsvResult(null);
-        setCsvFile(null);
+        setImportResult(null);
+        setImportFile(null);
         setRawNames("");
         setQuantityStr("1");
         setExpiryDate("");
@@ -253,6 +248,11 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
             ? initialCategoryId
             : cats[0]?.id ?? "";
         setSelectedCategoryId(preferred);
+        setImportCategoryMode(
+          initialCategoryId && cats.some((c: Category) => c.id === initialCategoryId)
+            ? initialCategoryId
+            : "auto"
+        );
       })
       .catch(() => {
         if (!cancelled) setErrorMsg("Failed to load categories");
@@ -261,7 +261,7 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
     return () => {
       cancelled = true;
     };
-  }, [open, initialCategoryId, initialLocationId, initialTab, reset, resetAiMedia]);
+  }, [open, initialCategoryId, initialLocationId, initialTab, initialImportFormat, reset, resetAiMedia]);
 
   // Fetch active category schema when category selection changes
   useEffect(() => {
@@ -275,7 +275,6 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
         setActiveCategory(cat);
         setCategoryFields(cat.fields || []);
         reset({ values: {} });
-        setCsvResult(null);
       })
       .catch(() => {
         if (!cancelled) {
@@ -288,6 +287,32 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
       cancelled = true;
     };
   }, [open, selectedCategoryId, reset]);
+
+  // Fetch category schema preview for Import File fallback selection
+  useEffect(() => {
+    if (!open || importCategoryMode === "auto") {
+      return;
+    }
+
+    let cancelled = false;
+    api
+      .getCategory(Number(importCategoryMode))
+      .then((cat) => {
+        if (cancelled) return;
+        setImportPreviewCategory(cat);
+        setImportPreviewFields(cat.fields || []);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setImportPreviewCategory(null);
+          setImportPreviewFields([]);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, importCategoryMode]);
 
   const handleTabChange = (_event: React.SyntheticEvent, nextTab: BulkAddTab) => {
     setTab(nextTab);
@@ -327,7 +352,8 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
       });
       onAdded(
         res.created_count,
-        `Added ${res.created_count} ${res.created_count === 1 ? "item" : "items"} to ${activeCategory?.name || "inventory"}`
+        `Added ${res.created_count} ${res.created_count === 1 ? "item" : "items"} to ${activeCategory?.name || "inventory"}`,
+        res.batch_id
       );
       onClose();
     } catch (err: any) {
@@ -471,7 +497,8 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
       );
       onAdded(
         res.created_count,
-        `Added ${res.created_count} ${res.created_count === 1 ? "item" : "items"} via AI Extract`
+        `Added ${res.created_count} ${res.created_count === 1 ? "item" : "items"} via AI Extract`,
+        res.batch_id
       );
       onClose();
     } catch (err: any) {
@@ -485,37 +512,74 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
     }
   };
 
-  const handleSelectCsvFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const activeImportFormatOption = getDataFormatOption(importFormat);
+
+  const handleImportFormatChange = (nextFormat: ImportFormat) => {
+    setImportFormat(nextFormat);
+    setImportResult(null);
+    setErrorMsg(null);
+    if (importFile) {
+      const detected = detectImportFormatFromFilename(importFile.name);
+      if (detected && detected !== nextFormat) {
+        setImportFile(null);
+      }
+    }
+  };
+
+  const handleSelectImportFile = (event: React.ChangeEvent<HTMLInputElement>) => {
     const picked = event.target.files?.[0] || null;
     event.target.value = "";
-    setCsvFile(picked);
-    setCsvResult(null);
+    if (picked) {
+      const detected = detectImportFormatFromFilename(picked.name);
+      if (detected && detected !== importFormat) {
+        setImportFormat(detected);
+      }
+    }
+    setImportFile(picked);
+    setImportResult(null);
     setErrorMsg(null);
   };
 
-  const handleCsvAction = async (dryRun: boolean) => {
+  const handleDownloadImportTemplate = async () => {
     setErrorMsg(null);
-    if (!selectedCategoryId) {
-      setErrorMsg("Please choose a category first.");
-      return;
+    setDownloadingTemplate(true);
+    try {
+      await api.downloadImportTemplate(
+        importFormat,
+        importCategoryMode === "auto" ? null : importCategoryMode
+      );
+    } catch (err: any) {
+      if (err instanceof ApiException) {
+        setErrorMsg(err.error.message);
+      } else {
+        setErrorMsg(`Failed to download ${activeImportFormatOption.shortLabel} template.`);
+      }
+    } finally {
+      setDownloadingTemplate(false);
     }
-    if (!csvFile) {
-      setErrorMsg("Please select a CSV file to process.");
+  };
+
+  const handleImportAction = async (dryRun: boolean) => {
+    setErrorMsg(null);
+    if (!importFile) {
+      setErrorMsg(`Please select a ${activeImportFormatOption.extension} file to process.`);
       return;
     }
 
     setIsSubmitting(true);
     try {
-      const result = await api.importCsv(Number(selectedCategoryId), csvFile, {
+      const result = await api.importItems(importFormat, importFile, {
+        categoryId: importCategoryMode === "auto" ? null : importCategoryMode,
         dryRun,
         locationId: selectedLocationId,
       });
-      setCsvResult(result);
+      setImportResult(result);
 
       if (!dryRun && result.ok) {
         onAdded(
           result.imported_count,
-          `Imported ${result.imported_count} ${result.imported_count === 1 ? "item" : "items"} from CSV`
+          `Imported ${result.imported_count} ${result.imported_count === 1 ? "item" : "items"} from ${activeImportFormatOption.shortLabel}`,
+          result.batch_id
         );
         onClose();
       }
@@ -523,19 +587,28 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
       if (err instanceof ApiException) {
         setErrorMsg(err.error.message);
       } else {
-        setErrorMsg("Failed to process CSV file.");
+        setErrorMsg(`Failed to process ${activeImportFormatOption.shortLabel} file.`);
       }
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const csvTemplateHeaders = getCsvHeadersForCategory(activeCategory, activeCategoryFields);
+  const effectiveImportPreviewCategory =
+    importCategoryMode !== "auto" && importPreviewCategory?.id === importCategoryMode
+      ? importPreviewCategory
+      : null;
+  const activeImportFields = useMemo(
+    () => (effectiveImportPreviewCategory ? importPreviewFields.filter((f) => !f.archived) : []),
+    [effectiveImportPreviewCategory, importPreviewFields]
+  );
+  const importTemplateHeaders = getImportHeadersForCategory(effectiveImportPreviewCategory, activeImportFields);
 
   return (
     <Dialog
       open={open}
       onClose={onClose}
+      disablePortal={disablePortal}
       maxWidth={tab === "ai" && aiDrafts.length > 0 ? "lg" : "md"}
       fullWidth
       fullScreen={isMobile}
@@ -579,7 +652,7 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
           />
           <Tab
             value="csv"
-            label="Import CSV"
+            label="Import File"
             icon={<UploadFileOutlinedIcon fontSize="small" />}
             iconPosition="start"
           />
@@ -1101,15 +1174,38 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
 
             <Box sx={{ display: "flex", flexDirection: "column", gap: 2.5 }}>
               <Grid container spacing={2}>
-                <Grid size={{ xs: 12, sm: 6 }}>
-                  <FormControl fullWidth required>
-                    <InputLabel id="bulk-csv-category-label">Category</InputLabel>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <FormControl fullWidth>
+                    <InputLabel id="bulk-import-format-label">Import Format</InputLabel>
                     <Select
-                      labelId="bulk-csv-category-label"
-                      value={selectedCategoryId ? String(selectedCategoryId) : ""}
-                      label="Category"
-                      onChange={(e) => setSelectedCategoryId(Number(e.target.value))}
+                      labelId="bulk-import-format-label"
+                      value={importFormat}
+                      label="Import Format"
+                      onChange={(e) => handleImportFormatChange(e.target.value as ImportFormat)}
                     >
+                      {DATA_FORMAT_OPTIONS.map((opt) => (
+                        <MenuItem key={opt.format} value={opt.format}>
+                          {opt.label}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Grid>
+
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <FormControl fullWidth>
+                    <InputLabel id="bulk-import-category-label">Category (Fallback)</InputLabel>
+                    <Select
+                      labelId="bulk-import-category-label"
+                      value={importCategoryMode === "auto" ? "auto" : String(importCategoryMode)}
+                      label="Category (Fallback)"
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setImportCategoryMode(val === "auto" ? "auto" : Number(val));
+                        setImportResult(null);
+                      }}
+                    >
+                      <MenuItem value="auto">Auto-detect from file</MenuItem>
                       {categories.map((c) => (
                         <MenuItem key={c.id} value={String(c.id)}>
                           {c.name}
@@ -1119,7 +1215,7 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
                   </FormControl>
                 </Grid>
 
-                <Grid size={{ xs: 12, sm: 6 }}>
+                <Grid size={{ xs: 12, sm: 4 }}>
                   <LocationPicker
                     value={selectedLocationId}
                     onChange={setSelectedLocationId}
@@ -1142,27 +1238,35 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
                 >
                   <Box>
                     <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                      CSV Columns for {activeCategory?.name || "Selected Category"}
+                      {activeImportFormatOption.label} Structure
+                      {effectiveImportPreviewCategory ? ` for ${effectiveImportPreviewCategory.name}` : " (Multi-Category Supported)"}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      Use location names or full paths (e.g. <code>Kitchen &gt; Top Shelf</code>). Blank Location cells fall back to Default Location.
+                      {importFormat === "json"
+                        ? "Supports a Wherezy JSON export or array of item objects with name, category, location, quantity, notes, and values."
+                        : importFormat === "xlsx"
+                        ? "Supports single-sheet spreadsheets and full Wherezy Inventory Book (.xlsx) exports. Blank Location cells fall back to Default Location."
+                        : "Use location names or full paths (e.g. Kitchen > Top Shelf). Blank Location cells fall back to Default Location."}
                     </Typography>
                   </Box>
                   <Button
                     size="small"
                     variant="outlined"
-                    startIcon={<DownloadOutlinedIcon />}
-                    onClick={() => downloadCategoryCsvTemplate(activeCategory, activeCategoryFields)}
-                    disabled={!activeCategory}
+                    startIcon={downloadingTemplate ? <CircularProgress size={14} /> : <DownloadOutlinedIcon />}
+                    onClick={() => void handleDownloadImportTemplate()}
+                    disabled={downloadingTemplate}
                   >
-                    Download Template
+                    Download {activeImportFormatOption.shortLabel} Template
                   </Button>
                 </Box>
 
                 <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.75, mt: 1 }}>
-                  {csvTemplateHeaders.map((header) => {
-                    const matchedField = activeCategoryFields.find((f) => f.label === header);
-                    const isRequired = header === "Name" || Boolean(matchedField?.required);
+                  {importTemplateHeaders.map((header) => {
+                    const matchedField = activeImportFields.find((f) => f.label === header);
+                    const isRequired =
+                      header === "Name" ||
+                      (header === "Category" && importCategoryMode === "auto") ||
+                      Boolean(matchedField?.required);
                     return (
                       <Chip
                         key={header}
@@ -1180,9 +1284,9 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".csv,text/csv"
+                  accept={activeImportFormatOption.accept}
                   style={{ display: "none" }}
-                  onChange={handleSelectCsvFile}
+                  onChange={handleSelectImportFile}
                 />
                 <Paper
                   variant="outlined"
@@ -1199,12 +1303,14 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
                 >
                   <Box>
                     <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      {csvFile ? csvFile.name : "Choose a UTF-8 .csv file to import"}
+                      {importFile
+                        ? importFile.name
+                        : `Choose a ${activeImportFormatOption.extension} file to import`}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {csvFile
-                        ? `${Math.max(1, Math.round(csvFile.size / 1024))} KB • Click Preview / Validate before importing`
-                        : "Required column: Name. Dates should use YYYY-MM-DD format."}
+                      {importFile
+                        ? `${Math.max(1, Math.round(importFile.size / 1024))} KB • Click Preview / Validate before importing`
+                        : "Required: Name (and Category if Auto-detect is active). Dates should use YYYY-MM-DD."}
                     </Typography>
                   </Box>
                   <Button
@@ -1213,31 +1319,31 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isSubmitting}
                   >
-                    {csvFile ? "Change File" : "Select CSV File"}
+                    {importFile ? "Change File" : `Select ${activeImportFormatOption.shortLabel} File`}
                   </Button>
                 </Paper>
               </Box>
 
-              {csvResult && (
-                <Alert severity={csvResult.ok ? "success" : "error"}>
+              {importResult && (
+                <Alert severity={importResult.ok ? "success" : "error"}>
                   <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    {csvResult.ok
-                      ? csvResult.dry_run
-                        ? `Preview passed: ${csvResult.imported_count} of ${csvResult.total_rows} rows ready to import.`
-                        : `Imported ${csvResult.imported_count} items.`
-                      : `Found ${csvResult.errors.length} ${csvResult.errors.length === 1 ? "issue" : "issues"} across ${csvResult.total_rows} rows (no items imported).`}
+                    {importResult.ok
+                      ? importResult.dry_run
+                        ? `Preview passed: ${importResult.imported_count} of ${importResult.total_rows} rows ready to import.`
+                        : `Imported ${importResult.imported_count} items.`
+                      : `Found ${importResult.errors.length} ${importResult.errors.length === 1 ? "issue" : "issues"} across ${importResult.total_rows} rows (no items imported).`}
                   </Typography>
-                  {csvResult.errors.length > 0 && (
+                  {importResult.errors.length > 0 && (
                     <List dense disablePadding sx={{ maxHeight: 160, overflowY: "auto", mt: 1 }}>
-                      {csvResult.errors.slice(0, 50).map((errText, idx) => (
+                      {importResult.errors.slice(0, 50).map((errText, idx) => (
                         <ListItem key={`${idx}-${errText}`} disableGutters sx={{ py: 0.25 }}>
                           <Typography variant="caption">{errText}</Typography>
                         </ListItem>
                       ))}
-                      {csvResult.errors.length > 50 && (
+                      {importResult.errors.length > 50 && (
                         <ListItem disableGutters sx={{ py: 0.25 }}>
                           <Typography variant="caption" color="text.secondary">
-                            {`...and ${csvResult.errors.length - 50} more errors.`}
+                            {`...and ${importResult.errors.length - 50} more errors.`}
                           </Typography>
                         </ListItem>
                       )}
@@ -1255,16 +1361,16 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
             <Button
               variant="outlined"
               startIcon={isSubmitting ? <CircularProgress size={16} /> : <FactCheckOutlinedIcon />}
-              onClick={() => handleCsvAction(true)}
-              disabled={isSubmitting || !csvFile || !selectedCategoryId}
+              onClick={() => handleImportAction(true)}
+              disabled={isSubmitting || !importFile}
             >
               Preview / Validate
             </Button>
             <Button
               variant="contained"
               startIcon={isSubmitting ? <CircularProgress size={16} color="inherit" /> : <UploadFileOutlinedIcon />}
-              onClick={() => handleCsvAction(false)}
-              disabled={isSubmitting || !csvFile || !selectedCategoryId}
+              onClick={() => handleImportAction(false)}
+              disabled={isSubmitting || !importFile}
             >
               Import Items
             </Button>

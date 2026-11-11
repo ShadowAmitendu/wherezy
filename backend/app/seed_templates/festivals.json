@@ -1,0 +1,92 @@
+{
+  "name": "Festival & Celebration Supplies",
+  "slug": "festivals",
+  "icon": "celebration",
+  "color": "#e65100",
+  "track_expiry": true,
+  "expiry_label": "Check / Use before",
+  "fields": [
+    {
+      "label": "Festival / Occasion",
+      "type": "multiselect",
+      "required": true,
+      "options": [
+        "Diwali",
+        "Holi",
+        "Navratri / Dussehra",
+        "Ganesh Chaturthi",
+        "Durga Puja",
+        "Raksha Bandhan",
+        "Janmashtami",
+        "Makar Sankranti / Pongal",
+        "Onam / Vishu",
+        "Eid",
+        "Christmas / New Year",
+        "Wedding / Housewarming",
+        "All Festivals"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Item type",
+      "type": "dropdown",
+      "required": true,
+      "options": [
+        "Fairy / String / Rice Lights",
+        "Diyas, Candles & Lanterns (Kandil)",
+        "Toran / Bandarwar / Door Hanging",
+        "Rangoli Stencils & Gulal Colours",
+        "Idol / Murti / Chowki / Urli",
+        "Makhar / Pandal & Flower Garlands",
+        "Props (Dandiya, Pichkari, Kits)",
+        "Festive Tableware / Gift Trays",
+        "Shagun Envelopes & Gift Wrap",
+        "Other"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Storage & fragility",
+      "type": "dropdown",
+      "required": false,
+      "options": [
+        "Fragile (Wrap in Cloth / Bubble Wrap)",
+        "Coiled Electrical / Cord Winder",
+        "Keep Dry (Silica Gel / Sealed Bin)",
+        "Foldable Fabric / Vacuum Bag",
+        "Sturdy Plastic Crate"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Condition",
+      "type": "dropdown",
+      "required": false,
+      "options": [
+        "Ready to Use",
+        "Needs Cleaning / Oil Wipe",
+        "Needs Bulb / Wire Repair",
+        "Consumable Stock (Check Qty)"
+      ],
+      "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "Set count / Length",
+      "type": "text",
+      "required": false,
+      "show_in_list": false,
+      "hint": "e.g. 24 terracotta diyas or 10 m warm LED"
+    },
+    {
+      "label": "Setup & packing notes",
+      "type": "longtext",
+      "required": false,
+      "show_in_list": false,
+      "hint": "e.g. Balcony railing length or wrapped in red cloth"
+    }
+  ]
+}

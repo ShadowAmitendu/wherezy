@@ -20,6 +20,8 @@ dependencies = [
     "httpx>=0.27.0",
     "bcrypt>=4.0.0",
     "openpyxl>=3.1.0",
+    "pystray>=0.19.5",
+    "pyobjc-framework-Cocoa>=10.0; sys_platform == 'darwin'",
 ]
 
 [project.urls]
@@ -38,6 +40,7 @@ build = [
 
 [project.scripts]
 wherezy = "backend.app.cli:main"
+wherezy-desktop = "backend.app.desktop.app:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

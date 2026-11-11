@@ -23,10 +23,12 @@ import SnoozeOutlinedIcon from "@mui/icons-material/SnoozeOutlined";
 import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { PageHeader } from "../../components/shared/PageHeader";
+import { useUndo, useOnUndoRefresh } from "../../components/shared/UndoContext";
 import { api } from "../../api/client";
 
 export const RemindersPage: React.FC = () => {
   const navigate = useNavigate();
+  const { showUndo } = useUndo();
   const [tab, setTab] = useState<string>("all");
   const [reminders, setReminders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -63,25 +65,47 @@ export const RemindersPage: React.FC = () => {
     };
   }, []);
 
+  useOnUndoRefresh(() => {
+    void loadReminders();
+  });
+
   const handleSnooze = async (days: number) => {
     if (!snoozeTarget) return;
+    const target = snoozeTarget;
+    const prevSnoozed = target.snoozed_until ?? null;
+    const prevDismissed = target.dismissed_at ?? null;
     try {
       await api.snoozeReminder({
-        source_type: snoozeTarget.source_type,
-        item_id: snoozeTarget.item_id,
-        field_key: snoozeTarget.field_key,
-        due_date: snoozeTarget.due_date,
+        source_type: target.source_type,
+        item_id: target.item_id,
+        field_key: target.field_key,
+        due_date: target.due_date,
         snooze_days: days,
       });
       setSnoozeAnchor(null);
       setSnoozeTarget(null);
       loadReminders();
+      showUndo({
+        message: `Snoozed reminder for "${target.item_name}" (${days}d)`,
+        onUndo: async () => {
+          await api.restoreReminder({
+            source_type: target.source_type,
+            item_id: target.item_id,
+            field_key: target.field_key ?? null,
+            due_date: target.due_date,
+            snoozed_until: prevSnoozed,
+            dismissed_at: prevDismissed,
+          });
+        },
+      });
     } catch (err) {
       console.error(err);
     }
   };
 
   const handleDismiss = async (rem: any) => {
+    const prevSnoozed = rem.snoozed_until ?? null;
+    const prevDismissed = rem.dismissed_at ?? null;
     try {
       await api.dismissReminder({
         source_type: rem.source_type,
@@ -90,6 +114,19 @@ export const RemindersPage: React.FC = () => {
         due_date: rem.due_date,
       });
       loadReminders();
+      showUndo({
+        message: `Dismissed reminder for "${rem.item_name}"`,
+        onUndo: async () => {
+          await api.restoreReminder({
+            source_type: rem.source_type,
+            item_id: rem.item_id,
+            field_key: rem.field_key ?? null,
+            due_date: rem.due_date,
+            snoozed_until: prevSnoozed,
+            dismissed_at: prevDismissed,
+          });
+        },
+      });
     } catch (err) {
       console.error(err);
     }

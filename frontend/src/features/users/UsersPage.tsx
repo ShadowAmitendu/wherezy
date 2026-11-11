@@ -19,7 +19,6 @@ import {
   MenuItem,
   FormControlLabel,
   Checkbox,
-  Avatar,
   Tooltip,
   Divider,
   Grow,
@@ -31,6 +30,7 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import LockResetOutlinedIcon from "@mui/icons-material/LockResetOutlined";
 import BlockOutlinedIcon from "@mui/icons-material/BlockOutlined";
 import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
+import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import LockOpenOutlinedIcon from "@mui/icons-material/LockOpenOutlined";
 import SecurityOutlinedIcon from "@mui/icons-material/SecurityOutlined";
@@ -39,9 +39,12 @@ import { PageHeader } from "../../components/shared/PageHeader";
 import { api, ApiException, ProfileOut, ProfileRole } from "../../api/client";
 import { useAuth } from "../../auth/useAuth";
 import { AlertDialog } from "../../components/shared/AlertDialog";
-import { AccountIcon } from "../../components/shared/AccountIcon";
+import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
+import { ProfileAvatar } from "../../components/shared/ProfileAvatar";
+import { PhotoCaptureButtons } from "../../components/shared/PhotoCaptureButtons";
 import { AccountIconPicker } from "../../components/shared/AccountIconPicker";
 import { ColorSwatchPicker } from "../../components/shared/ColorSwatchPicker";
+import { notifyDataChanged, useUndo, useOnUndoRefresh } from "../../components/shared/UndoContext";
 
 const CUSTOM_PERM_OPTIONS = [
   { key: "items:write", label: "Create & Edit Items", category: "Inventory" },
@@ -67,7 +70,8 @@ function sanitizeUsername(value: string): string {
 export const UsersPage: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const { currentProfile } = useAuth();
+  const { currentProfile, refreshAuth } = useAuth();
+  const { showUndo } = useUndo();
   const [profiles, setProfiles] = useState<ProfileOut[]>([]);
   const [, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -84,6 +88,9 @@ export const UsersPage: React.FC = () => {
   const [role, setRole] = useState<ProfileRole>("member");
   const [password, setPassword] = useState("");
   const [customPerms, setCustomPerms] = useState<string[]>([]);
+  const [pendingAvatarFile, setPendingAvatarFile] = useState<File | null>(null);
+  const [pendingAvatarPreview, setPendingAvatarPreview] = useState<string | null>(null);
+  const [pendingAvatarRemove, setPendingAvatarRemove] = useState(false);
   const [dialogError, setDialogError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -93,6 +100,24 @@ export const UsersPage: React.FC = () => {
   const [newPassword, setNewPassword] = useState("");
   const [mustChangePassword, setMustChangePassword] = useState(true);
   const [resetError, setResetError] = useState<string | null>(null);
+
+  // Dialog state: Delete User
+  const [deleteTargetProfile, setDeleteTargetProfile] = useState<ProfileOut | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      if (pendingAvatarPreview) {
+        URL.revokeObjectURL(pendingAvatarPreview);
+      }
+    };
+  }, [pendingAvatarPreview]);
+
+  const resetPendingAvatar = () => {
+    setPendingAvatarFile(null);
+    setPendingAvatarPreview(null);
+    setPendingAvatarRemove(false);
+  };
 
   const loadProfiles = async () => {
     setLoading(true);
@@ -134,6 +159,7 @@ export const UsersPage: React.FC = () => {
     setRole("member");
     setPassword("");
     setCustomPerms(["items:write", "photos:write", "tags:write"]);
+    resetPendingAvatar();
     setDialogError(null);
     setUserDialogOpen(true);
   };
@@ -149,6 +175,7 @@ export const UsersPage: React.FC = () => {
     setRole(p.role);
     setPassword("");
     setCustomPerms(p.custom_permissions || []);
+    resetPendingAvatar();
     setDialogError(null);
     setUserDialogOpen(true);
   };
@@ -174,6 +201,20 @@ export const UsersPage: React.FC = () => {
     setResetDialogOpen(true);
   };
 
+  const handleDialogAvatarSelected = (files: File[]) => {
+    const file = files[0];
+    if (!file) return;
+    setPendingAvatarFile(file);
+    setPendingAvatarPreview(URL.createObjectURL(file));
+    setPendingAvatarRemove(false);
+  };
+
+  const handleDialogAvatarRemove = () => {
+    setPendingAvatarFile(null);
+    setPendingAvatarPreview(null);
+    setPendingAvatarRemove(Boolean(editingProfile?.avatar_url));
+  };
+
   const handleSaveUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
@@ -185,9 +226,10 @@ export const UsersPage: React.FC = () => {
     setDialogError(null);
 
     try {
+      let targetProfile: ProfileOut;
       if (editingProfile) {
         // Update user
-        await api.updateProfile(editingProfile.id, {
+        targetProfile = await api.updateProfile(editingProfile.id, {
           name: name.trim(),
           username: username.trim().toLowerCase() || undefined,
           avatar_emoji: avatarEmoji,
@@ -196,10 +238,9 @@ export const UsersPage: React.FC = () => {
           password: password.trim() ? password.trim() : undefined,
           custom_permissions: role === "custom" ? customPerms : undefined,
         });
-        setSuccessMsg(`User '${name}' updated successfully.`);
       } else {
         // Create user
-        await api.createProfile({
+        targetProfile = await api.createProfile({
           name: name.trim(),
           username: username.trim().toLowerCase() || undefined,
           avatar_emoji: avatarEmoji,
@@ -208,9 +249,33 @@ export const UsersPage: React.FC = () => {
           password: password.trim() ? password.trim() : undefined,
           custom_permissions: role === "custom" ? customPerms : undefined,
         });
-        setSuccessMsg(`User '${name}' created successfully.`);
       }
+
+      if (pendingAvatarFile) {
+        try {
+          await api.uploadProfileAvatar(targetProfile.id, pendingAvatarFile);
+        } catch (avatarErr: any) {
+          // Keep saved account in edit mode so retrying won't duplicate-create the user
+          setEditingProfile(targetProfile);
+          await loadProfiles();
+          if (avatarErr instanceof ApiException) {
+            setDialogError(`User '${name}' saved, but profile picture upload failed: ${avatarErr.error.message}`);
+          } else {
+            setDialogError(`User '${name}' saved, but profile picture upload failed.`);
+          }
+          return;
+        }
+      } else if (pendingAvatarRemove && editingProfile?.avatar_url) {
+        await api.removeProfileAvatar(targetProfile.id);
+      }
+
+      if (targetProfile.id === currentProfile?.id) {
+        await refreshAuth();
+      }
+
+      setSuccessMsg(editingProfile ? `User '${name}' updated successfully.` : `User '${name}' created successfully.`);
       setUserDialogOpen(false);
+      resetPendingAvatar();
       await loadProfiles();
     } catch (err: any) {
       if (err instanceof ApiException) {
@@ -253,17 +318,49 @@ export const UsersPage: React.FC = () => {
     }
   };
 
+  useOnUndoRefresh(() => {
+    void loadProfiles();
+  });
+
   const handleToggleActive = async (p: ProfileOut) => {
+    const prevActive = Boolean(p.is_active);
     try {
-      await api.updateProfile(p.id, { is_active: !p.is_active });
-      setSuccessMsg(`User '${p.name}' ${p.is_active ? "deactivated" : "activated"}.`);
+      await api.updateProfile(p.id, { is_active: !prevActive });
       await loadProfiles();
+      showUndo({
+        message: `${prevActive ? "Deactivated" : "Activated"} user "${p.name}"`,
+        onUndo: async () => {
+          await api.updateProfile(p.id, { is_active: prevActive });
+        },
+      });
     } catch (err: any) {
       if (err instanceof ApiException) {
         setErrorMsg(err.error.message || "Action failed.");
       } else {
         setErrorMsg("Failed to update status.");
       }
+    }
+  };
+
+  const handleConfirmDeleteUser = async () => {
+    if (!deleteTargetProfile) return;
+    const target = deleteTargetProfile;
+    setIsDeleting(true);
+    try {
+      await api.deleteProfile(target.id);
+      setDeleteTargetProfile(null);
+      await loadProfiles();
+      notifyDataChanged("profiles");
+      setSuccessMsg(`User '${target.name}' deleted permanently.`);
+    } catch (err: any) {
+      setDeleteTargetProfile(null);
+      if (err instanceof ApiException) {
+        setErrorMsg(err.error.message || "Failed to delete user.");
+      } else {
+        setErrorMsg("Failed to delete user.");
+      }
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -291,6 +388,8 @@ export const UsersPage: React.FC = () => {
   };
 
   const isCurrentUserAdmin = currentProfile?.role === "admin";
+  const activeAdminCount = profiles.filter((x) => x.role === "admin" && x.is_active).length;
+  const dialogAvatarUrl = pendingAvatarPreview ?? (pendingAvatarRemove ? null : editingProfile?.avatar_url ?? null);
 
   return (
     <Box>
@@ -359,16 +458,15 @@ export const UsersPage: React.FC = () => {
                 >
                 <CardContent sx={{ p: 2.5, flex: 1, display: "flex", flexDirection: "column" }}>
                   <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2, mb: 2 }}>
-                    <Avatar
-                      sx={{
-                        width: 52,
-                        height: 52,
-                        bgcolor: p.color || "primary.main",
-                        boxShadow: 1,
-                      }}
-                    >
-                      <AccountIcon icon={p.avatar_emoji} name={p.name} fontSize="medium" sx={{ color: "#ffffff" }} />
-                    </Avatar>
+                    <ProfileAvatar
+                      name={p.name}
+                      color={p.color}
+                      avatarEmoji={p.avatar_emoji}
+                      avatarUrl={p.avatar_url}
+                      size={52}
+                      iconFontSize="medium"
+                      sx={{ boxShadow: 1 }}
+                    />
                     <Box sx={{ flex: 1, minWidth: 0 }}>
                       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                         <Typography variant="h6" sx={{ fontWeight: 700, fontSize: "1.05rem" }} noWrap>
@@ -485,15 +583,41 @@ export const UsersPage: React.FC = () => {
                     </Tooltip>
 
                     <Tooltip title={p.is_active ? "Deactivate User" : "Activate User"}>
-                      <IconButton
-                        size="small"
-                        color={p.is_active ? "error" : "success"}
-                        onClick={() => handleToggleActive(p)}
-                        disabled={!canModify || (isTargetAdmin && profiles.filter((x) => x.role === "admin" && x.is_active).length <= 1)}
-                      >
-                        {p.is_active ? <BlockOutlinedIcon fontSize="small" /> : <CheckCircleOutlinedIcon fontSize="small" />}
-                      </IconButton>
+                      <span>
+                        <IconButton
+                          size="small"
+                          color={p.is_active ? "warning" : "success"}
+                          onClick={() => handleToggleActive(p)}
+                          disabled={!canModify || (isTargetAdmin && activeAdminCount <= 1)}
+                        >
+                          {p.is_active ? <BlockOutlinedIcon fontSize="small" /> : <CheckCircleOutlinedIcon fontSize="small" />}
+                        </IconButton>
+                      </span>
                     </Tooltip>
+
+                    {isCurrentUserAdmin && (
+                      <Tooltip
+                        title={
+                          isSelf
+                            ? "Cannot delete signed-in account"
+                            : isTargetAdmin && activeAdminCount <= 1
+                              ? "Cannot delete last remaining active Admin"
+                              : "Delete User Permanently"
+                        }
+                      >
+                        <span>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            aria-label={`Delete user ${p.name}`}
+                            onClick={() => setDeleteTargetProfile(p)}
+                            disabled={isSelf || (isTargetAdmin && activeAdminCount <= 1)}
+                          >
+                            <DeleteOutlineOutlinedIcon fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                    )}
                   </Box>
                 </CardContent>
               </Card>
@@ -542,12 +666,53 @@ export const UsersPage: React.FC = () => {
                 />
               </Grid>
 
+              {/* Profile Picture */}
+              <Grid size={{ xs: 12 }}>
+                <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                  Profile Picture
+                </Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+                  <ProfileAvatar
+                    name={name || editingProfile?.name || "User"}
+                    color={color}
+                    avatarEmoji={avatarEmoji}
+                    avatarUrl={dialogAvatarUrl}
+                    size={64}
+                    iconFontSize="large"
+                    sx={{ boxShadow: 1 }}
+                  />
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                    <PhotoCaptureButtons
+                      multiple={false}
+                      size="small"
+                      disabled={isSubmitting}
+                      cameraLabel="Take Photo"
+                      uploadLabel={dialogAvatarUrl ? "Change Picture" : "Upload Picture"}
+                      onFilesSelected={handleDialogAvatarSelected}
+                    />
+                    {dialogAvatarUrl && (
+                      <Button
+                        size="small"
+                        color="error"
+                        variant="text"
+                        startIcon={<DeleteOutlineOutlinedIcon />}
+                        onClick={handleDialogAvatarRemove}
+                        disabled={isSubmitting}
+                        sx={{ textTransform: "none", fontWeight: 600 }}
+                      >
+                        Remove
+                      </Button>
+                    )}
+                  </Box>
+                </Box>
+              </Grid>
+
               {/* Account Icon Selector */}
               <Grid size={{ xs: 12 }}>
                 <AccountIconPicker
                   value={avatarEmoji}
                   onChange={setAvatarEmoji}
-                  label="Account Icon"
+                  label="Fallback Account Icon (when no picture is uploaded)"
                 />
               </Grid>
 
@@ -686,6 +851,18 @@ export const UsersPage: React.FC = () => {
           </DialogActions>
         </form>
       </Dialog>
+
+      {/* Delete User Confirmation Dialog */}
+      <ConfirmDialog
+        open={Boolean(deleteTargetProfile)}
+        title={`Delete User "${deleteTargetProfile?.name ?? ""}"?`}
+        message="This permanently removes the user account, their uploaded profile picture, personal reminder state, saved filters, and personal label templates. Inventory items, locations, and loan borrower names will remain intact."
+        confirmLabel={isDeleting ? "Deleting..." : "Delete Permanently"}
+        confirmColor="error"
+        isLoading={isDeleting}
+        onConfirm={() => void handleConfirmDeleteUser()}
+        onCancel={() => setDeleteTargetProfile(null)}
+      />
     </Box>
   );
 };

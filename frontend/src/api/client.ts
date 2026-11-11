@@ -21,6 +21,24 @@ export class ApiException extends Error {
   }
 }
 
+type UnauthorizedHandler = () => void;
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): void {
+  unauthorizedHandler = handler;
+}
+
+function shouldNotifyUnauthorized(endpoint: string): boolean {
+  const path = endpoint.split("?", 1)[0];
+  return !path.startsWith("/api/auth/") && path !== "/api/profiles/select";
+}
+
+export function handleHttpUnauthorized(endpoint: string, status: number): void {
+  if (status === 401 && shouldNotifyUnauthorized(endpoint)) {
+    unauthorizedHandler?.();
+  }
+}
+
 async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {}
@@ -37,6 +55,7 @@ async function apiFetch<T>(
   });
 
   if (!response.ok) {
+    handleHttpUnauthorized(endpoint, response.status);
     let errPayload: { error?: ApiError } = {};
     try {
       errPayload = await response.json();
@@ -93,7 +112,10 @@ export interface ImportCsvResult {
   total_rows: number;
   imported_count: number;
   errors: string[];
+  batch_id?: string | null;
 }
+
+export type ImportFormat = "csv" | "json" | "xlsx";
 
 export type AiProviderType = "gemini" | "local";
 
@@ -290,6 +312,7 @@ export interface ProfileOut {
   username?: string;
   color: string;
   avatar_emoji: string;
+  avatar_url?: string | null;
   role: ProfileRole;
   is_active: boolean;
   must_change_password: boolean;
@@ -362,7 +385,7 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(data),
     }),
-  deactivateProfile: (profileId: number) =>
+  deleteProfile: (profileId: number) =>
     apiFetch<{ ok: boolean; message?: string }>(`/api/profiles/${profileId}`, {
       method: "DELETE",
     }),
@@ -370,6 +393,30 @@ export const api = {
     apiFetch<ProfileOut>("/api/profiles/me/prefs", {
       method: "PUT",
       body: JSON.stringify(data),
+    }),
+  uploadMyAvatar: (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiFetch<ProfileOut>("/api/profiles/me/avatar", {
+      method: "POST",
+      body: formData,
+    });
+  },
+  removeMyAvatar: () =>
+    apiFetch<ProfileOut>("/api/profiles/me/avatar", {
+      method: "DELETE",
+    }),
+  uploadProfileAvatar: (profileId: number, file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    return apiFetch<ProfileOut>(`/api/profiles/${profileId}/avatar`, {
+      method: "POST",
+      body: formData,
+    });
+  },
+  removeProfileAvatar: (profileId: number) =>
+    apiFetch<ProfileOut>(`/api/profiles/${profileId}/avatar`, {
+      method: "DELETE",
     }),
 
   // Settings
@@ -664,7 +711,14 @@ export const api = {
     id: number,
     optionsOrTakenOut:
       | boolean
-      | { taken_out?: boolean; taken_out_quantity?: number; taken_by?: string | null; taken_due?: string | null },
+      | {
+          taken_out?: boolean;
+          taken_out_quantity?: number;
+          taken_by?: string | null;
+          taken_due?: string | null;
+          taken_by_profile_id?: number | null;
+          taken_by_contact_id?: number | null;
+        },
     taken_by?: string | null
   ) => {
     const body =
@@ -677,7 +731,7 @@ export const api = {
     });
   },
   bulkMove: (item_ids: number[], location_id: number | null) =>
-    apiFetch<{ ok: boolean; moved_count: number }>("/api/items/bulk-move", {
+    apiFetch<{ ok: boolean; moved_count: number; batch_id?: string | null }>("/api/items/bulk-move", {
       method: "POST",
       body: JSON.stringify({ item_ids, location_id }),
     }),
@@ -749,6 +803,56 @@ export const api = {
       body: formData,
     });
   },
+  importItems: (
+    format: ImportFormat,
+    file: File,
+    options?: { categoryId?: number | null; dryRun?: boolean; locationId?: number | null }
+  ) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const params = new URLSearchParams({
+      format,
+      dry_run: String(options?.dryRun ?? true),
+    });
+    if (options?.categoryId) {
+      params.set("category_id", String(options.categoryId));
+    }
+    if (options?.locationId) {
+      params.set("location_id", String(options.locationId));
+    }
+    return apiFetch<ImportCsvResult>(`/api/admin/import?${params.toString()}`, {
+      method: "POST",
+      body: formData,
+    });
+  },
+  downloadImportTemplate: async (format: ImportFormat, categoryId?: number | null) => {
+    const params = new URLSearchParams({ format });
+    if (categoryId) {
+      params.set("category_id", String(categoryId));
+    }
+    const resp = await fetch(`/api/admin/import/template?${params.toString()}`, {
+      credentials: "same-origin",
+    });
+    if (!resp.ok) {
+      handleHttpUnauthorized("/api/admin/import/template", resp.status);
+      throw new ApiException(resp.status, {
+        code: "TEMPLATE_ERROR",
+        message: `Failed to download ${format.toUpperCase()} template (${resp.status})`,
+      });
+    }
+    const blob = await resp.blob();
+    const disposition = resp.headers.get("content-disposition") || "";
+    const match = disposition.match(/filename="?([^"]+)"?/i);
+    const filename = match?.[1] || `wherezy-template.${format}`;
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.URL.revokeObjectURL(url);
+  },
 
   // --- v2 Additions ---
 
@@ -805,6 +909,15 @@ export const api = {
     apiFetch<{ ok: boolean }>("/api/reminders/snooze", { method: "POST", body: JSON.stringify(data) }),
   dismissReminder: (data: any) =>
     apiFetch<{ ok: boolean }>("/api/reminders/dismiss", { method: "POST", body: JSON.stringify(data) }),
+  restoreReminder: (data: {
+    source_type: string;
+    item_id: number;
+    field_key?: string | null;
+    due_date: string;
+    snoozed_until?: string | null;
+    dismissed_at?: string | null;
+  }) =>
+    apiFetch<{ ok: boolean }>("/api/reminders/restore", { method: "POST", body: JSON.stringify(data) }),
   testWebhook: () => apiFetch<any>("/api/admin/webhook-test", { method: "POST" }),
 
   // Attachments
@@ -870,6 +983,21 @@ export const api = {
       method: "POST",
       body: JSON.stringify(data),
     }),
+  unsortInboxItem: (
+    itemId: number,
+    data: {
+      name: string;
+      location_id?: number | null;
+      quantity?: number;
+      values?: Record<string, any>;
+      notes?: string | null;
+      expiry_date?: string | null;
+    }
+  ) =>
+    apiFetch<{ ok: boolean }>(`/api/inbox/${itemId}/unsort`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   bulkInboxAction: (ids: number[], action: string, params: any = {}) =>
     apiFetch<{ ok: boolean }>("/api/inbox/bulk", {
       method: "POST",
@@ -895,6 +1023,11 @@ export const api = {
   getHealthItems: (checkName: string) => apiFetch<any[]>(`/api/health/${checkName}`),
   ignoreHealthFinding: (check_key: string, item_id: number, other_item_id?: number | null) =>
     apiFetch<{ ok: boolean }>("/api/health/ignore", {
+      method: "POST",
+      body: JSON.stringify({ check_key, item_id, other_item_id: other_item_id || null }),
+    }),
+  unignoreHealthFinding: (check_key: string, item_id: number, other_item_id?: number | null) =>
+    apiFetch<{ ok: boolean }>("/api/health/unignore", {
       method: "POST",
       body: JSON.stringify({ check_key, item_id, other_item_id: other_item_id || null }),
     }),
@@ -937,9 +1070,27 @@ export const api = {
     apiFetch<{ ok: boolean }>(`/api/boxes/${boxId}/items/${itemId}`, { method: "DELETE" }),
   packBox: (boxId: number) => apiFetch<{ ok: boolean }>(`/api/boxes/${boxId}/pack`, { method: "POST" }),
   unpackBox: (boxId: number, item_ids: number[], location_id: number) =>
-    apiFetch<{ ok: boolean }>(`/api/boxes/${boxId}/unpack`, {
+    apiFetch<{
+      ok: boolean;
+      message?: string;
+      batch_id?: string | null;
+      previous_status?: "packing" | "packed" | "unpacked";
+      unpacked_item_ids?: number[];
+    }>(`/api/boxes/${boxId}/unpack`, {
       method: "POST",
       body: JSON.stringify({ item_ids, location_id }),
+    }),
+  undoUnpackBox: (
+    boxId: number,
+    data: {
+      batch_id?: string | null;
+      item_ids: number[];
+      previous_status?: "packing" | "packed" | "unpacked" | null;
+    }
+  ) =>
+    apiFetch<{ ok: boolean }>(`/api/boxes/${boxId}/unpack/undo`, {
+      method: "POST",
+      body: JSON.stringify(data),
     }),
 
   // Labels

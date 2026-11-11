@@ -7,12 +7,12 @@ from backend.app.core.db import get_db
 from backend.app.models import Move, Box, BoxItem, Item, Location, Profile
 from backend.app.schemas import (
     MoveOut, MoveCreate, MoveUpdate, BoxOut, BoxCreate, BoxUpdate,
-    BoxItemOut, BoxUnpackRequest, BulkRequest, SuccessResponse
+    BoxItemOut, BoxUnpackRequest, BoxUnpackResponse, BoxUnpackUndoRequest, BulkRequest, SuccessResponse
 )
 from backend.app.services.permissions import require
 from backend.app.services.activity import record
 from backend.app.services.visibility import items_visible
-from backend.app.services.bulk import execute_bulk
+from backend.app.services.bulk import execute_bulk, undo_batch
 
 router = APIRouter(tags=["Moving-House Mode"])
 
@@ -311,7 +311,7 @@ def pack_box(box_id: int, db: Session = Depends(get_db), current: Profile = Depe
     db.commit()
     return SuccessResponse(ok=True, message=f"Box #{box.number} marked as packed")
 
-@router.post("/boxes/{box_id}/unpack", response_model=SuccessResponse)
+@router.post("/boxes/{box_id}/unpack", response_model=BoxUnpackResponse)
 def unpack_box(
     box_id: int,
     payload: BoxUnpackRequest,
@@ -325,6 +325,8 @@ def unpack_box(
     dest_loc = db.query(Location).filter(Location.id == payload.location_id, Location.deleted_at.is_(None)).first()
     if not dest_loc:
         raise HTTPException(status_code=400, detail={"error": {"code": "INVALID_LOCATION", "message": "Destination location not found"}})
+
+    previous_status = box.status if box.status in ("packing", "packed", "unpacked") else "packed"
 
     # Bulk move items to dest_loc via execute_bulk (one undoable batch)
     bulk_res = execute_bulk(
@@ -350,4 +352,48 @@ def unpack_box(
     )
     db.commit()
 
-    return SuccessResponse(ok=True, message=f"Unpacked {bulk_res.changed} items to {dest_loc.name}")
+    return BoxUnpackResponse(
+        ok=True,
+        message=f"Unpacked {bulk_res.changed} items to {dest_loc.name}",
+        batch_id=bulk_res.batch_id,
+        previous_status=previous_status,
+        unpacked_item_ids=list(payload.item_ids),
+    )
+
+@router.post("/boxes/{box_id}/unpack/undo", response_model=SuccessResponse)
+def undo_unpack_box(
+    box_id: int,
+    payload: BoxUnpackUndoRequest,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("moves:write"))
+):
+    """Restore unpacked items back into their box and undo their location move batch."""
+    box = db.query(Box).filter(Box.id == box_id).first()
+    if not box:
+        raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Box not found"}})
+
+    if payload.batch_id:
+        try:
+            undo_batch(db, payload.batch_id, actor=current)
+        except ValueError:
+            pass
+
+    if payload.item_ids:
+        db.query(BoxItem).filter(
+            BoxItem.box_id == box.id,
+            BoxItem.item_id.in_(payload.item_ids),
+        ).update({"active": 1}, synchronize_session=False)
+
+    if payload.previous_status:
+        box.status = payload.previous_status
+    elif db.query(BoxItem).filter(BoxItem.box_id == box.id, BoxItem.active == 1).count() > 0:
+        box.status = "packed"
+
+    db.commit()
+    record(
+        db, "box", "unpack_reverted",
+        f"Restored items back into Box #{box.number}",
+        entity_id=box.id, actor=current,
+    )
+    db.commit()
+    return SuccessResponse(ok=True, message=f"Restored Box #{box.number}")

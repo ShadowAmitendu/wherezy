@@ -30,11 +30,27 @@
         "Syrup",
         "Drops",
         "Cream/Ointment",
+        "Powder / Churna / Sachet",
+        "Balm / Vaporub",
         "Injection",
         "Inhaler",
         "Other"
       ],
       "show_in_list": true,
+      "hint": ""
+    },
+    {
+      "label": "System",
+      "type": "dropdown",
+      "required": false,
+      "options": [
+        "Allopathic",
+        "Ayurvedic",
+        "Homeopathic",
+        "Unani / Herbal",
+        "Supplement / Vitamin"
+      ],
+      "show_in_list": false,
       "hint": ""
     },
     {

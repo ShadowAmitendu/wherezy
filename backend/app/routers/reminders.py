@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from backend.app.core.db import get_db
 from backend.app.models import ReminderState, Profile, Setting
 from backend.app.schemas import (
-    ReminderOut, ReminderSnoozeRequest, ReminderDismissRequest,
+    ReminderOut, ReminderSnoozeRequest, ReminderDismissRequest, ReminderRestoreRequest,
     ReminderCountResponse, WebhookTestResponse, SuccessResponse
 )
 from backend.app.services.permissions import require
@@ -152,6 +152,42 @@ def dismiss_reminder(
 
     db.commit()
     return SuccessResponse(ok=True, message="Reminder dismissed")
+
+@router.post("/reminders/restore", response_model=SuccessResponse)
+def restore_reminder(
+    payload: ReminderRestoreRequest,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("reminders:write"))
+):
+    """Restore a reminder back to its previous snoozed/dismissed/active state."""
+    state = db.query(ReminderState).filter(
+        ReminderState.source_type == payload.source_type,
+        ReminderState.item_id == payload.item_id,
+        ReminderState.field_key == payload.field_key,
+        ReminderState.due_date == payload.due_date,
+        ReminderState.profile_id == current.id
+    ).first()
+
+    if payload.snoozed_until is None and payload.dismissed_at is None:
+        if state:
+            db.delete(state)
+    elif not state:
+        state = ReminderState(
+            source_type=payload.source_type,
+            item_id=payload.item_id,
+            field_key=payload.field_key,
+            due_date=payload.due_date,
+            profile_id=current.id,
+            snoozed_until=payload.snoozed_until,
+            dismissed_at=payload.dismissed_at
+        )
+        db.add(state)
+    else:
+        state.snoozed_until = payload.snoozed_until
+        state.dismissed_at = payload.dismissed_at
+
+    db.commit()
+    return SuccessResponse(ok=True, message="Reminder restored")
 
 @router.post("/admin/webhook-test", response_model=WebhookTestResponse)
 def test_webhook(

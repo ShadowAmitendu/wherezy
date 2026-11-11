@@ -55,6 +55,7 @@ import { FieldDef, FieldType } from "./types";
 import { DynamicFields } from "./DynamicFields";
 import { api } from "../../api/client";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
+import { useUndo } from "../../components/shared/UndoContext";
 
 interface FormBuilderProps {
   categoryId: number;
@@ -143,6 +144,7 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
   fields,
   onFieldsChanged,
 }) => {
+  const { showUndo } = useUndo();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingField, setEditingField] = useState<FieldDef | null>(null);
   const [archiveTarget, setArchiveTarget] = useState<FieldDef | null>(null);
@@ -175,6 +177,7 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
     if (over && active.id !== over.id) {
       const oldIndex = activeFields.findIndex((f) => f.id === active.id);
       const newIndex = activeFields.findIndex((f) => f.id === over.id);
+      const prevOrderIds = activeFields.map((f) => f.id);
       const newOrder = arrayMove(activeFields, oldIndex, newIndex);
       try {
         await api.reorderFields(
@@ -182,6 +185,12 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
           newOrder.map((f) => f.id)
         );
         onFieldsChanged();
+        showUndo({
+          message: "Reordered category fields",
+          onUndo: async () => {
+            await api.reorderFields(categoryId, prevOrderIds);
+          },
+        });
       } catch (err) {
         console.error("Reorder failed", err);
       }
@@ -237,17 +246,34 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
 
     try {
       if (editingField) {
-        await api.updateField(editingField.id, {
-          label: label.trim(),
+        const fieldId = editingField.id;
+        const prevSnapshot = {
+          label: editingField.label,
+          type: editingField.type,
+          required: editingField.required,
+          unit: editingField.unit ?? null,
+          hint: editingField.hint ?? null,
+          options: editingField.options,
+          show_in_list: editingField.show_in_list,
+        };
+        const nextLabel = label.trim();
+        await api.updateField(fieldId, {
+          label: nextLabel,
           type,
           required,
           unit: unit.trim() || null,
           hint: hint.trim() || null,
           options: parsedOptions,
           show_in_list: showInList,
+        });
+        showUndo({
+          message: `Updated field "${nextLabel}"`,
+          onUndo: async () => {
+            await api.updateField(fieldId, prevSnapshot);
+          },
         });
       } else {
-        await api.createField(categoryId, {
+        const created = await api.createField(categoryId, {
           label: label.trim(),
           type,
           required,
@@ -256,6 +282,14 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
           options: parsedOptions,
           show_in_list: showInList,
         });
+        if (created?.id) {
+          showUndo({
+            message: `Added field "${created.label}"`,
+            onUndo: async () => {
+              await api.deleteField(created.id);
+            },
+          });
+        }
       }
       setDialogOpen(false);
       onFieldsChanged();
@@ -268,10 +302,22 @@ export const FormBuilder: React.FC<FormBuilderProps> = ({
 
   const handleConfirmArchive = async () => {
     if (!archiveTarget) return;
+    const archivedId = archiveTarget.id;
+    const archivedLabel = archiveTarget.label;
+    const prevShowInList = archiveTarget.show_in_list;
     try {
-      await api.deleteField(archiveTarget.id);
+      await api.deleteField(archivedId);
       setArchiveTarget(null);
       onFieldsChanged();
+      showUndo({
+        message: `Archived field "${archivedLabel}"`,
+        onUndo: async () => {
+          await api.updateField(archivedId, {
+            archived: false,
+            show_in_list: prevShowInList,
+          });
+        },
+      });
     } catch (err: any) {
       console.error("Archive failed", err);
     }

@@ -316,6 +316,7 @@ class BulkMoveRequest(BaseModel):
 class BulkMoveResponse(BaseModel):
     ok: bool = True
     moved_count: int
+    batch_id: Optional[str] = None
 
 class ItemTagSimple(BaseModel):
     id: int
@@ -429,6 +430,7 @@ class ImportCsvResult(BaseModel):
     total_rows: int
     imported_count: int
     errors: List[str] = []
+    batch_id: Optional[str] = None
 
 
 # ==========================================
@@ -480,6 +482,7 @@ class ProfileOut(BaseModel):
     username: Optional[str] = None
     color: str
     avatar_emoji: str
+    avatar_url: Optional[str] = None
     role: ProfileRole
     is_active: bool
     must_change_password: bool = False
@@ -621,6 +624,14 @@ class ReminderDismissRequest(BaseModel):
     field_key: Optional[str] = None
     due_date: str
 
+class ReminderRestoreRequest(BaseModel):
+    source_type: ReminderSource
+    item_id: int
+    field_key: Optional[str] = None
+    due_date: str
+    snoozed_until: Optional[str] = None
+    dismissed_at: Optional[str] = None
+
 class ReminderCountResponse(BaseModel):
     overdue: int
     due_soon: int
@@ -725,6 +736,14 @@ class InboxSortRequest(BaseModel):
     notes: Optional[str] = None
     expiry_date: Optional[str] = None
     tag_ids: Optional[List[int]] = None
+
+class InboxUnsortRequest(BaseModel):
+    name: str
+    location_id: Optional[int] = None
+    quantity: Optional[int] = Field(default=None, ge=1, le=1_000_000)
+    values: Dict[str, Any] = Field(default_factory=dict)
+    notes: Optional[str] = None
+    expiry_date: Optional[str] = None
 
 class InboxBulkRequest(BaseModel):
     ids: List[int]
@@ -869,6 +888,18 @@ class BoxOut(BaseModel):
 class BoxUnpackRequest(BaseModel):
     item_ids: List[int]
     location_id: int
+
+class BoxUnpackResponse(BaseModel):
+    ok: bool = True
+    message: str = ""
+    batch_id: Optional[str] = None
+    previous_status: BoxStatus = "packed"
+    unpacked_item_ids: List[int] = []
+
+class BoxUnpackUndoRequest(BaseModel):
+    batch_id: Optional[str] = None
+    item_ids: List[int] = []
+    previous_status: Optional[BoxStatus] = None
 
 # --- Label Templates ---
 

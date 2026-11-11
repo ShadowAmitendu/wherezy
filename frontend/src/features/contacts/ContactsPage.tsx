@@ -39,6 +39,7 @@ import AssignmentReturnOutlinedIcon from "@mui/icons-material/AssignmentReturnOu
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { PageHeader } from "../../components/shared/PageHeader";
+import { useUndo, useOnUndoRefresh } from "../../components/shared/UndoContext";
 import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
 import { api } from "../../api/client";
 import { ItemDetailDialog } from "../items/ItemDetailDialog";
@@ -47,6 +48,7 @@ import { formatTakenOutStatusLabel, getItemQuantity } from "../items/quantityUti
 export const ContactsPage: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const { showUndo } = useUndo();
   const [contacts, setContacts] = useState<any[]>([]);
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -122,6 +124,10 @@ export const ContactsPage: React.FC = () => {
     setDialogOpen(true);
   };
 
+  useOnUndoRefresh(() => {
+    void loadContacts();
+  });
+
   const handleSaveContact = async () => {
     if (!name.trim()) {
       setErrorMsg("Contact name is required");
@@ -129,19 +135,38 @@ export const ContactsPage: React.FC = () => {
     }
     try {
       if (editingContact) {
-        await api.updateContact(editingContact.id, {
-          name: name.trim(),
+        const contactId = editingContact.id;
+        const prev = {
+          name: editingContact.name,
+          phone: editingContact.phone || undefined,
+          note: editingContact.note || undefined,
+        };
+        const updatedName = name.trim();
+        await api.updateContact(contactId, {
+          name: updatedName,
           phone: phone.trim() || undefined,
           note: note.trim() || undefined,
         });
-        setSuccessMsg("Contact updated successfully");
+        showUndo({
+          message: `Updated contact "${updatedName}"`,
+          onUndo: async () => {
+            await api.updateContact(contactId, prev);
+          },
+        });
       } else {
-        await api.createContact({
+        const created = await api.createContact({
           name: name.trim(),
           phone: phone.trim() || undefined,
           note: note.trim() || undefined,
         });
-        setSuccessMsg("Contact created successfully");
+        if (created?.id) {
+          showUndo({
+            message: `Added contact "${created.name}"`,
+            onUndo: async () => {
+              await api.deleteContact(created.id);
+            },
+          });
+        }
       }
       setDialogOpen(false);
       loadContacts();
@@ -161,8 +186,22 @@ export const ContactsPage: React.FC = () => {
     try {
       await api.deleteContact(contact.id);
       setDeactivateTarget(null);
-      setSuccessMsg(`Contact '${contact.name}' deactivated`);
       loadContacts();
+      const hadLoans = Number(contact.items_out_count || 0) > 0;
+      showUndo({
+        message: hadLoans ? `Deactivated "${contact.name}"` : `Removed "${contact.name}"`,
+        onUndo: async () => {
+          if (hadLoans) {
+            await api.updateContact(contact.id, { is_active: true });
+          } else {
+            await api.createContact({
+              name: contact.name,
+              phone: contact.phone || undefined,
+              note: contact.note || undefined,
+            });
+          }
+        },
+      });
     } catch (err: any) {
       setDeactivateTarget(null);
       setErrorMsg(err.error?.message || "Failed to deactivate contact");
@@ -185,14 +224,31 @@ export const ContactsPage: React.FC = () => {
   };
 
   const handleReturnItem = async (itemId: number) => {
+    const loan = loansData?.active_loans?.find((l: any) => l.id === itemId);
+    const contactRef = loansContact;
     try {
       await api.toggleTaken(itemId, false);
-      setSuccessMsg("Item marked as returned");
-      if (loansContact) {
-        const data = await api.getContactLoans(loansContact.id);
+      if (contactRef) {
+        const data = await api.getContactLoans(contactRef.id);
         setLoansData(data);
       }
       loadContacts();
+      showUndo({
+        message: loan ? `Marked "${loan.name}" as returned` : "Item marked as returned",
+        onUndo: async () => {
+          await api.toggleTaken(itemId, {
+            taken_out: true,
+            taken_out_quantity: Math.max(1, Number(loan?.taken_out_quantity || 1)),
+            taken_due: loan?.taken_due ?? null,
+            taken_by: contactRef?.name ?? null,
+            taken_by_contact_id: contactRef?.id ?? null,
+          });
+          if (contactRef) {
+            const refreshed = await api.getContactLoans(contactRef.id);
+            setLoansData(refreshed);
+          }
+        },
+      });
     } catch (err: any) {
       setErrorMsg(err.error?.message || "Failed to return item");
     }

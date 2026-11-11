@@ -256,3 +256,25 @@ def delete_health_ignore(
     db.delete(ig)
     db.commit()
     return SuccessResponse(ok=True, message="Ignore record removed")
+
+@router.post("/health/unignore", response_model=SuccessResponse)
+def unignore_health_finding(
+    payload: HealthIgnoreRequest,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("member"))
+):
+    """Remove an ignore record matching check_key, item_id, and other_item_id."""
+    q = db.query(HealthIgnore).filter(
+        HealthIgnore.check_key == payload.check_key,
+        HealthIgnore.item_id == payload.item_id,
+    )
+    if payload.other_item_id is None:
+        q = q.filter(HealthIgnore.other_item_id.is_(None))
+    else:
+        q = q.filter(HealthIgnore.other_item_id == payload.other_item_id)
+    deleted = q.delete(synchronize_session=False)
+    db.commit()
+    return SuccessResponse(
+        ok=True,
+        message="Ignore record removed" if deleted else "Finding was not ignored",
+    )

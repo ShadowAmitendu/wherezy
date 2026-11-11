@@ -60,6 +60,8 @@ import { AILocationTreeDialog } from "./AILocationTreeDialog";
 import { LocationPicker } from "./LocationPicker";
 import { LocationIcon } from "./LocationIcon";
 import { AlertDialog } from "../../components/shared/AlertDialog";
+import { useUndo, useOnUndoRefresh } from "../../components/shared/UndoContext";
+import { useAuth } from "../../auth/useAuth";
 import { api, ApiException } from "../../api/client";
 import { formatTakenOutStatusLabel, getItemQuantity } from "../items/quantityUtils";
 import {
@@ -95,6 +97,8 @@ export const LocationsPage: React.FC = () => {
 
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const { currentProfile } = useAuth();
+  const { showUndo } = useUndo();
   const [tree, setTree] = useState<any[]>([]);
   const [selectedLocationId, setSelectedLocationId] = useState<number | null>(
     requestedSelectedId && !Number.isNaN(requestedSelectedId) ? requestedSelectedId : null
@@ -185,6 +189,13 @@ export const LocationsPage: React.FC = () => {
       setLocationItems([]);
     }
   };
+
+  useOnUndoRefresh(() => {
+    void loadTree();
+    if (selectedLocationId) {
+      void loadDetail(selectedLocationId);
+    }
+  });
 
   useEffect(() => {
     let active = true;
@@ -305,7 +316,15 @@ export const LocationsPage: React.FC = () => {
     setErrorMsg(null);
     try {
       if (editingLoc) {
-        const updated = await api.updateLocation(editingLoc.id, {
+        const editedId = editingLoc.id;
+        const prevSnapshot = {
+          name: editingLoc.name,
+          kind: editingLoc.kind || "Room",
+          parent_id: editingLoc.parent_id ?? null,
+          storage_only: Boolean(editingLoc.storage_only),
+          notes: editingLoc.notes ?? null,
+        };
+        const updated = await api.updateLocation(editedId, {
           name: name.trim(),
           kind: kind.trim() || "Room",
           parent_id: parentTargetId,
@@ -315,6 +334,12 @@ export const LocationsPage: React.FC = () => {
         setDialogOpen(false);
         await loadTree(updated.id);
         await loadDetail(updated.id);
+        showUndo({
+          message: `Updated location "${updated.name}"`,
+          onUndo: async () => {
+            await api.updateLocation(editedId, prevSnapshot);
+          },
+        });
       } else {
         const created = await api.createLocation({
           name: name.trim(),
@@ -323,6 +348,20 @@ export const LocationsPage: React.FC = () => {
           notes: notes.trim() || null,
           parent_id: parentTargetId,
           children: locationRole === "room" && !storageOnly ? cleanChildren : [],
+        });
+
+        const createdId = created.id;
+        const createdName = created.name;
+        showUndo({
+          message: `Created "${createdName}"`,
+          onUndo: async () => {
+            const detail = await api.getLocation(createdId).catch(() => null);
+            const children: any[] = detail?.children || [];
+            for (const child of [...children].reverse()) {
+              await api.deleteLocation(child.id);
+            }
+            await api.deleteLocation(createdId);
+          },
         });
 
         if (keepAdding && parentTargetId) {
@@ -366,11 +405,23 @@ export const LocationsPage: React.FC = () => {
     setBatchSaving(true);
     setBatchError(null);
     try {
-      await api.addLocationChildren(batchParent.id, cleaned);
+      const createdChildren = await api.addLocationChildren(batchParent.id, cleaned);
       const targetId = batchParent.id;
+      const parentName = batchParent.name;
       setBatchParent(null);
       await loadTree(targetId);
       await loadDetail(targetId);
+      if (Array.isArray(createdChildren) && createdChildren.length > 0) {
+        const idsToDelete = [...createdChildren].reverse().map((c: any) => c.id);
+        showUndo({
+          message: `Added ${idsToDelete.length} shelf/storage ${idsToDelete.length === 1 ? "area" : "areas"} to "${parentName}"`,
+          onUndo: async () => {
+            for (const cid of idsToDelete) {
+              await api.deleteLocation(cid);
+            }
+          },
+        });
+      }
     } catch (err: any) {
       setBatchError(err?.error?.message || "Failed to add shelves / storage areas");
     } finally {
@@ -388,13 +439,22 @@ export const LocationsPage: React.FC = () => {
 
   const handleSaveMove = async () => {
     if (!movingLoc) return;
+    const locId = movingLoc.id;
+    const locName = movingLoc.name;
+    const prevParentId = movingLoc.parent_id ?? null;
     try {
-      await api.moveLocation(movingLoc.id, targetParentId);
+      await api.moveLocation(locId, targetParentId);
       setMoveDialogOpen(false);
       await loadTree();
-      if (selectedLocationId === movingLoc.id) {
-        loadDetail(movingLoc.id);
+      if (selectedLocationId === locId) {
+        loadDetail(locId);
       }
+      showUndo({
+        message: `Moved location "${locName}"`,
+        onUndo: async () => {
+          await api.moveLocation(locId, prevParentId);
+        },
+      });
     } catch (err: any) {
       setErrorMsg(err.error?.message || "Cannot move location");
     }
@@ -402,14 +462,24 @@ export const LocationsPage: React.FC = () => {
 
   const handleDeleteLocation = async () => {
     if (!deleteTarget) return;
+    const deletedId = deleteTarget.id;
+    const deletedName = deleteTarget.name;
     try {
-      await api.deleteLocation(deleteTarget.id);
+      await api.deleteLocation(deletedId);
       setDeleteTarget(null);
-      if (selectedLocationId === deleteTarget.id) {
+      if (selectedLocationId === deletedId) {
         setSelectedLocationId(null);
         setSelectedDetail(null);
       }
       await loadTree();
+      if (currentProfile?.role === "admin") {
+        showUndo({
+          message: `Deleted location "${deletedName}"`,
+          onUndo: async () => {
+            await api.restoreTrash("location", deletedId);
+          },
+        });
+      }
     } catch (err: any) {
       if (err instanceof ApiException) {
         setDeleteError(err.error.message);
@@ -1414,11 +1484,23 @@ export const LocationsPage: React.FC = () => {
         open={aiDialogOpen}
         initialParentId={null}
         onClose={() => setAiDialogOpen(false)}
-        onCreated={async (createdCount, summary) => {
+        onCreated={async (createdCount, summary, createdLocations) => {
           setAiDialogOpen(false);
           setAiNotice(
             summary || `AI created ${createdCount} storage ${createdCount === 1 ? "location" : "locations"}.`
           );
+          if (createdLocations && createdLocations.length > 0) {
+            const idsReverse = [...createdLocations].reverse().map((loc) => loc.id);
+            showUndo({
+              message: `AI created ${createdCount} ${createdCount === 1 ? "location" : "locations"}`,
+              onUndo: async () => {
+                for (const id of idsReverse) {
+                  await api.deleteLocation(id);
+                }
+                setAiNotice(null);
+              },
+            });
+          }
           await loadTree();
         }}
       />

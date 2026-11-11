@@ -18,11 +18,30 @@ datas = [
     (str(FRONTEND_DIST), "frontend/dist"),
     (str(MIGRATIONS_DIR), "backend/app/migrations"),
     (str(TEMPLATES_DIR), "backend/app/seed_templates"),
+    (str(ROOT_DIR / "packaging" / "wherezy.ico"), "packaging"),
+    (str(ROOT_DIR / "packaging" / "wherezy.icns"), "packaging"),
 ]
+
+import sys as _spec_sys
+
+_platform_hiddenimports = []
+if _spec_sys.platform == "win32":
+    _platform_hiddenimports = ["pystray._win32", "winreg"]
+elif _spec_sys.platform == "darwin":
+    _platform_hiddenimports = [
+        "pystray._darwin",
+        "AppKit",
+        "Foundation",
+        "objc",
+        "PyObjCTools.MachSignals",
+    ]
+else:
+    _platform_hiddenimports = ["pystray._xorg", "pystray._gtk", "pystray._appindicator"]
 
 hiddenimports = sorted(
     set(
         collect_submodules("backend.app")
+        + _platform_hiddenimports
         + [
             "uvicorn.logging",
             "uvicorn.loops",
@@ -56,6 +75,15 @@ hiddenimports = sorted(
             "python_multipart",
             "PIL",
             "PIL.Image",
+            "PIL.ImageDraw",
+            "PIL.ImageTk",
+            "PIL._tkinter_finder",
+            "pystray",
+            "tkinter",
+            "tkinter.ttk",
+            "tkinter.scrolledtext",
+            "tkinter.filedialog",
+            "tkinter.messagebox",
             "openpyxl",
             "google.genai",
             "httpx",
@@ -76,7 +104,6 @@ a = Analysis(
     runtime_hooks=[],
     excludes=[
         "pytest",
-        "tkinter",
         "_pytest",
     ],
     noarchive=False,
@@ -84,6 +111,14 @@ a = Analysis(
 )
 
 pyz = PYZ(a.pure)
+
+import sys as _sys
+
+_icon_path = None
+if _sys.platform == "win32":
+    _icon_path = str(ROOT_DIR / "packaging" / "wherezy.ico")
+elif _sys.platform == "darwin":
+    _icon_path = str(ROOT_DIR / "packaging" / "wherezy.icns")
 
 exe = EXE(
     pyz,
@@ -98,7 +133,8 @@ exe = EXE(
     upx=False,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=True,
+    console=False,
+    icon=_icon_path,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,

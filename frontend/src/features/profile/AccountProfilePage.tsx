@@ -7,7 +7,6 @@ import {
   Grid,
   TextField,
   Button,
-  Avatar,
   Chip,
   FormControl,
   InputLabel,
@@ -20,15 +19,17 @@ import PersonOutlinedIcon from "@mui/icons-material/PersonOutlined";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
+import DeleteOutlineOutlinedIcon from "@mui/icons-material/DeleteOutlineOutlined";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { useAuth } from "../../auth/useAuth";
 import { useAppTheme } from "../../theme/themeConstants";
 import { api, ApiException } from "../../api/client";
 import { AlertDialog } from "../../components/shared/AlertDialog";
-import { AccountIcon } from "../../components/shared/AccountIcon";
+import { ProfileAvatar } from "../../components/shared/ProfileAvatar";
 import { AccountIconPicker } from "../../components/shared/AccountIconPicker";
 import { ColorSwatchPicker } from "../../components/shared/ColorSwatchPicker";
 import { ThemePalettePicker } from "../../components/shared/ThemePalettePicker";
+import { PhotoCaptureButtons } from "../../components/shared/PhotoCaptureButtons";
 
 export const AccountProfilePage: React.FC = () => {
   const { currentProfile, refreshAuth } = useAuth();
@@ -40,6 +41,7 @@ export const AccountProfilePage: React.FC = () => {
   const [userColor, setUserColor] = useState(currentProfile?.color || "#486B85");
   const [profileMsg, setProfileMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [savingProfile, setSavingProfile] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   // Password state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -92,6 +94,44 @@ export const AccountProfilePage: React.FC = () => {
     }
   };
 
+  const handleAvatarSelected = async (files: File[]) => {
+    const file = files[0];
+    if (!file) return;
+    setUploadingAvatar(true);
+    setProfileMsg(null);
+    try {
+      await api.uploadMyAvatar(file);
+      await refreshAuth();
+      setProfileMsg({ type: "success", text: "Profile picture updated!" });
+    } catch (err: any) {
+      if (err instanceof ApiException) {
+        setProfileMsg({ type: "error", text: err.error.message || "Failed to upload profile picture." });
+      } else {
+        setProfileMsg({ type: "error", text: "Failed to upload profile picture." });
+      }
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    setUploadingAvatar(true);
+    setProfileMsg(null);
+    try {
+      await api.removeMyAvatar();
+      await refreshAuth();
+      setProfileMsg({ type: "success", text: "Profile picture removed." });
+    } catch (err: any) {
+      if (err instanceof ApiException) {
+        setProfileMsg({ type: "error", text: err.error.message || "Failed to remove profile picture." });
+      } else {
+        setProfileMsg({ type: "error", text: "Failed to remove profile picture." });
+      }
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
+
   const handleSavePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setPasswordMsg(null);
@@ -139,16 +179,15 @@ export const AccountProfilePage: React.FC = () => {
       {/* Profile Overview Card */}
       <Card variant="outlined" sx={{ borderRadius: 2, mb: 3, p: 1 }}>
         <CardContent sx={{ display: "flex", alignItems: "center", gap: 3, flexWrap: "wrap" }}>
-          <Avatar
-            sx={{
-              width: 76,
-              height: 76,
-              bgcolor: userColor,
-              boxShadow: 2,
-            }}
-          >
-            <AccountIcon icon={avatarEmoji} name={displayName} sx={{ fontSize: 44, color: "#ffffff" }} />
-          </Avatar>
+          <ProfileAvatar
+            name={displayName || currentProfile?.name}
+            color={userColor}
+            avatarEmoji={avatarEmoji}
+            avatarUrl={currentProfile?.avatar_url}
+            size={84}
+            iconSx={{ fontSize: 44, color: "#ffffff" }}
+            sx={{ boxShadow: 2 }}
+          />
           <Box sx={{ flex: 1, minWidth: 200 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
               <Typography variant="h5" sx={{ fontWeight: 800 }}>
@@ -164,9 +203,33 @@ export const AccountProfilePage: React.FC = () => {
             <Typography variant="body2" color="text.secondary" sx={{ fontFamily: "var(--font-mono)", mt: 0.5 }}>
               @{currentProfile?.username || currentProfile?.name?.toLowerCase().replace(" ", "")}
             </Typography>
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1.5 }}>
               Household Member since {currentProfile?.created_at ? new Date(currentProfile.created_at).toLocaleDateString() : "—"}
             </Typography>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexWrap: "wrap" }}>
+              <PhotoCaptureButtons
+                multiple={false}
+                size="small"
+                loading={uploadingAvatar}
+                loadingLabel="Uploading..."
+                cameraLabel="Take Photo"
+                uploadLabel={currentProfile?.avatar_url ? "Change Picture" : "Upload Picture"}
+                onFilesSelected={handleAvatarSelected}
+              />
+              {currentProfile?.avatar_url && (
+                <Button
+                  size="small"
+                  color="error"
+                  variant="text"
+                  startIcon={<DeleteOutlineOutlinedIcon />}
+                  onClick={handleRemoveAvatar}
+                  disabled={uploadingAvatar}
+                  sx={{ textTransform: "none", fontWeight: 600 }}
+                >
+                  Remove Picture
+                </Button>
+              )}
+            </Box>
           </Box>
         </CardContent>
       </Card>
@@ -205,7 +268,7 @@ export const AccountProfilePage: React.FC = () => {
                   <AccountIconPicker
                     value={avatarEmoji}
                     onChange={setAvatarEmoji}
-                    label="Account Icon"
+                    label="Fallback Account Icon (shown if no picture is uploaded)"
                   />
                 </Box>
 
