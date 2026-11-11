@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wherezy"
-version = "2.0.0"
+version = "2.1.0"
 description = "Self-hosted home inventory tracker with QR/barcode labels, custom schemas, and AI categorization."
 readme = "README.md"
 requires-python = ">=3.11"

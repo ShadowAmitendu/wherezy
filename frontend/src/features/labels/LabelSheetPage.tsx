@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   Box,
@@ -14,18 +14,24 @@ import {
 import PrintIcon from "@mui/icons-material/Print";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import QRCode from "qrcode";
-import JsBarcode from "jsbarcode";
 import { api } from "../../api/client";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { formatItemCode } from "../items/itemCodeUtils";
+import { buildLabelCopies, renderBarcodeToCanvas, type LabelData } from "./labelUtils";
 
-interface LabelData {
-  id: string;
-  type: "item" | "location";
-  name: string;
-  path?: string;
-  qrUrl: string;
+interface BarcodeCanvasProps {
+  value: string;
 }
+
+const BarcodeCanvas: React.FC<BarcodeCanvasProps> = ({ value }) => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    renderBarcodeToCanvas(canvasRef.current, value);
+  }, [value]);
+
+  return <canvas ref={canvasRef} style={{ maxWidth: "100%", height: "auto" }} />;
+};
 
 export const LabelSheetPage: React.FC = () => {
   useDocumentTitle("Print Labels");
@@ -38,7 +44,6 @@ export const LabelSheetPage: React.FC = () => {
   const [preset, setPreset] = useState<"small" | "medium" | "a4_grid">("medium");
   const [labels, setLabels] = useState<LabelData[]>([]);
   const [copies, setCopies] = useState(1);
-  const barcodeRefs = useRef<(HTMLCanvasElement | null)[]>([]);
 
   useEffect(() => {
     const loadLabelData = async () => {
@@ -86,37 +91,12 @@ export const LabelSheetPage: React.FC = () => {
     loadLabelData().catch(console.error);
   }, [itemId, locationId]);
 
-  // Render barcodes after labels update
-  useEffect(() => {
-    labels.forEach((label, idx) => {
-      const canvas = barcodeRefs.current[idx];
-      if (canvas && label.id) {
-        try {
-          JsBarcode(canvas, label.id, {
-            format: "CODE128",
-            width: 1.2,
-            height: 25,
-            displayValue: true,
-            fontSize: 10,
-            font: "JetBrains Mono",
-            margin: 0,
-          });
-        } catch (err) {
-          console.error("Barcode render error", err);
-        }
-      }
-    });
-  }, [labels, copies, preset]);
-
   const handlePrint = () => {
     window.print();
   };
 
   // Duplicate for number of copies
-  const allLabels: LabelData[] = [];
-  for (let c = 0; c < copies; c++) {
-    allLabels.push(...labels);
-  }
+  const allLabels = useMemo<LabelData[]>(() => buildLabelCopies(labels, copies), [labels, copies]);
 
   // Dimensions based on preset
   const presetStyles = {
@@ -251,12 +231,7 @@ export const LabelSheetPage: React.FC = () => {
                 </Typography>
               )}
               <Box sx={{ mt: 0.5 }}>
-                <canvas
-                  ref={(el) => {
-                    barcodeRefs.current[idx] = el;
-                  }}
-                  style={{ maxWidth: "100%", height: "auto" }}
-                />
+                <BarcodeCanvas value={lbl.id} />
               </Box>
             </Box>
           </Paper>
