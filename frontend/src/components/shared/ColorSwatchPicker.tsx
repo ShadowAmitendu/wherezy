@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Typography } from "@mui/material";
 
-export const DEFAULT_COLOR_PALETTE = [
+const DEFAULT_COLOR_PALETTE = [
   "#1976d2",
   "#486B85",
   "#02435C",

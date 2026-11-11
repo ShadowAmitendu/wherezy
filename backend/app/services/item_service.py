@@ -1,8 +1,8 @@
 import json
 from datetime import date, timedelta
-from typing import Optional, Dict, Any, List
+from typing import Optional
 from sqlalchemy.orm import Session
-from backend.app.models import Item, Photo, Category, Location
+from backend.app.models import Item, Photo
 from backend.app.schemas import ItemOut, ItemDetailOut, ExpiryStatus
 from backend.app.services.location_service import get_location_breadcrumbs, get_location_path_str
 from backend.app.routers.categories import map_field
@@ -51,6 +51,11 @@ def map_item(item: Item, db: Session, warn_days: int = 30) -> ItemOut:
 
     tags_out = [{"id": t.id, "name": t.name, "color": t.color} for t in item.tags] if item.tags else []
 
+    qty = max(1, int(item.quantity or 1))
+    out_qty = int(item.taken_out_quantity) if item.taken_out_quantity is not None else (1 if item.taken_out else 0)
+    out_qty = max(0, min(qty, out_qty))
+    avail_qty = max(0, qty - out_qty)
+
     return ItemOut(
         id=item.id,
         name=item.name,
@@ -61,7 +66,10 @@ def map_item(item: Item, db: Session, warn_days: int = 30) -> ItemOut:
         location_id=item.location_id,
         location_name=loc_name,
         location_path=loc_path,
-        taken_out=bool(item.taken_out),
+        quantity=qty,
+        taken_out=out_qty > 0,
+        taken_out_quantity=out_qty,
+        available_quantity=avail_qty,
         taken_by=item.taken_by,
         taken_at=item.taken_at,
         taken_due=item.taken_due,

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Box,
   Typography,
@@ -15,11 +16,13 @@ import FullscreenExitIcon from "@mui/icons-material/FullscreenExit";
 import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
 import AlarmOutlinedIcon from "@mui/icons-material/AlarmOutlined";
 import AssignmentReturnOutlinedIcon from "@mui/icons-material/AssignmentReturnOutlined";
-import { api } from "../../api/client";
+import { api, ApiException } from "../../api/client";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+import { formatTakenOutStatusLabel, getItemQuantity } from "../items/quantityUtils";
 
 export const WallPage: React.FC = () => {
   useDocumentTitle("Wall Display");
+  const navigate = useNavigate();
   const [data, setData] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentTime, setCurrentTime] = useState<string>("");
@@ -54,28 +57,42 @@ export const WallPage: React.FC = () => {
   }, []);
 
   // Polling data every 60s
-  const fetchWallData = async () => {
-    try {
-      const res = await api.getWallData();
-      setData(res);
-      setFailedPolls(0);
-      const now = new Date();
-      setLastUpdated(
-        now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
-      );
-    } catch (err) {
-      console.error(err);
-      setFailedPolls((prev) => prev + 1);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchWallData();
-    const interval = setInterval(fetchWallData, 60000);
-    return () => clearInterval(interval);
-  }, []);
+    let active = true;
+    const fetchWallData = async () => {
+      try {
+        const res = await api.getWallData();
+        if (!active) return;
+        setData(res);
+        setFailedPolls(0);
+        const now = new Date();
+        setLastUpdated(
+          now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+        );
+      } catch (err) {
+        if (!active) return;
+        if (err instanceof ApiException && err.status === 401) {
+          navigate("/lock", { replace: true });
+          return;
+        }
+        if (err instanceof ApiException && err.status === 403) {
+          navigate("/", { replace: true });
+          return;
+        }
+        console.error(err);
+        setFailedPolls((prev) => prev + 1);
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    void fetchWallData();
+    const interval = setInterval(() => void fetchWallData(), 60000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [navigate]);
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -234,9 +251,19 @@ export const WallPage: React.FC = () => {
                     {data.taken_out.map((it: any, i: number) => (
                       <Grid key={i} size={{ xs: 12, sm: 6, md: 4 }}>
                         <Card variant="outlined" sx={{ p: 2, height: "100%" }}>
-                          <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                            {it.name}
-                          </Typography>
+                          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1, mb: 0.5 }}>
+                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                              {it.name}
+                            </Typography>
+                            {getItemQuantity(it) > 1 && (
+                              <Chip
+                                size="small"
+                                color="secondary"
+                                label={formatTakenOutStatusLabel(it)}
+                                sx={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}
+                              />
+                            )}
+                          </Box>
                           <Typography variant="body2" color="text.secondary">
                             With: <strong>{it.borrower_name || "Someone"}</strong>
                           </Typography>

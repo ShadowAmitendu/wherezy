@@ -1,9 +1,10 @@
 import uuid
 import json
 from datetime import datetime, timezone
-from typing import List, Dict, Any, Tuple
+from typing import List
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
-from backend.app.models import Item, Category, Tag, ItemTag, BoxItem, Profile, Activity
+from backend.app.models import Item, Location, ItemTag, BoxItem, Profile, Activity
 from backend.app.schemas import BulkRequest, BulkResponse, BulkSkipItem, BatchUndoResponse
 from backend.app.services.visibility import items_visible
 from backend.app.services.activity import record
@@ -11,10 +12,20 @@ from backend.app.services.activity import record
 MAX_BULK_LIMIT = 1000
 
 def execute_bulk(db: Session, req: BulkRequest, actor: Profile) -> BulkResponse:
+    # Validate target location upfront for move actions
+    move_target_loc_id = None
+    if req.action == "move":
+        raw_loc_id = req.params.get("location_id")
+        if raw_loc_id is not None and raw_loc_id != 0:
+            loc = db.query(Location).filter(Location.id == raw_loc_id, Location.deleted_at.is_(None)).first()
+            if not loc:
+                raise HTTPException(status_code=404, detail={"error": {"code": "LOCATION_NOT_FOUND", "message": "Location not found"}})
+            move_target_loc_id = raw_loc_id
+
     # Resolve items
     if req.ids:
         item_ids = req.ids[:MAX_BULK_LIMIT]
-        items = db.query(Item).filter(Item.id.in_(item_ids)).all()
+        items = db.query(Item).filter(Item.id.in_(item_ids), Item.deleted_at.is_(None)).all()
     elif req.filter:
         q = items_visible(db)
         if req.filter.category_id:
@@ -37,15 +48,15 @@ def execute_bulk(db: Session, req: BulkRequest, actor: Profile) -> BulkResponse:
         skip_reason = None
 
         if req.action == "move":
-            new_loc_id = req.params.get("location_id")
             if not req.dry_run:
                 old_loc = item.location_id
-                item.location_id = new_loc_id
+                item.location_id = move_target_loc_id
+                item.updated_at = datetime.now(timezone.utc).isoformat()
                 record(
                     db, "item", "moved",
-                    f"Moved '{item.name}' to location #{new_loc_id}",
+                    f"Moved '{item.name}' to location #{move_target_loc_id}",
                     entity_id=item.id, actor=actor, batch_id=batch_id,
-                    diff={"location_id": [old_loc, new_loc_id]}
+                    diff={"location_id": [old_loc, move_target_loc_id]}
                 )
             changed_count += 1
 
@@ -83,6 +94,7 @@ def execute_bulk(db: Session, req: BulkRequest, actor: Profile) -> BulkResponse:
 
         elif req.action == "set_taken":
             taken_out = bool(req.params.get("taken_out", False))
+            raw_taken_qty = req.params.get("taken_out_quantity")
             taken_by = req.params.get("taken_by")
             taken_due = req.params.get("taken_due")
             taken_by_profile_id = req.params.get("taken_by_profile_id")
@@ -90,18 +102,30 @@ def execute_bulk(db: Session, req: BulkRequest, actor: Profile) -> BulkResponse:
 
             if not req.dry_run:
                 old_taken = item.taken_out
-                item.taken_out = 1 if taken_out else 0
-                item.taken_by = taken_by if taken_out else None
-                item.taken_due = taken_due if taken_out else None
-                item.taken_by_profile_id = taken_by_profile_id if taken_out else None
-                item.taken_by_contact_id = taken_by_contact_id if taken_out else None
-                item.taken_at = datetime.now(timezone.utc).isoformat() if taken_out else None
+                item_qty = max(1, int(item.quantity or 1))
+                old_taken_qty = int(item.taken_out_quantity) if item.taken_out_quantity is not None else (1 if old_taken else 0)
+                if taken_out:
+                    if raw_taken_qty is not None:
+                        target_qty = max(0, min(item_qty, int(raw_taken_qty)))
+                    else:
+                        target_qty = item_qty
+                else:
+                    target_qty = 0
+
+                is_now_out = target_qty > 0
+                item.taken_out_quantity = target_qty
+                item.taken_out = 1 if is_now_out else 0
+                item.taken_by = taken_by if is_now_out else None
+                item.taken_due = taken_due if is_now_out else None
+                item.taken_by_profile_id = taken_by_profile_id if is_now_out else None
+                item.taken_by_contact_id = taken_by_contact_id if is_now_out else None
+                item.taken_at = datetime.now(timezone.utc).isoformat() if is_now_out else None
 
                 record(
-                    db, "item", "taken_out" if taken_out else "returned",
-                    f"{'Lent out' if taken_out else 'Returned'} '{item.name}'",
+                    db, "item", "taken_out" if is_now_out else "returned",
+                    f"{'Lent out' if is_now_out else 'Returned'} '{item.name}'",
                     entity_id=item.id, actor=actor, batch_id=batch_id,
-                    diff={"taken_out": [old_taken, item.taken_out]}
+                    diff={"taken_out": [old_taken, item.taken_out], "taken_out_quantity": [old_taken_qty, item.taken_out_quantity]}
                 )
             changed_count += 1
 
@@ -216,9 +240,16 @@ def undo_batch(db: Session, batch_id: str, actor: Profile) -> BatchUndoResponse:
                 item.deleted_by = None
                 reverted_count += 1
 
-            if "taken_out" in diff:
+            if "taken_out_quantity" in diff:
+                item_qty = max(1, int(item.quantity or 1))
+                old_qty = max(0, min(item_qty, int(diff["taken_out_quantity"][0] or 0)))
+                item.taken_out_quantity = old_qty
+                item.taken_out = 1 if old_qty > 0 else 0
+                reverted_count += 1
+            elif "taken_out" in diff:
                 old_taken = diff["taken_out"][0]
                 item.taken_out = 1 if old_taken else 0
+                item.taken_out_quantity = 1 if old_taken else 0
                 reverted_count += 1
 
             if "expiry_date" in diff:

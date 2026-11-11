@@ -31,6 +31,7 @@ import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import CheckIcon from "@mui/icons-material/Check";
 import { api } from "../../api/client";
 import { LocationPicker } from "../locations/LocationPicker";
+import { parsePositiveInt } from "../items/quantityUtils";
 
 export const InboxPage: React.FC = () => {
   const theme = useTheme();
@@ -46,6 +47,7 @@ export const InboxPage: React.FC = () => {
   const [sortName, setSortName] = useState("");
   const [sortCatId, setSortCatId] = useState<number | "">("");
   const [sortLocId, setSortLocId] = useState<number | null>(null);
+  const [sortQtyStr, setSortQtyStr] = useState("1");
   const [sortNotes, setSortNotes] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -66,7 +68,22 @@ export const InboxPage: React.FC = () => {
   };
 
   useEffect(() => {
-    loadData();
+    let active = true;
+    Promise.all([api.getInboxItems(), api.getCategories()])
+      .then(([items, cats]) => {
+        if (!active) return;
+        setInboxItems(items);
+        setCategories(cats);
+      })
+      .catch((err) => {
+        if (active) console.error(err);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleFilesSelected = async (files: File[]) => {
@@ -87,6 +104,7 @@ export const InboxPage: React.FC = () => {
     setSortName(item.name.startsWith("Untitled") ? "" : item.name);
     setSortCatId(categories[0]?.id || "");
     setSortLocId(item.location_id || defaultLocationId);
+    setSortQtyStr("1");
     setSortNotes("");
     setErrorMsg(null);
   };
@@ -96,12 +114,18 @@ export const InboxPage: React.FC = () => {
       setErrorMsg("Please provide an item name and category.");
       return;
     }
+    const parsedQty = parsePositiveInt(sortQtyStr);
+    if (parsedQty === null) {
+      setErrorMsg("Quantity must be a whole number of at least 1.");
+      return;
+    }
 
     try {
       await api.sortInboxItem(sortingItem.id, {
         name: sortName.trim(),
         category_id: Number(sortCatId),
         location_id: sortLocId,
+        quantity: parsedQty,
         notes: sortNotes.trim() || undefined,
         values: {},
       });
@@ -281,6 +305,19 @@ export const InboxPage: React.FC = () => {
               value={sortLocId}
               onChange={(loc) => setSortLocId(loc)}
               label="Storage Location"
+            />
+
+            <TextField
+              label="Quantity"
+              type="number"
+              required
+              value={sortQtyStr}
+              onChange={(e) => setSortQtyStr(e.target.value)}
+              fullWidth
+              slotProps={{
+                htmlInput: { min: 1, step: 1, style: { fontFamily: "var(--font-mono)" } },
+              }}
+              helperText="How many units of this item (min 1)"
             />
 
             <TextField

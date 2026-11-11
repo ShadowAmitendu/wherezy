@@ -1,7 +1,7 @@
 import os
 import uuid
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Tuple
 from PIL import Image, ImageOps
 from fastapi import HTTPException, UploadFile, status
 from backend.app.core.config import PHOTOS_DIR
@@ -49,7 +49,8 @@ def process_and_save_image(upload_file: UploadFile, owner_type: str, owner_id: i
     # Correct orientation based on EXIF and strip EXIF
     try:
         img = ImageOps.exif_transpose(img)
-    except Exception:
+    except (OSError, ValueError):
+        # Malformed EXIF metadata should not block photo upload
         pass
 
     # Convert RGBA to RGB for JPEG saving if necessary
@@ -96,10 +97,10 @@ def delete_photo_files(owner_type: str, owner_id: int, file_name: str, thumb_nam
     if fp.exists():
         try:
             fp.unlink()
-        except Exception:
+        except OSError:
             pass
     if tp.exists():
         try:
             tp.unlink()
-        except Exception:
+        except OSError:
             pass

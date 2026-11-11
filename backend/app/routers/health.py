@@ -1,17 +1,16 @@
 import re
 import string
 from datetime import datetime, timezone, date, timedelta
-from typing import List, Optional, Dict
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from typing import List, Dict
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from backend.app.core.db import get_db
-from backend.app.models import Item, Location, Photo, HealthIgnore, Profile
+from backend.app.models import Item, Photo, HealthIgnore, Profile
 from backend.app.schemas import (
     HealthItemOut, HealthIgnoreRequest, SuccessResponse
 )
 from backend.app.services.visibility import items_visible
-from backend.app.services.permissions import require
+from backend.app.services.permissions import require, get_current_profile
 
 router = APIRouter(tags=["Health"])
 
@@ -26,14 +25,17 @@ def normalize_name(name: str) -> str:
 
 @router.get("/health")
 def get_health_overview(
+    request: Request,
     db: Session = Depends(get_db),
-    # Optional permission to allow unauthenticated system ping or authenticated data health check
 ):
     """
     Combined system liveness check and Data Health summary counts.
-    Retains status='ok' and time for v1 backward-compatibility.
+    Returns only liveness fields when unauthenticated or using a display profile.
     """
     now_iso = datetime.now(timezone.utc).isoformat()
+    profile = get_current_profile(request, db)
+    if not profile or profile.is_display:
+        return {"status": "ok", "time": now_iso}
 
     # Active visible items
     active_items = items_visible(db).all()

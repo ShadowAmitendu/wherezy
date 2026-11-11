@@ -3,22 +3,35 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from backend.app.core.db import get_db
-from backend.app.models import Item, Category
+from backend.app.models import Item, Category, Profile
 from backend.app.schemas import DashboardResponse, CategoryCount
 from backend.app.services.item_service import map_item
 from backend.app.routers.settings import get_setting_val
 from backend.app.services.visibility import items_visible
+from backend.app.services.permissions import require
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
 @router.get("", response_model=DashboardResponse)
-def get_dashboard(db: Session = Depends(get_db)):
+def get_dashboard(
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("items:read"))
+):
     warn_days = int(get_setting_val(db, "expiry_warn_days", 30))
     today_str = date.today().isoformat()
     warn_date_str = (date.today() + timedelta(days=warn_days)).isoformat()
 
     total_items = items_visible(db).count()
+    total_quantity = int(
+        items_visible(db, db.query(func.coalesce(func.sum(Item.quantity), 0))).scalar() or 0
+    )
     taken_out_count = items_visible(db).filter(Item.taken_out == 1).count()
+    taken_out_quantity_total = int(
+        items_visible(db, db.query(func.coalesce(func.sum(Item.taken_out_quantity), 0)))
+        .filter(Item.taken_out == 1)
+        .scalar()
+        or 0
+    )
 
     expired_count = items_visible(db).filter(
         Item.expiry_date.isnot(None),
@@ -77,8 +90,10 @@ def get_dashboard(db: Session = Depends(get_db)):
 
     return DashboardResponse(
         total_items=total_items,
+        total_quantity=total_quantity,
         category_counts=category_counts,
         taken_out_count=taken_out_count,
+        taken_out_quantity_total=taken_out_quantity_total,
         expired_count=expired_count,
         expiring_soon_count=expiring_soon_count,
         expiring_items=expiring_items,

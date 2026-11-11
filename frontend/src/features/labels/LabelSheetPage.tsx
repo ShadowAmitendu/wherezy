@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   Box,
-  Card,
-  CardContent,
   Typography,
   Button,
   FormControl,
@@ -11,9 +9,7 @@ import {
   Select,
   MenuItem,
   TextField,
-  Divider,
   Paper,
-  Grid,
 } from "@mui/material";
 import PrintIcon from "@mui/icons-material/Print";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";

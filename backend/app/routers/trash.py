@@ -1,22 +1,20 @@
-import os
 import shutil
+from pathlib import Path
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from backend.app.core.config import DATA_DIR
+from backend.app.core.config import PHOTOS_DIR, FILES_DIR
 from backend.app.core.db import get_db
 from backend.app.models import Item, Location, Category, Photo, Profile
 from backend.app.schemas import TrashItemOut, TrashRestoreRequest, SuccessResponse
 from backend.app.services.permissions import require
 from backend.app.services.activity import record
+from backend.app.services.photo_service import delete_photo_files
 
 router = APIRouter(prefix="/trash", tags=["Trash"])
 
-PHOTOS_DIR = DATA_DIR / "photos"
-FILES_DIR = DATA_DIR / "files"
-
 @router.get("", response_model=List[TrashItemOut])
-def list_trash(db: Session = Depends(get_db), current: Profile = Depends(require("member"))):
+def list_trash(db: Session = Depends(get_db), current: Profile = Depends(require("trash:read"))):
     """List deleted items, locations, and categories."""
     results: List[TrashItemOut] = []
 
@@ -68,7 +66,7 @@ def restore_trash(
     target_id: int,
     payload: TrashRestoreRequest = TrashRestoreRequest(),
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("trash:restore"))
 ):
     if item_type == "item":
         item = db.query(Item).filter(Item.id == target_id, Item.deleted_at.isnot(None)).first()
@@ -140,7 +138,7 @@ def restore_trash(
     raise HTTPException(status_code=400, detail={"error": {"code": "INVALID_TYPE", "message": f"Unknown type '{item_type}'"}})
 
 def _cleanup_photos(db: Session, owner_type: str, owner_ids: List[int]) -> None:
-    """Remove photo files from disk and delete their metadata rows."""
+    """Remove photo files from disk (both structured and legacy flat paths) and delete their metadata rows."""
     if not owner_ids:
         return
     photos = (
@@ -149,11 +147,18 @@ def _cleanup_photos(db: Session, owner_type: str, owner_ids: List[int]) -> None:
         .all()
     )
     for p in photos:
-        try:
-            (PHOTOS_DIR / p.file_name).unlink(missing_ok=True)
-            (PHOTOS_DIR / p.thumb_name).unlink(missing_ok=True)
-        except Exception:
-            pass
+        delete_photo_files(p.owner_type, p.owner_id, p.file_name, p.thumb_name)
+        for legacy_name in (p.file_name, p.thumb_name):
+            if legacy_name:
+                (PHOTOS_DIR / Path(legacy_name).name).unlink(missing_ok=True)
+    for oid in owner_ids:
+        owner_dir = PHOTOS_DIR / owner_type / str(oid)
+        if owner_dir.exists() and owner_dir.is_dir():
+            try:
+                if not any(owner_dir.iterdir()):
+                    owner_dir.rmdir()
+            except OSError:
+                pass
     if photos:
         db.query(Photo).filter(
             Photo.owner_type == owner_type, Photo.owner_id.in_(owner_ids)
@@ -222,7 +227,7 @@ def purge_trash_item(
     item_type: str,
     target_id: int,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("admin"))
+    current: Profile = Depends(require("trash:purge"))
 ):
     if item_type == "item":
         item = db.query(Item).filter(Item.id == target_id, Item.deleted_at.isnot(None)).first()
@@ -264,7 +269,7 @@ def purge_trash_item(
 @router.post("/empty", response_model=SuccessResponse)
 def empty_trash(
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("admin"))
+    current: Profile = Depends(require("trash:purge"))
 ):
     trashed_items = db.query(Item).filter(Item.deleted_at.isnot(None)).all()
     trashed_loc_ids = [loc_id for (loc_id,) in db.query(Location.id).filter(Location.deleted_at.isnot(None)).all()]

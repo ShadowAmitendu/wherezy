@@ -1,11 +1,12 @@
-import os
+import re
 import uuid
 import mimetypes
 from pathlib import Path
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Response, status
+from urllib.parse import quote
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from backend.app.core.config import DATA_DIR
+from backend.app.core.config import FILES_DIR
 from backend.app.core.db import get_db
 from backend.app.models import Attachment, Item, Profile
 from backend.app.schemas import AttachmentOut, AttachmentRenameRequest, SuccessResponse
@@ -13,9 +14,6 @@ from backend.app.services.permissions import require
 from backend.app.services.activity import record
 
 router = APIRouter(tags=["Attachments"])
-
-FILES_DIR = DATA_DIR / "files"
-FILES_DIR.mkdir(parents=True, exist_ok=True)
 
 MAX_BYTES = 25 * 1024 * 1024  # 25 MB
 ALLOWED_MIMES = {
@@ -26,14 +24,20 @@ ALLOWED_MIMES = {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 }
 
+def _safe_disposition(file_name: str, is_inline: bool) -> str:
+    clean = re.sub(r'[\x00-\x1f\x7f"\\]', "_", Path(file_name or "attachment").name).strip() or "attachment"
+    ascii_fallback = clean.encode("ascii", "ignore").decode("ascii").strip() or "attachment"
+    disp_type = "inline" if is_inline else "attachment"
+    return f'{disp_type}; filename="{ascii_fallback}"; filename*=UTF-8\'\'{quote(clean)}'
+
 @router.post("/items/{item_id}/attachments", response_model=AttachmentOut)
 async def upload_attachment(
     item_id: int,
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("attachments:write"))
 ):
-    item = db.query(Item).filter(Item.id == item_id).first()
+    item = db.query(Item).filter(Item.id == item_id, Item.deleted_at.is_(None)).first()
     if not item:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Item not found"}})
 
@@ -42,12 +46,13 @@ async def upload_attachment(
     if count >= 10:
         raise HTTPException(status_code=400, detail={"error": {"code": "LIMIT_EXCEEDED", "message": "Maximum 10 attachments per item"}})
 
-    content = await file.read()
+    content = await file.read(MAX_BYTES + 1)
     if len(content) > MAX_BYTES:
         raise HTTPException(status_code=400, detail={"error": {"code": "FILE_TOO_LARGE", "message": "File exceeds 25 MB limit"}})
 
+    orig_name = Path(file.filename or "attachment").name or "attachment"
     # Content type detection
-    mime = file.content_type or mimetypes.guess_type(file.filename)[0] or "application/octet-stream"
+    mime = file.content_type or mimetypes.guess_type(orig_name)[0] or "application/octet-stream"
     if mime not in ALLOWED_MIMES and not mime.startswith("image/"):
         raise HTTPException(status_code=400, detail={"error": {"code": "UNSUPPORTED_TYPE", "message": f"Unsupported file type '{mime}'"}})
 
@@ -55,7 +60,7 @@ async def upload_attachment(
     item_dir.mkdir(parents=True, exist_ok=True)
 
     random_id = str(uuid.uuid4())
-    ext = Path(file.filename).suffix
+    ext = Path(orig_name).suffix[:16]
     stored_name = f"{random_id}{ext}"
     target_path = item_dir / stored_name
 
@@ -64,7 +69,7 @@ async def upload_attachment(
 
     att = Attachment(
         item_id=item.id,
-        file_name=file.filename or "attachment",
+        file_name=orig_name,
         stored_name=stored_name,
         mime=mime,
         bytes=len(content),
@@ -91,23 +96,26 @@ async def upload_attachment(
 def get_attachment_file(
     attachment_id: int,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("viewer"))
+    current: Profile = Depends(require("attachments:read"))
 ):
     att = db.query(Attachment).filter(Attachment.id == attachment_id).first()
     if not att:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Attachment not found"}})
 
-    file_path = FILES_DIR / str(att.item_id) / att.stored_name
-    if not file_path.exists():
+    item = db.query(Item).filter(Item.id == att.item_id, Item.deleted_at.is_(None)).first()
+    if not item:
+        raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Item not found"}})
+
+    file_path = (FILES_DIR / str(att.item_id) / Path(att.stored_name).name).resolve()
+    if not file_path.is_relative_to(FILES_DIR.resolve()) or not file_path.exists():
         raise HTTPException(status_code=404, detail={"error": {"code": "FILE_NOT_FOUND", "message": "File missing on disk"}})
 
     is_inline = att.mime in ("application/pdf",) or att.mime.startswith("image/")
-    disposition = "inline" if is_inline else f"attachment; filename=\"{att.file_name}\""
+    disposition = _safe_disposition(att.file_name, is_inline=is_inline)
 
     return FileResponse(
         path=str(file_path),
         media_type=att.mime,
-        filename=att.file_name if not is_inline else None,
         headers={"Content-Disposition": disposition}
     )
 
@@ -116,11 +124,15 @@ def rename_attachment(
     attachment_id: int,
     payload: AttachmentRenameRequest,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("attachments:write"))
 ):
     att = db.query(Attachment).filter(Attachment.id == attachment_id).first()
     if not att:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Attachment not found"}})
+
+    item = db.query(Item).filter(Item.id == att.item_id, Item.deleted_at.is_(None)).first()
+    if not item:
+        raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Item not found"}})
 
     att.file_name = payload.file_name.strip()
     db.commit()
@@ -140,17 +152,17 @@ def rename_attachment(
 def delete_attachment(
     attachment_id: int,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("attachments:write"))
 ):
     att = db.query(Attachment).filter(Attachment.id == attachment_id).first()
     if not att:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Attachment not found"}})
 
-    file_path = FILES_DIR / str(att.item_id) / att.stored_name
-    if file_path.exists():
+    file_path = (FILES_DIR / str(att.item_id) / Path(att.stored_name).name).resolve()
+    if file_path.is_relative_to(FILES_DIR.resolve()) and file_path.exists():
         try:
-            os.remove(file_path)
-        except Exception:
+            file_path.unlink()
+        except OSError:
             pass
 
     name = att.file_name

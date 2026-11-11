@@ -1,13 +1,12 @@
-import json
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from backend.app.core.db import get_db
 from backend.app.core.security import (
-    hash_pin, verify_pin, create_session_token, verify_session_token,
+    SESSION_COOKIE_NAME, hash_pin, verify_pin, create_session_token,
     is_rate_limited, record_failed_attempt, clear_failed_attempts
 )
-from backend.app.models import Setting, Profile
+from backend.app.models import Profile
 from backend.app.schemas import (
     AuthStatusResponse, AuthSetupRequest, AuthLoginRequest,
     AuthChangePinRequest, UpdatePasswordRequest, SuccessResponse
@@ -17,8 +16,6 @@ from backend.app.routers.profiles import _profile_to_out
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
-SESSION_COOKIE_NAME = "hi_session"
-
 def get_current_user_authenticated(request: Request, db: Session = Depends(get_db)) -> bool:
     prof = get_current_profile(request, db)
     return prof is not None
@@ -26,8 +23,9 @@ def get_current_user_authenticated(request: Request, db: Session = Depends(get_d
 @router.get("/status", response_model=AuthStatusResponse)
 def get_auth_status(request: Request, db: Session = Depends(get_db)):
     prof = get_current_profile(request, db)
+    has_pin = db.query(Profile).filter(Profile.pin_hash.isnot(None), Profile.is_active == 1).first() is not None
     return AuthStatusResponse(
-        pin_set=True,
+        pin_set=has_pin,
         authenticated=prof is not None,
         current_profile=_profile_to_out(prof) if prof else None
     )
@@ -157,8 +155,8 @@ def update_password(
             detail={"error": {"code": "PASSWORD_TOO_SHORT", "message": "Password must be at least 3 characters"}}
         )
 
-    if payload.current_password and prof.pin_hash and not prof.must_change_password:
-        if not verify_pin(payload.current_password.strip(), prof.pin_hash):
+    if prof.pin_hash and not prof.must_change_password:
+        if not payload.current_password or not verify_pin(payload.current_password.strip(), prof.pin_hash):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail={"error": {"code": "INVALID_PASSWORD", "message": "Current password is incorrect"}}
@@ -199,8 +197,8 @@ def change_pin(payload: AuthChangePinRequest, request: Request, response: Respon
     if not prof:
         raise HTTPException(status_code=401, detail={"error": {"code": "NOT_LOGGED_IN", "message": "Not logged in"}})
 
-    if prof.pin_hash and payload.current_pin:
-        if not verify_pin(payload.current_pin.strip(), prof.pin_hash):
+    if prof.pin_hash:
+        if not payload.current_pin or not verify_pin(payload.current_pin.strip(), prof.pin_hash):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail={"error": {"code": "INVALID_PIN", "message": "Current password/PIN is incorrect"}}

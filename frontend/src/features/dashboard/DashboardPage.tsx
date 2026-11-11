@@ -24,8 +24,9 @@ import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { ExpiryChip } from "../../components/shared/ExpiryChip";
 import { CoverThumb } from "../photos/CoverThumb";
-import { renderMuiIcon } from "../../components/shared/IconPicker";
+import { renderMuiIcon } from "../../components/shared/iconUtils";
 import { api } from "../../api/client";
+import { formatTakenOutStatusLabel, getItemQuantity } from "../items/quantityUtils";
 
 const sectionTitleSx = {
   fontWeight: 700,
@@ -47,20 +48,22 @@ export const DashboardPage: React.FC = () => {
   const [data, setData] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadDashboard = async () => {
-    try {
-      setIsLoading(true);
-      const res = await api.getDashboard();
-      setData(res);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
-    loadDashboard();
+    let active = true;
+    api
+      .getDashboard()
+      .then((res) => {
+        if (active) setData(res);
+      })
+      .catch((err) => {
+        if (active) console.error(err);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   if (!data && !isLoading) return null;
@@ -133,6 +136,9 @@ export const DashboardPage: React.FC = () => {
                   noWrap
                 >
                   across {data?.category_counts?.length || 0} categories
+                  {data?.total_quantity && data.total_quantity > (data?.total_items || 0)
+                    ? ` • ${data.total_quantity} units`
+                    : ""}
                 </Typography>
               </CardContent>
             </CardActionArea>
@@ -187,7 +193,10 @@ export const DashboardPage: React.FC = () => {
                   }}
                   noWrap
                 >
-                  currently in use
+                  {data?.taken_out_quantity_total &&
+                  data.taken_out_quantity_total > (data?.taken_out_count || 0)
+                    ? `${data.taken_out_quantity_total} units out`
+                    : "currently in use"}
                 </Typography>
               </CardContent>
             </CardActionArea>
@@ -485,10 +494,17 @@ export const DashboardPage: React.FC = () => {
                       </ListItemIcon>
                       <ListItemText
                         primary={it.name}
-                        secondary={`${it.category_name || "—"}${it.location_path ? ` • ${it.location_path}` : ""}`}
+                        secondary={`${it.category_name || "—"}${it.location_path ? ` • ${it.location_path}` : ""}${
+                          getItemQuantity(it) > 1 ? ` • Qty: ${getItemQuantity(it)}` : ""
+                        }`}
                       />
                       {it.taken_out && (
-                        <Chip label="Out" size="small" color="secondary" variant="outlined" />
+                        <Chip
+                          label={formatTakenOutStatusLabel(it)}
+                          size="small"
+                          color="secondary"
+                          variant="outlined"
+                        />
                       )}
                     </ListItem>
                   ))}

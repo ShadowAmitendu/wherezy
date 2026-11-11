@@ -1,35 +1,9 @@
 import React from "react";
 import { Box, Typography, Tooltip, IconButton } from "@mui/material";
-import { AccountIcon, getAccountIconComponent } from "./AccountIcon";
+import { AccountIcon } from "./AccountIcon";
+import { ACCOUNT_ICONS, getAccountIconComponent } from "./accountIcons";
 
-export const ACCOUNT_ICONS: { name: string; label: string }[] = [
-  { name: "Person", label: "Individual / Member" },
-  { name: "AdminPanelSettings", label: "Administrator" },
-  { name: "SupervisorAccount", label: "Co-Admin / Manager" },
-  { name: "Face", label: "User Face" },
-  { name: "Face3", label: "Woman" },
-  { name: "Face4", label: "Man" },
-  { name: "Face6", label: "Elder" },
-  { name: "ChildCare", label: "Child / Kid" },
-  { name: "Engineering", label: "Technician / Engineer" },
-  { name: "Home", label: "Household / Family" },
-  { name: "Pets", label: "Family Pet" },
-  { name: "Security", label: "Security Guard" },
-  { name: "Star", label: "VIP / Favorite" },
-  { name: "Favorite", label: "Loved One" },
-  { name: "Build", label: "Craftsman / DIY" },
-  { name: "Palette", label: "Artist / Creative" },
-  { name: "School", label: "Student / Scholar" },
-  { name: "Work", label: "Professional / Office" },
-  { name: "SportsEsports", label: "Gamer" },
-  { name: "FitnessCenter", label: "Fitness / Athlete" },
-  { name: "LocalFlorist", label: "Gardener" },
-  { name: "Key", label: "Keys / Access" },
-  { name: "AutoAwesome", label: "Special / Magic" },
-  { name: "AccountCircle", label: "Standard Account" },
-];
-
-export interface AccountIconPickerProps {
+interface AccountIconPickerProps {
   value: string;
   onChange: (iconName: string) => void;
   label?: string;

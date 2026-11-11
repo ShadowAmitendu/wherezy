@@ -36,6 +36,7 @@ import { api, ApiException, type ImportCsvResult } from "../../api/client";
 import type { Category, FieldDef } from "../forms/types";
 import { DynamicFields } from "../forms/DynamicFields";
 import { LocationPicker } from "../locations/LocationPicker";
+import { parsePositiveInt } from "./quantityUtils";
 
 export type BulkAddTab = "list" | "csv";
 
@@ -58,7 +59,13 @@ function escapeCsvCell(value: string): string {
 }
 
 function getCsvHeadersForCategory(category: Category | null, fields: FieldDef[]): string[] {
+  const hasCustomQtyField = fields.some(
+    (f) => !f.archived && f.label.trim().toLowerCase() === "quantity"
+  );
   const headers = ["Name", "Location"];
+  if (!hasCustomQtyField) {
+    headers.push("Quantity");
+  }
   if (category?.track_expiry) {
     headers.push("Expiry Date");
   }
@@ -110,6 +117,7 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
 
   // Quick List state
   const [rawNames, setRawNames] = useState("");
+  const [quantityStr, setQuantityStr] = useState("1");
   const [expiryDate, setExpiryDate] = useState("");
   const [notes, setNotes] = useState("");
 
@@ -152,6 +160,7 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
         setCsvResult(null);
         setCsvFile(null);
         setRawNames("");
+        setQuantityStr("1");
         setExpiryDate("");
         setNotes("");
         setSelectedLocationId(initialLocationId ?? null);
@@ -217,11 +226,17 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
       setErrorMsg(`Maximum ${MAX_BULK_ITEMS} items can be added in one batch (currently ${parsedNames.length}).`);
       return;
     }
+    const parsedQty = parsePositiveInt(quantityStr);
+    if (parsedQty === null) {
+      setErrorMsg("Default quantity must be a whole number of at least 1.");
+      return;
+    }
 
     setIsSubmitting(true);
     try {
       const res = await api.bulkCreate({
         category_id: Number(selectedCategoryId),
+        quantity: parsedQty,
         location_id: selectedLocationId,
         expiry_date: activeCategory?.track_expiry ? expiryDate.trim() || null : null,
         notes: notes.trim() || null,
@@ -384,8 +399,22 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
                     />
                   </Grid>
 
+                  <Grid size={{ xs: 12, sm: 4 }}>
+                    <TextField
+                      label="Default Quantity"
+                      type="number"
+                      value={quantityStr}
+                      onChange={(e) => setQuantityStr(e.target.value)}
+                      fullWidth
+                      slotProps={{
+                        htmlInput: { min: 1, step: 1, style: { fontFamily: "var(--font-mono)" } },
+                      }}
+                      helperText="Applied to each item (min 1)"
+                    />
+                  </Grid>
+
                   {activeCategory?.track_expiry && (
-                    <Grid size={{ xs: 12, sm: 6 }}>
+                    <Grid size={{ xs: 12, sm: 8 }}>
                       <TextField
                         label={`${activeCategory.expiry_label || "Expiry Date"} (Optional)`}
                         type="date"
@@ -397,7 +426,7 @@ export const BulkAddDialog: React.FC<BulkAddDialogProps> = ({
                     </Grid>
                   )}
 
-                  <Grid size={{ xs: 12, sm: activeCategory?.track_expiry ? 6 : 12 }}>
+                  <Grid size={{ xs: 12, sm: activeCategory?.track_expiry ? 12 : 8 }}>
                     <TextField
                       label="Shared Notes (Optional)"
                       placeholder="e.g. Stocked from weekend grocery trip"

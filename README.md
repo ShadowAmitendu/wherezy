@@ -2,7 +2,7 @@
 
 A lightweight, local-network (LAN-only) household inventory management web application.
 
-- **Frontend**: React 19, TypeScript, Vite, Material UI (MUI v7), `@mui/x-data-grid`, `@dnd-kit`, `react-hook-form` + `zod`
+- **Frontend**: React 19, TypeScript, Vite, Material UI (MUI v9), `@mui/x-data-grid`, `@dnd-kit`, `react-hook-form` + `zod`
 - **Backend**: Python 3.12+, FastAPI, SQLite (WAL mode + foreign keys), SQLAlchemy 2.x, Pillow
 - **Data storage**: Local SQLite database and image files in `./data/`
 - **100% Offline & LAN-Only**: Zero telemetry, zero cloud calls, self-contained font bundling (`@fontsource/geist`, `@fontsource/inter`, `@fontsource/jetbrains-mono`).
@@ -45,9 +45,9 @@ A lightweight, local-network (LAN-only) household inventory management web appli
    - Printable location inventories formatted for A4/Letter paper with high-contrast audit checkboxes, item thumbnails, and QR codes for physical clipboard shelf audits.
 
 7. **Data Protection & Backup**:
-   - One-click `.zip` backup and restore containing `inventory.db` and the full `photos/` folder.
+   - One-click `.zip` backup and restore containing `inventory.db` and the full `photos/` and `files/` folders.
    - Pre-restore safety snapshot automatically created before restoring.
-   - Full CSV and JSON export/import.
+   - Full CSV, JSON, and Excel (`.xlsx`) workbook export, plus CSV/JSON bulk import.
 
 8. **Household PIN Protection (Optional)**:
    - Optional 4-6 digit household PIN stored with Argon2 hashing and rate-limited brute-force protection.
@@ -71,7 +71,7 @@ python -m venv .venv
 source .venv/bin/activate
 
 # Install backend dependencies
-pip install -r requirements.txt
+pip install -r backend/requirements.txt
 ```
 
 ### 3. Frontend Build
@@ -146,4 +146,4 @@ npm --prefix frontend run build
 - **Database and photos** live inside the `data/` directory (`data/inventory.db` and `data/photos/`).
 - **Backup**: Go to **Settings > Database & Storage** and click **"Download Backup (.zip)"**.
 - **Restore**: Upload any previous backup zip to restore all items, categories, custom fields, and photos.
-- **Upgrades**: Pull new code, run `pip install -r requirements.txt`, and rebuild the frontend with `npm run build`. Schema migrations execute automatically on server startup.
+- **Upgrades**: Pull new code, run `pip install -r backend/requirements.txt`, and rebuild the frontend with `npm run build`. Schema migrations execute automatically on server startup.

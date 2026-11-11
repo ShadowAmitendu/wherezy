@@ -6,6 +6,7 @@ from itsdangerous import URLSafeTimedSerializer, BadSignature, SignatureExpired
 from backend.app.core.config import SECRET_KEY
 
 serializer = URLSafeTimedSerializer(SECRET_KEY, salt="homeinventory-session")
+SESSION_COOKIE_NAME = "hi_session"
 
 # Rate limiting for PIN login: max 5 failed attempts per minute per IP
 MAX_FAILED_ATTEMPTS = 5

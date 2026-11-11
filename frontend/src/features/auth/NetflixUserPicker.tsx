@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import {
   Box,
   Typography,
-  Chip,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -13,17 +12,14 @@ import {
   Avatar,
   IconButton,
   InputAdornment,
-  ButtonBase,
-  Grow,
   Fade,
 } from "@mui/material";
-import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import LockOpenOutlinedIcon from "@mui/icons-material/LockOpenOutlined";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { api, ApiException, ProfileOut } from "../../api/client";
-import { useAuth } from "../../auth/AuthContext";
+import { useAuth } from "../../auth/useAuth";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { NetflixProfileCard } from "./NetflixProfileCard";
 import { AccountIcon } from "../../components/shared/AccountIcon";

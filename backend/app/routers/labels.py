@@ -1,5 +1,5 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from backend.app.core.db import get_db
 from backend.app.models import LabelTemplate, Profile
@@ -32,7 +32,7 @@ def _to_out(t: LabelTemplate) -> LabelTemplateOut:
 def list_label_templates(
     kind: Optional[str] = None,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("viewer"))
+    current: Profile = Depends(require("labels:read"))
 ):
     q = db.query(LabelTemplate)
     if kind:
@@ -45,7 +45,7 @@ def list_label_templates(
 def create_label_template(
     payload: LabelTemplateCreate,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("labels:write_own"))
 ):
     # Only Admin can create shared templates or mark default
     owner_id = None if current.role == "admin" and not payload.is_default else current.id
@@ -81,7 +81,7 @@ def update_label_template(
     template_id: int,
     payload: LabelTemplateUpdate,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("labels:write_own"))
 ):
     tpl = db.query(LabelTemplate).filter(LabelTemplate.id == template_id).first()
     if not tpl:
@@ -122,7 +122,7 @@ def update_label_template(
 def delete_label_template(
     template_id: int,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("labels:write_own"))
 ):
     tpl = db.query(LabelTemplate).filter(LabelTemplate.id == template_id).first()
     if not tpl:
@@ -144,7 +144,7 @@ def delete_label_template(
 def set_default_label_template(
     template_id: int,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("admin"))
+    current: Profile = Depends(require("labels:write_all"))
 ):
     tpl = db.query(LabelTemplate).filter(LabelTemplate.id == template_id).first()
     if not tpl:

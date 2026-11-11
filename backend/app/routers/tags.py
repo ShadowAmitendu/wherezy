@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from backend.app.core.db import get_db
@@ -12,7 +12,7 @@ from backend.app.services.visibility import items_visible
 router = APIRouter(prefix="/tags", tags=["Tags"])
 
 @router.get("", response_model=List[TagOut])
-def list_tags(db: Session = Depends(get_db), current: Profile = Depends(require("viewer"))):
+def list_tags(db: Session = Depends(get_db), current: Profile = Depends(require("items:read"))):
     """List all tags with active items count."""
     tags = db.query(Tag).order_by(Tag.name).all()
     # Count only active visible items per tag
@@ -38,7 +38,7 @@ def list_tags(db: Session = Depends(get_db), current: Profile = Depends(require(
     ]
 
 @router.post("", response_model=TagOut)
-def create_tag(payload: TagCreate, db: Session = Depends(get_db), current: Profile = Depends(require("member"))):
+def create_tag(payload: TagCreate, db: Session = Depends(get_db), current: Profile = Depends(require("tags:write"))):
     name = payload.name.strip()
     if not (1 <= len(name) <= 32):
         raise HTTPException(status_code=400, detail={"error": {"code": "INVALID_NAME", "message": "Tag name must be 1 to 32 characters"}})
@@ -58,7 +58,7 @@ def create_tag(payload: TagCreate, db: Session = Depends(get_db), current: Profi
     return TagOut(id=tag.id, name=tag.name, color=tag.color, created_at=tag.created_at, items_count=0)
 
 @router.put("/{tag_id}", response_model=TagOut)
-def update_tag(tag_id: int, payload: TagUpdate, db: Session = Depends(get_db), current: Profile = Depends(require("member"))):
+def update_tag(tag_id: int, payload: TagUpdate, db: Session = Depends(get_db), current: Profile = Depends(require("tags:write"))):
     tag = db.query(Tag).filter(Tag.id == tag_id).first()
     if not tag:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Tag not found"}})
@@ -85,7 +85,7 @@ def update_tag(tag_id: int, payload: TagUpdate, db: Session = Depends(get_db), c
     return TagOut(id=tag.id, name=tag.name, color=tag.color, created_at=tag.created_at, items_count=count)
 
 @router.delete("/{tag_id}", response_model=SuccessResponse)
-def delete_tag(tag_id: int, db: Session = Depends(get_db), current: Profile = Depends(require("member"))):
+def delete_tag(tag_id: int, db: Session = Depends(get_db), current: Profile = Depends(require("tags:write"))):
     tag = db.query(Tag).filter(Tag.id == tag_id).first()
     if not tag:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Tag not found"}})
@@ -101,7 +101,7 @@ def delete_tag(tag_id: int, db: Session = Depends(get_db), current: Profile = De
     return SuccessResponse(ok=True, message=f"Tag '{name}' deleted")
 
 @router.post("/{tag_id}/merge", response_model=SuccessResponse)
-def merge_tags(tag_id: int, payload: TagMergeRequest, db: Session = Depends(get_db), current: Profile = Depends(require("member"))):
+def merge_tags(tag_id: int, payload: TagMergeRequest, db: Session = Depends(get_db), current: Profile = Depends(require("tags:write"))):
     source = db.query(Tag).filter(Tag.id == tag_id).first()
     target = db.query(Tag).filter(Tag.id == payload.target_tag_id).first()
     if not source or not target:
@@ -134,7 +134,7 @@ def merge_tags(tag_id: int, payload: TagMergeRequest, db: Session = Depends(get_
     return SuccessResponse(ok=True, message=f"Merged '{src_name}' into '{target_name}'")
 
 @router.put("/items/{item_id}", response_model=SuccessResponse)
-def set_item_tags(item_id: int, payload: ItemTagsReplaceRequest, db: Session = Depends(get_db), current: Profile = Depends(require("member"))):
+def set_item_tags(item_id: int, payload: ItemTagsReplaceRequest, db: Session = Depends(get_db), current: Profile = Depends(require("tags:write"))):
     item = db.query(Item).filter(Item.id == item_id).first()
     if not item:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Item not found"}})

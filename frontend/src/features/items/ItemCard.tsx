@@ -10,6 +10,7 @@ import {
 import { CoverThumb } from "../photos/CoverThumb";
 import { ExpiryChip } from "../../components/shared/ExpiryChip";
 import { Item } from "./types";
+import { formatTakenOutStatusLabel, getItemQuantity } from "./quantityUtils";
 
 export interface ItemCardProps {
   item: Item;
@@ -78,7 +79,7 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick }) => {
 
           {item.taken_out && (
             <Chip
-              label="Taken Out"
+              label={formatTakenOutStatusLabel(item)}
               size="small"
               color="secondary"
               sx={{ position: "absolute", top: 8, right: 8, fontWeight: 600 }}
@@ -96,7 +97,15 @@ export const ItemCard: React.FC<ItemCardProps> = ({ item, onClick }) => {
             </Typography>
           </Box>
 
-          <Box sx={{ mt: 1.5, display: "flex", gap: 1, flexWrap: "wrap" }}>
+          <Box sx={{ mt: 1.5, display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
+            {getItemQuantity(item) > 1 && (
+              <Chip
+                label={`Qty: ${getItemQuantity(item)}`}
+                size="small"
+                variant="outlined"
+                sx={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}
+              />
+            )}
             <ExpiryChip status={item.expiry_status} dateStr={item.expiry_date} />
           </Box>
         </CardContent>

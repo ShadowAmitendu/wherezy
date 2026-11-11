@@ -18,7 +18,7 @@ import PersonOutlinedIcon from "@mui/icons-material/PersonOutlined";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import GroupOutlinedIcon from "@mui/icons-material/GroupOutlined";
-import { useAuth } from "../../auth/AuthContext";
+import { useAuth } from "../../auth/useAuth";
 import { ApiException } from "../../api/client";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
@@ -29,8 +29,8 @@ export const LoginPage: React.FC = () => {
   const location = useLocation();
   const { login } = useAuth();
 
-  const [username, setUsername] = useState("admin");
-  const [password, setPassword] = useState("admin");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);

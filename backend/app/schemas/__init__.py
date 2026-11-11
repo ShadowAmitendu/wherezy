@@ -3,21 +3,9 @@ from pydantic import BaseModel, Field
 
 # --- Common & Errors ---
 
-class ErrorDetail(BaseModel):
-    code: str
-    message: str
-    fields: Optional[Dict[str, str]] = None
-
-class ErrorResponse(BaseModel):
-    error: ErrorDetail
-
 class SuccessResponse(BaseModel):
     ok: bool = True
     message: Optional[str] = None
-
-class HealthResponse(BaseModel):
-    status: str = "ok"
-    time: str
 
 # --- Auth ---
 
@@ -33,10 +21,6 @@ class AuthLoginRequest(BaseModel):
     pin: Optional[str] = None
     username: Optional[str] = None
     password: Optional[str] = None
-
-class UserLoginRequest(BaseModel):
-    username: str
-    password: str
 
 class UpdatePasswordRequest(BaseModel):
     current_password: Optional[str] = None
@@ -235,6 +219,7 @@ class ItemBase(BaseModel):
     name: str
     category_id: int
     location_id: Optional[int] = None
+    quantity: int = Field(default=1, ge=1, le=1_000_000)
     expiry_date: Optional[str] = None
     notes: Optional[str] = None
     values: Dict[str, Any] = Field(default_factory=dict)
@@ -246,6 +231,7 @@ class ItemUpdate(BaseModel):
     name: Optional[str] = None
     category_id: Optional[int] = None
     location_id: Optional[int] = None
+    quantity: Optional[int] = Field(default=None, ge=1, le=1_000_000)
     expiry_date: Optional[str] = None
     notes: Optional[str] = None
     values: Optional[Dict[str, Any]] = None
@@ -254,7 +240,8 @@ class ItemMoveRequest(BaseModel):
     location_id: Optional[int] = None
 
 class ItemTakenRequest(BaseModel):
-    taken_out: bool
+    taken_out: Optional[bool] = None
+    taken_out_quantity: Optional[int] = Field(default=None, ge=0, le=1_000_000)
     taken_by: Optional[str] = None
     taken_due: Optional[str] = None
     taken_by_profile_id: Optional[int] = None
@@ -283,7 +270,10 @@ class ItemOut(BaseModel):
     location_id: Optional[int] = None
     location_name: Optional[str] = None
     location_path: Optional[str] = None
+    quantity: int = 1
     taken_out: bool = False
+    taken_out_quantity: int = 0
+    available_quantity: int = 1
     taken_by: Optional[str] = None
     taken_at: Optional[str] = None
     taken_due: Optional[str] = None
@@ -336,8 +326,10 @@ class CategoryCount(BaseModel):
 
 class DashboardResponse(BaseModel):
     total_items: int
+    total_quantity: int = 0
     category_counts: List[CategoryCount]
     taken_out_count: int
+    taken_out_quantity_total: int = 0
     expired_count: int
     expiring_soon_count: int
     expiring_items: List[ItemOut]
@@ -638,26 +630,12 @@ class QuickSearchResult(BaseModel):
 class QuickSearchResponse(BaseModel):
     results: List[QuickSearchResult]
 
-# --- Saved Filters ---
-
-class SavedFilterCreate(BaseModel):
-    name: str
-    scope: Literal["items"] = "items"
-    query_json: str
-
-class SavedFilterOut(BaseModel):
-    id: int
-    profile_id: Optional[int] = None
-    name: str
-    scope: str
-    query_json: str
-    created_at: str
-
 # --- Inbox & Quick Capture ---
 
 class InboxItemOut(BaseModel):
     id: int
     name: str
+    quantity: int = 1
     captured_at: Optional[str] = None
     photos: List[PhotoOut] = []
     location_id: Optional[int] = None
@@ -667,6 +645,7 @@ class InboxSortRequest(BaseModel):
     name: str
     category_id: int
     location_id: Optional[int] = None
+    quantity: Optional[int] = Field(default=None, ge=1, le=1_000_000)
     values: Dict[str, Any] = Field(default_factory=dict)
     notes: Optional[str] = None
     expiry_date: Optional[str] = None
@@ -690,13 +669,6 @@ class ItemUnretireRequest(BaseModel):
     location_id: Optional[int] = None
 
 # --- Data Health ---
-
-class HealthCheckCounts(BaseModel):
-    no_location: int
-    no_photo: int
-    long_expired: int
-    duplicates: int
-    stale_inbox: int
 
 class HealthItemOut(BaseModel):
     id: int
@@ -743,6 +715,8 @@ class ContactLoanItem(BaseModel):
     name: str
     category_name: Optional[str] = None
     location_path: Optional[str] = None
+    quantity: int = 1
+    taken_out_quantity: int = 0
     taken_at: Optional[str] = None
     taken_due: Optional[str] = None
     is_overdue: bool = False
@@ -801,6 +775,7 @@ class BoxItemOut(BaseModel):
     name: str
     category_name: Optional[str] = None
     location_path: Optional[str] = None
+    quantity: int = 1
 
 class BoxOut(BaseModel):
     id: int
@@ -865,6 +840,8 @@ class LabelTemplateOut(BaseModel):
 class WallItemOut(BaseModel):
     id: int
     name: str
+    quantity: int = 1
+    taken_out_quantity: int = 0
     since: Optional[str] = None
     due_date: Optional[str] = None
     borrower_name: Optional[str] = None
@@ -922,6 +899,7 @@ class OfflineChangesOut(BaseModel):
 class BulkItemEntry(BaseModel):
     name: str
     location_id: Optional[int] = None
+    quantity: Optional[int] = Field(default=None, ge=1, le=1_000_000)
     expiry_date: Optional[str] = None
     notes: Optional[str] = None
     values: Optional[Dict[str, Any]] = None
@@ -929,6 +907,7 @@ class BulkItemEntry(BaseModel):
 class BulkCreateRequest(BaseModel):
     category_id: int
     location_id: Optional[int] = None
+    quantity: int = Field(default=1, ge=1, le=1_000_000)
     expiry_date: Optional[str] = None
     notes: Optional[str] = None
     values: Dict[str, Any] = {}

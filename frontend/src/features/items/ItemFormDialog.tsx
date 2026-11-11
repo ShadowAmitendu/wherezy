@@ -26,6 +26,11 @@ import { DynamicFields } from "../forms/DynamicFields";
 import { LocationPicker } from "../locations/LocationPicker";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { api, ApiException } from "../../api/client";
+import {
+  getItemQuantity,
+  getItemTakenOutQuantity,
+  parsePositiveInt,
+} from "./quantityUtils";
 
 interface ItemFormDialogProps {
   open: boolean;
@@ -53,6 +58,7 @@ export const ItemFormDialog: React.FC<ItemFormDialogProps> = ({
   const [expiryDate, setExpiryDate] = useState("");
   const [notes, setNotes] = useState("");
   const [name, setName] = useState("");
+  const [quantityStr, setQuantityStr] = useState("1");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -67,6 +73,7 @@ export const ItemFormDialog: React.FC<ItemFormDialogProps> = ({
           setSelectedCategoryId(item.category_id);
           setSelectedLocationId(item.location_id || null);
           setName(item.name);
+          setQuantityStr(String(getItemQuantity(item)));
           setExpiryDate(item.expiry_date || "");
           setNotes(item.notes || "");
           reset({ values: item.values || {} });
@@ -75,6 +82,7 @@ export const ItemFormDialog: React.FC<ItemFormDialogProps> = ({
           setSelectedCategoryId(defaultCatId);
           setSelectedLocationId(initialLocationId || null);
           setName("");
+          setQuantityStr("1");
           setExpiryDate("");
           setNotes("");
           reset({ values: {} });
@@ -85,13 +93,17 @@ export const ItemFormDialog: React.FC<ItemFormDialogProps> = ({
 
   // When selected category changes, fetch its fields
   useEffect(() => {
-    if (selectedCategoryId) {
-      api.getCategory(Number(selectedCategoryId)).then((cat) => {
-        setCategoryFields(cat.fields || []);
-      }).catch(console.error);
-    } else {
-      setCategoryFields([]);
-    }
+    let active = true;
+    Promise.resolve(
+      selectedCategoryId ? api.getCategory(Number(selectedCategoryId)) : null
+    )
+      .then((cat) => {
+        if (active) setCategoryFields(cat?.fields || []);
+      })
+      .catch(console.error);
+    return () => {
+      active = false;
+    };
   }, [selectedCategoryId]);
 
   const activeCategory = categories.find((c) => c.id === selectedCategoryId);
@@ -104,6 +116,16 @@ export const ItemFormDialog: React.FC<ItemFormDialogProps> = ({
     }
     if (!selectedCategoryId) {
       setErrorMsg("Please select a category");
+      return;
+    }
+    const parsedQty = parsePositiveInt(quantityStr);
+    if (parsedQty === null) {
+      setErrorMsg("Quantity must be a whole number of at least 1");
+      return;
+    }
+    const minQty = item ? Math.max(1, getItemTakenOutQuantity(item)) : 1;
+    if (item && parsedQty < minQty) {
+      setErrorMsg(`Quantity cannot be less than ${minQty} currently taken out units`);
       return;
     }
 
@@ -119,6 +141,7 @@ export const ItemFormDialog: React.FC<ItemFormDialogProps> = ({
           name: name.trim(),
           category_id: Number(selectedCategoryId),
           location_id: selectedLocationId,
+          quantity: parsedQty,
           expiry_date: expiryDate.trim() || null,
           notes: notes.trim() || null,
           values: formValues,
@@ -128,6 +151,7 @@ export const ItemFormDialog: React.FC<ItemFormDialogProps> = ({
           name: name.trim(),
           category_id: Number(selectedCategoryId),
           location_id: selectedLocationId,
+          quantity: parsedQty,
           expiry_date: expiryDate.trim() || null,
           notes: notes.trim() || null,
           values: formValues,
@@ -214,10 +238,33 @@ export const ItemFormDialog: React.FC<ItemFormDialogProps> = ({
                   </FormControl>
                 </Grid>
 
-                <Grid size={{ xs: 12, sm: activeCategory?.track_expiry ? 6 : 12 }}>
+                <Grid size={{ xs: 12, sm: 8 }}>
                   <LocationPicker
                     value={selectedLocationId}
                     onChange={(newLoc) => setSelectedLocationId(newLoc)}
+                  />
+                </Grid>
+
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <TextField
+                    label="Quantity"
+                    type="number"
+                    required
+                    value={quantityStr}
+                    onChange={(e) => setQuantityStr(e.target.value)}
+                    fullWidth
+                    slotProps={{
+                      htmlInput: {
+                        min: item ? Math.max(1, getItemTakenOutQuantity(item)) : 1,
+                        step: 1,
+                        style: { fontFamily: "var(--font-mono)" },
+                      },
+                    }}
+                    helperText={
+                      item && getItemTakenOutQuantity(item) > 0
+                        ? `${getItemTakenOutQuantity(item)} currently out`
+                        : "Units stored (min 1)"
+                    }
                   />
                 </Grid>
 

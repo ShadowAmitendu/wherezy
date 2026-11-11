@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Typography,
@@ -59,7 +59,7 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
   // Delete state
   const [deleteTarget, setDeleteTarget] = useState<Photo | null>(null);
 
-  const loadPhotos = async () => {
+  const loadPhotos = useCallback(async () => {
     if (!ownerId) return;
     try {
       setIsLoading(true);
@@ -75,10 +75,28 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [ownerType, ownerId]);
 
   useEffect(() => {
-    loadPhotos();
+    if (!ownerId) return;
+    let active = true;
+    const req =
+      ownerType === "item"
+        ? api.getItem(ownerId).then((item) => item.photos || [])
+        : api.getLocation(ownerId).then((loc) => loc.photos || []);
+    req
+      .then((list) => {
+        if (active) setPhotos(list);
+      })
+      .catch((err) => {
+        if (active) console.error(err);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [ownerType, ownerId]);
 
   const handleFilesSelected = async (files: File[]) => {

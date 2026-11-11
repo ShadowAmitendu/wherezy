@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
-from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from backend.app.core.db import get_db
 from backend.app.models import Item, Location, Profile
@@ -15,16 +14,16 @@ def retire_item(
     item_id: int,
     payload: ItemRetireRequest,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("lifecycle:write"))
 ):
-    item = db.query(Item).filter(Item.id == item_id, Item.deleted_at.is_(None)).first()
+    item = db.query(Item).filter(Item.id == item_id, Item.status == "active", Item.deleted_at.is_(None)).first()
     if not item:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Item not found"}})
 
     if item.taken_out:
         raise HTTPException(
             status_code=400,
-            detail={"error": {"code": "ITEM_TAKEN_OUT", "message": "Item is currently lent out. Please return it before retiring."}}
+            detail={"error": {"code": "ITEM_TAKEN_OUT", "message": "Item currently has units lent out. Please return all units before retiring."}}
         )
 
     # Date cannot be in future
@@ -57,9 +56,9 @@ def unretire_item(
     item_id: int,
     payload: ItemUnretireRequest = ItemUnretireRequest(),
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("lifecycle:write"))
 ):
-    item = db.query(Item).filter(Item.id == item_id, Item.status == "retired").first()
+    item = db.query(Item).filter(Item.id == item_id, Item.status == "retired", Item.deleted_at.is_(None)).first()
     if not item:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Retired item not found"}})
 

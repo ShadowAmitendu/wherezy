@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Box, Button, Chip } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { FormBuilder } from "./FormBuilder";
-import { renderMuiIcon } from "../../components/shared/IconPicker";
+import { renderMuiIcon } from "../../components/shared/iconUtils";
 import { api } from "../../api/client";
 import { Category, FieldDef } from "./types";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
@@ -18,10 +18,9 @@ export const CategoryDetailPage: React.FC = () => {
   const [fields, setFields] = useState<FieldDef[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!id) return;
     try {
-      setIsLoading(true);
       const cat = await api.getCategory(Number(id));
       setCategory(cat);
       setFields(cat.fields || []);
@@ -31,11 +30,30 @@ export const CategoryDetailPage: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [id, navigate]);
 
   useEffect(() => {
-    loadData();
-  }, [id]);
+    if (!id) return;
+    let active = true;
+    api
+      .getCategory(Number(id))
+      .then((cat) => {
+        if (!active) return;
+        setCategory(cat);
+        setFields(cat.fields || []);
+      })
+      .catch((err) => {
+        if (!active) return;
+        console.error(err);
+        navigate("/categories");
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [id, navigate]);
 
   if (!category && !isLoading) {
     return null;

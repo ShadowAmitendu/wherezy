@@ -1,13 +1,13 @@
 import json
-from typing import List, Optional
+from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 from backend.app.core.db import get_db
 from backend.app.core.security import (
     hash_pin, verify_pin, create_session_token, is_rate_limited,
-    record_failed_attempt, clear_failed_attempts
+    record_failed_attempt, clear_failed_attempts, SESSION_COOKIE_NAME
 )
-from backend.app.models import Profile, Setting
+from backend.app.models import Profile
 from backend.app.schemas import (
     ProfileOut, ProfileCreate, ProfileUpdate, ProfilePrefsUpdate,
     ProfileSelectRequest, SuccessResponse
@@ -15,8 +15,6 @@ from backend.app.schemas import (
 from backend.app.services.permissions import require, get_current_profile
 
 router = APIRouter(prefix="/profiles", tags=["Profiles"])
-
-SESSION_COOKIE_NAME = "hi_session"
 
 def _profile_to_out(p: Profile) -> ProfileOut:
     perms = None
@@ -151,28 +149,17 @@ def select_profile(
     )
     return _profile_to_out(prof)
 
-@router.post("/logout", response_model=SuccessResponse)
-def logout(response: Response):
-    """Clears profile session cookie."""
-    response.delete_cookie(SESSION_COOKIE_NAME)
-    return SuccessResponse(ok=True, message="Logged out successfully")
-
-@router.put("/me/prefs", response_model=ProfileOut)
-def update_my_prefs(
-    payload: ProfilePrefsUpdate,
-    request: Request,
-    db: Session = Depends(get_db)
-):
-    """Update current user's display preferences (accent, language, text scale, contrast, theme)."""
-    prof = get_current_profile(request, db)
-    if not prof:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail={"error": {"code": "NOT_LOGGED_IN", "message": "Profile required"}}
-        )
-
+def _apply_prefs(db: Session, prof: Profile, payload: ProfilePrefsUpdate) -> None:
     if payload.name is not None and payload.name.strip():
-        prof.name = payload.name.strip()
+        clean_name = payload.name.strip()
+        if clean_name != prof.name:
+            existing = db.query(Profile).filter(Profile.name == clean_name, Profile.id != prof.id).first()
+            if existing:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={"error": {"code": "DUPLICATE_NAME", "message": f"Profile name '{clean_name}' already exists"}}
+                )
+            prof.name = clean_name
     if payload.avatar_emoji is not None:
         prof.avatar_emoji = payload.avatar_emoji
     if payload.color is not None:
@@ -188,6 +175,14 @@ def update_my_prefs(
     if payload.theme_mode is not None:
         prof.theme_mode = payload.theme_mode
 
+@router.put("/me/prefs", response_model=ProfileOut)
+def update_my_prefs(
+    payload: ProfilePrefsUpdate,
+    db: Session = Depends(get_db),
+    prof: Profile = Depends(require("prefs:write_own"))
+):
+    """Update current user's display preferences (accent, language, text scale, contrast, theme)."""
+    _apply_prefs(db, prof, payload)
     db.commit()
     db.refresh(prof)
     return _profile_to_out(prof)
@@ -197,30 +192,14 @@ def update_other_prefs(
     profile_id: int,
     payload: ProfilePrefsUpdate,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("admin"))
+    current: Profile = Depends(require("prefs:write_all"))
 ):
-    """Admin updates another profile's preferences."""
+    """Admin or Co-Admin updates another profile's preferences."""
     prof = db.query(Profile).filter(Profile.id == profile_id).first()
     if not prof:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Profile not found"}})
 
-    if payload.name is not None and payload.name.strip():
-        prof.name = payload.name.strip()
-    if payload.avatar_emoji is not None:
-        prof.avatar_emoji = payload.avatar_emoji
-    if payload.color is not None:
-        prof.color = payload.color
-    if payload.accent_color is not None:
-        prof.accent_color = payload.accent_color
-    if payload.language is not None:
-        prof.language = payload.language
-    if payload.text_scale is not None:
-        prof.text_scale = payload.text_scale
-    if payload.high_contrast is not None:
-        prof.high_contrast = 1 if payload.high_contrast else 0
-    if payload.theme_mode is not None:
-        prof.theme_mode = payload.theme_mode
-
+    _apply_prefs(db, prof, payload)
     db.commit()
     db.refresh(prof)
     return _profile_to_out(prof)

@@ -12,7 +12,10 @@ export interface Item {
   location_id?: number | null;
   location_name?: string | null;
   location_path?: string | null;
+  quantity: number;
   taken_out: boolean;
+  taken_out_quantity: number;
+  available_quantity: number;
   taken_by?: string | null;
   taken_at?: string | null;
   taken_due?: string | null;

@@ -5,16 +5,13 @@ import {
   Card,
   CardContent,
   Chip,
-  IconButton,
   Button,
-  TextField,
   MenuItem,
   Select,
   FormControl,
   InputLabel,
   CircularProgress,
   Tooltip,
-  Divider,
   Collapse,
 } from "@mui/material";
 import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
@@ -23,7 +20,7 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import ExpandLessIcon from "@mui/icons-material/ExpandLess";
 import FilterListIcon from "@mui/icons-material/FilterList";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import { api, ApiException } from "../../api/client";
+import { api } from "../../api/client";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { PageHeader } from "../../components/shared/PageHeader";
@@ -59,7 +56,29 @@ export const ActivityPage: React.FC = () => {
   };
 
   useEffect(() => {
-    loadActivity();
+    let active = true;
+    api
+      .getActivity({
+        limit: 50,
+        offset: 0,
+        entity_type: entityFilter || undefined,
+      })
+      .then((data) => {
+        if (!active) return;
+        setErrorMsg(null);
+        setEvents(data.events || []);
+      })
+      .catch((err: any) => {
+        if (!active) return;
+        console.error(err);
+        setErrorMsg(err.error?.message || "Failed to load activity logs");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [entityFilter]);
 
   const toggleDiff = (id: number) => {

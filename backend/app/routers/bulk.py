@@ -12,7 +12,7 @@ router = APIRouter(tags=["Bulk Operations"])
 def bulk_items_operation(
     payload: BulkRequest,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("bulk:write"))
 ):
     """Execute bulk operations on items (move, tags, taken-out, expiry, retire, box, delete)."""
     return execute_bulk(db, payload, actor=current)
@@ -21,7 +21,7 @@ def bulk_items_operation(
 def bulk_items_preview(
     payload: BulkRequest,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("bulk:write"))
 ):
     """Dry-run preview of bulk operations before confirmation."""
     payload.dry_run = True
@@ -31,7 +31,7 @@ def bulk_items_preview(
 def undo_batch_endpoint(
     batch_id: str,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("bulk:write"))
 ):
     """Replay inverse operations to undo a batch."""
     try:

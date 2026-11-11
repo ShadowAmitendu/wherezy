@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Box,
   Card,
@@ -21,8 +21,8 @@ import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
 import { PageHeader } from "../../components/shared/PageHeader";
-import { useAuth } from "../../auth/AuthContext";
-import { useAppTheme } from "../../theme";
+import { useAuth } from "../../auth/useAuth";
+import { useAppTheme } from "../../theme/themeConstants";
 import { api, ApiException } from "../../api/client";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { AccountIcon } from "../../components/shared/AccountIcon";
@@ -52,15 +52,15 @@ export const AccountProfilePage: React.FC = () => {
   const [highContrast, setHighContrast] = useState(Boolean(currentProfile?.high_contrast));
   const [textScale, setTextScale] = useState<number>(currentProfile?.text_scale || 100);
 
-  useEffect(() => {
-    if (currentProfile) {
-      setDisplayName(currentProfile.name);
-      setAvatarEmoji(currentProfile.avatar_emoji || "Person");
-      setUserColor(currentProfile.color || "#486B85");
-      setHighContrast(Boolean(currentProfile.high_contrast));
-      setTextScale(currentProfile.text_scale || 100);
-    }
-  }, [currentProfile]);
+  const [syncedProfile, setSyncedProfile] = useState(currentProfile);
+  if (currentProfile && currentProfile !== syncedProfile) {
+    setSyncedProfile(currentProfile);
+    setDisplayName(currentProfile.name);
+    setAvatarEmoji(currentProfile.avatar_emoji || "Person");
+    setUserColor(currentProfile.color || "#486B85");
+    setHighContrast(Boolean(currentProfile.high_contrast));
+    setTextScale(currentProfile.text_scale || 100);
+  }
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();

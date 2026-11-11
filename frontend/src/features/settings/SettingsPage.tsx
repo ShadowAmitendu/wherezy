@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Card,
@@ -10,7 +10,6 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Snackbar,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -36,8 +35,8 @@ import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { ThemePalettePicker } from "../../components/shared/ThemePalettePicker";
 import { BulkAddDialog } from "../items/BulkAddDialog";
-import { useAppTheme } from "../../theme";
-import { useAuth } from "../../auth/AuthContext";
+import { useAppTheme } from "../../theme/themeConstants";
+import { useAuth } from "../../auth/useAuth";
 import { api } from "../../api/client";
 
 function formatBytes(bytes: number) {
@@ -82,26 +81,42 @@ export const SettingsPage: React.FC = () => {
 
   const restoreInputRef = React.useRef<HTMLInputElement>(null);
 
-  const loadSettingsAndStats = async () => {
+  const loadSettingsAndStats = useCallback(async () => {
     try {
-      const s = await api.getSettings();
+      const [s, stats, b] = await Promise.all([
+        api.getSettings(),
+        api.getStorage(),
+        api.getBackups(),
+      ]);
       setExpiryDays(s.expiry_warn_days || 30);
       setBaseUrl(s.base_url || "");
       setLabelPreset(s.label_preset || "medium");
       setBackupKeep(s.backup_keep || 7);
-
-      const stats = await api.getStorage();
       setStorageStats(stats);
-
-      const b = await api.getBackups();
       setBackups(b);
     } catch (err) {
       console.error(err);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadSettingsAndStats();
+    let active = true;
+    Promise.all([api.getSettings(), api.getStorage(), api.getBackups()])
+      .then(([s, stats, b]) => {
+        if (!active) return;
+        setExpiryDays(s.expiry_warn_days || 30);
+        setBaseUrl(s.base_url || "");
+        setLabelPreset(s.label_preset || "medium");
+        setBackupKeep(s.backup_keep || 7);
+        setStorageStats(stats);
+        setBackups(b);
+      })
+      .catch((err) => {
+        if (active) console.error(err);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleSaveGeneral = async () => {
@@ -142,8 +157,48 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
+  const downloadFromEndpoint = async (
+    url: string,
+    fallbackName: string,
+    method: "GET" | "POST" = "GET"
+  ) => {
+    try {
+      const response = await fetch(url, { method, credentials: "same-origin" });
+      if (!response.ok) {
+        let msg = `Download failed (HTTP ${response.status})`;
+        try {
+          const data = await response.json();
+          if (data?.error?.message) msg = data.error.message;
+        } catch {
+          // Non-JSON error body
+        }
+        setRestoreMessage(msg);
+        return;
+      }
+
+      const disp = response.headers.get("Content-Disposition") || "";
+      const match = disp.match(/filename="?([^";]+)"?/i);
+      const filename = match?.[1] || fallbackName;
+      const blob = await response.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objUrl);
+
+      if (method === "POST") {
+        await loadSettingsAndStats();
+      }
+    } catch {
+      setRestoreMessage("Network error while downloading file.");
+    }
+  };
+
   const handleDownloadBackup = () => {
-    window.location.href = "/api/admin/backup";
+    void downloadFromEndpoint("/api/admin/backup", "wherezy_backup.zip", "POST");
   };
 
   const handleSelectRestoreFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -472,16 +527,23 @@ export const SettingsPage: React.FC = () => {
             <Button
               variant="outlined"
               size={isMobile ? "small" : "medium"}
-              onClick={() => (window.location.href = "/api/admin/export?format=csv")}
+              onClick={() => void downloadFromEndpoint("/api/admin/export?format=csv", "wherezy_export.csv")}
             >
               Export as CSV
             </Button>
             <Button
               variant="outlined"
               size={isMobile ? "small" : "medium"}
-              onClick={() => (window.location.href = "/api/admin/export?format=json")}
+              onClick={() => void downloadFromEndpoint("/api/admin/export?format=json", "wherezy_export.json")}
             >
               Export as JSON
+            </Button>
+            <Button
+              variant="outlined"
+              size={isMobile ? "small" : "medium"}
+              onClick={() => void downloadFromEndpoint("/api/admin/export/book.xlsx", "wherezy_book.xlsx")}
+            >
+              Export Excel (.xlsx)
             </Button>
             <Button
               variant="outlined"

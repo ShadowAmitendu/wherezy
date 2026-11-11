@@ -1,12 +1,12 @@
 import json
 from datetime import datetime, timezone
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from backend.app.core.db import get_db
 from backend.app.models import Audit, Location, Item, BoxItem, Profile
 from backend.app.schemas import (
-    AuditOut, AuditStartRequest, AuditFoundRequest, AuditSummary, AuditItemSummary, SuccessResponse
+    AuditOut, AuditStartRequest, AuditFoundRequest, AuditSummary, AuditItemSummary
 )
 from backend.app.services.permissions import require
 from backend.app.services.visibility import items_visible
@@ -31,7 +31,7 @@ def _get_location_ids(db: Session, root_id: int, include_sub: bool) -> List[int]
 def start_audit(
     payload: AuditStartRequest,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("audit:write"))
 ):
     loc = db.query(Location).filter(Location.id == payload.location_id, Location.deleted_at.is_(None)).first()
     if not loc:
@@ -73,7 +73,7 @@ def start_audit(
 def get_audit(
     audit_id: int,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("viewer"))
+    current: Profile = Depends(require("audit:read"))
 ):
     audit = db.query(Audit).filter(Audit.id == audit_id).first()
     if not audit:
@@ -100,7 +100,7 @@ def update_found(
     audit_id: int,
     payload: AuditFoundRequest,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("audit:write"))
 ):
     audit = db.query(Audit).filter(Audit.id == audit_id).first()
     if not audit:
@@ -129,7 +129,7 @@ def update_found(
 def finish_audit(
     audit_id: int,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("audit:write"))
 ):
     audit = db.query(Audit).filter(Audit.id == audit_id).first()
     if not audit:
@@ -137,8 +137,6 @@ def finish_audit(
 
     expected_ids = set(json.loads(audit.expected_json) if audit.expected_json else [])
     found_ids = set(json.loads(audit.found_json) if audit.found_json else [])
-
-    loc_ids = _get_location_ids(db, audit.location_id, bool(audit.include_sub))
 
     # Identify items in packed boxes
     packed_box_item_ids = {
@@ -220,7 +218,7 @@ def finish_audit(
 def get_location_audits(
     location_id: int,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("viewer"))
+    current: Profile = Depends(require("audit:read"))
 ):
     rows = db.query(Audit).filter(Audit.location_id == location_id).order_by(Audit.id.desc()).limit(20).all()
     results = []

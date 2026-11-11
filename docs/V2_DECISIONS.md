@@ -1,4 +1,4 @@
-# HomeInventory v2 - Architectural Decisions & Baseline
+# Wherezy v2 - Architectural Decisions & Baseline
 
 ## 1. Baseline Summary
 - **v1 Status**: All core functionality operational (Inventory items, category custom form builder, storage location hierarchy, photo attachments, barcode/QR generator & scanner, shelf contents printing, expiry tracking).
@@ -28,7 +28,7 @@
 - Roles: `admin`, `member`, `viewer`.
 - Enforced on backend via FastAPI dependency `require(permission)`.
 - Profiles table stores `role` and optional bcrypt PIN hash.
-- Active profile authenticated via signed HttpOnly session cookie or `X-Profile-ID` header.
+- Active profile authenticated via signed HttpOnly session cookie (untrusted `X-Profile-ID` headers are ignored).
 - Display profiles (`is_display = 1`) are locked to Viewer and restricted to `wall:read` and `GET /profiles/me`.
 
 ## 4. Decision: Database Migration Safety (Section 2)

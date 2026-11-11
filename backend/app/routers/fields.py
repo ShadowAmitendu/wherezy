@@ -4,11 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from backend.app.core.db import get_db
-from backend.app.models import Category, FieldDef
+from backend.app.models import Category, FieldDef, Profile
 from backend.app.schemas import (
     FieldDefOut, FieldDefCreate, FieldDefUpdate, FieldReorderRequest, SuccessResponse
 )
 from backend.app.services.form_validator import generate_field_key
+from backend.app.services.permissions import require
 from backend.app.routers.categories import map_field
 
 router = APIRouter(tags=["Fields"])
@@ -27,7 +28,12 @@ ALLOWED_TYPE_TRANSITIONS = {
 }
 
 @router.get("/categories/{category_id}/fields", response_model=List[FieldDefOut])
-def list_fields(category_id: int, include_archived: bool = False, db: Session = Depends(get_db)):
+def list_fields(
+    category_id: int,
+    include_archived: bool = False,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("categories:read"))
+):
     cat = db.query(Category).filter(Category.id == category_id, Category.deleted_at.is_(None)).first()
     if not cat:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Category not found"}})
@@ -39,7 +45,12 @@ def list_fields(category_id: int, include_archived: bool = False, db: Session = 
     return [map_field(f) for f in fields]
 
 @router.post("/categories/{category_id}/fields", response_model=FieldDefOut)
-def create_field(category_id: int, payload: FieldDefCreate, db: Session = Depends(get_db)):
+def create_field(
+    category_id: int,
+    payload: FieldDefCreate,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("categories:write"))
+):
     cat = db.query(Category).filter(Category.id == category_id, Category.deleted_at.is_(None)).first()
     if not cat:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Category not found"}})
@@ -82,7 +93,12 @@ def create_field(category_id: int, payload: FieldDefCreate, db: Session = Depend
     return map_field(field)
 
 @router.put("/fields/{field_id}", response_model=FieldDefOut)
-def update_field(field_id: int, payload: FieldDefUpdate, db: Session = Depends(get_db)):
+def update_field(
+    field_id: int,
+    payload: FieldDefUpdate,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("categories:write"))
+):
     field = db.query(FieldDef).filter(FieldDef.id == field_id).first()
     if not field:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Field not found"}})
@@ -135,7 +151,11 @@ def update_field(field_id: int, payload: FieldDefUpdate, db: Session = Depends(g
     return map_field(field)
 
 @router.delete("/fields/{field_id}", response_model=SuccessResponse)
-def archive_field(field_id: int, db: Session = Depends(get_db)):
+def archive_field(
+    field_id: int,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("categories:write"))
+):
     field = db.query(FieldDef).filter(FieldDef.id == field_id).first()
     if not field:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Field not found"}})
@@ -146,7 +166,12 @@ def archive_field(field_id: int, db: Session = Depends(get_db)):
     return SuccessResponse(ok=True, message=f"Field '{field.label}' archived")
 
 @router.post("/categories/{category_id}/fields/reorder", response_model=SuccessResponse)
-def reorder_fields(category_id: int, payload: FieldReorderRequest, db: Session = Depends(get_db)):
+def reorder_fields(
+    category_id: int,
+    payload: FieldReorderRequest,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("categories:write"))
+):
     for order, f_id in enumerate(payload.field_ids, start=1):
         field = db.query(FieldDef).filter(FieldDef.id == f_id, FieldDef.category_id == category_id).first()
         if field:

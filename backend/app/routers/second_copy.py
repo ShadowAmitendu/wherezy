@@ -4,8 +4,8 @@ import hashlib
 import json
 from pathlib import Path
 from datetime import datetime, timezone
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from backend.app.core.config import DATA_DIR
 from backend.app.core.db import get_db
@@ -19,6 +19,7 @@ from backend.app.services.activity import record
 router = APIRouter(prefix="/admin/second-copy", tags=["Second-Copy Backup"])
 
 LOCAL_BACKUPS_DIR = DATA_DIR / "backups"
+_BACKUP_PREFIXES = ("wherezy_backup_", "homeinventory_backup_", "backup_", "pre-v2-")
 
 def _get_setting(db: Session, key: str, default=None):
     row = db.query(Setting).filter(Setting.key == key).first()
@@ -26,7 +27,7 @@ def _get_setting(db: Session, key: str, default=None):
         return default
     try:
         return json.loads(row.value_json)
-    except Exception:
+    except (json.JSONDecodeError, TypeError):
         return default
 
 def _set_setting(db: Session, key: str, value: any):
@@ -41,7 +42,7 @@ def _set_setting(db: Session, key: str, value: any):
 @router.get("", response_model=SecondCopyStatus)
 def get_second_copy_status(
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("admin"))
+    current: Profile = Depends(require("admin:second_copy"))
 ):
     enabled = bool(_get_setting(db, "second_copy_enabled", False))
     path_str = _get_setting(db, "second_copy_path")
@@ -57,8 +58,8 @@ def get_second_copy_status(
             try:
                 usage = shutil.disk_usage(p)
                 free_bytes = usage.free
-            except Exception:
-                pass
+            except OSError:
+                free_bytes = None
 
     return SecondCopyStatus(
         enabled=enabled,
@@ -74,7 +75,7 @@ def get_second_copy_status(
 def update_second_copy_config(
     payload: SecondCopyConfig,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("admin"))
+    current: Profile = Depends(require("admin:second_copy"))
 ):
     if payload.path:
         dest = Path(payload.path).resolve()
@@ -98,7 +99,7 @@ def update_second_copy_config(
 @router.post("/test", response_model=SuccessResponse)
 def test_second_copy_folder(
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("admin"))
+    current: Profile = Depends(require("admin:second_copy"))
 ):
     path_str = _get_setting(db, "second_copy_path")
     if not path_str:
@@ -108,11 +109,11 @@ def test_second_copy_folder(
     if not dest.exists():
         try:
             dest.mkdir(parents=True, exist_ok=True)
-        except Exception as e:
+        except OSError as e:
             raise HTTPException(status_code=400, detail={"error": {"code": "CANNOT_CREATE", "message": f"Cannot create folder: {str(e)}"}})
 
     # Write and delete a small test file
-    test_file = dest / ".homeinventory_test_write"
+    test_file = dest / ".wherezy_test_write"
     try:
         with open(test_file, "w") as f:
             f.write("OK")
@@ -120,13 +121,13 @@ def test_second_copy_folder(
         usage = shutil.disk_usage(dest)
         free_gb = round(usage.free / (1024**3), 2)
         return SuccessResponse(ok=True, message=f"Folder is writable. Free space: {free_gb} GB")
-    except Exception as e:
+    except OSError as e:
         raise HTTPException(status_code=400, detail={"error": {"code": "NOT_WRITABLE", "message": f"Folder is not writable: {str(e)}"}})
 
 @router.post("/run", response_model=SuccessResponse)
 def run_second_copy(
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("admin"))
+    current: Profile = Depends(require("admin:second_copy"))
 ):
     path_str = _get_setting(db, "second_copy_path")
     if not path_str:
@@ -183,9 +184,8 @@ def run_second_copy(
 
         # Prune older copies matching app pattern
         keep_count = int(_get_setting(db, "second_copy_keep", 14))
-        # Matches backup_*.zip or pre-v2-*.zip
         copied_zips = sorted(
-            [f for f in dest.glob("*.zip") if f.name.startswith("backup_") or f.name.startswith("pre-v2-")],
+            [f for f in dest.glob("*.zip") if f.name.startswith(_BACKUP_PREFIXES)],
             key=lambda f: f.stat().st_mtime,
             reverse=True
         )
@@ -193,7 +193,7 @@ def run_second_copy(
             for old_f in copied_zips[keep_count:]:
                 try:
                     os.remove(old_f)
-                except Exception:
+                except OSError:
                     pass
 
         now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
@@ -210,7 +210,7 @@ def run_second_copy(
         if part_target.exists():
             try:
                 os.remove(part_target)
-            except Exception:
+            except OSError:
                 pass
         err_msg = str(e)
         _set_setting(db, "second_copy_last_error", err_msg)
@@ -221,7 +221,7 @@ def run_second_copy(
 @router.get("/files", response_model=List[SecondCopyFileOut])
 def list_second_copy_files(
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("admin"))
+    current: Profile = Depends(require("admin:second_copy"))
 ):
     path_str = _get_setting(db, "second_copy_path")
     if not path_str:
@@ -231,7 +231,7 @@ def list_second_copy_files(
     if not dest.exists():
         return []
 
-    files = [f for f in dest.glob("*.zip") if f.name.startswith("backup_") or f.name.startswith("pre-v2-")]
+    files = [f for f in dest.glob("*.zip") if f.name.startswith(_BACKUP_PREFIXES)]
     results = []
     for f in sorted(files, key=lambda x: x.stat().st_mtime, reverse=True):
         mtime = datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc).isoformat()

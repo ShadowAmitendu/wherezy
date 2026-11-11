@@ -3,7 +3,6 @@ import { useSearchParams } from "react-router-dom";
 import {
   Box,
   Card,
-  CardContent,
   Typography,
   Chip,
   ToggleButtonGroup,
@@ -33,7 +32,6 @@ export const ExpiryPage: React.FC = () => {
 
   const loadExpiringItems = async () => {
     try {
-      setIsLoading(true);
       const res = await api.getExpiring(365); // fetch within 1 year
       setItems(res);
     } catch (err) {
@@ -44,7 +42,21 @@ export const ExpiryPage: React.FC = () => {
   };
 
   useEffect(() => {
-    loadExpiringItems();
+    let active = true;
+    api
+      .getExpiring(365)
+      .then((res) => {
+        if (active) setItems(res);
+      })
+      .catch((err) => {
+        if (active) console.error(err);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const filteredItems = items.filter((it) => {

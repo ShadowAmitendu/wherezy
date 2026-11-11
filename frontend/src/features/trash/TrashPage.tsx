@@ -3,9 +3,7 @@ import {
   Box,
   Typography,
   Card,
-  CardContent,
   Button,
-  IconButton,
   Chip,
   Tabs,
   Tab,
@@ -23,7 +21,7 @@ import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import RestoreFromTrashIcon from "@mui/icons-material/RestoreFromTrash";
 import DeleteForeverIcon from "@mui/icons-material/DeleteForever";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import { api, ApiException } from "../../api/client";
+import { api } from "../../api/client";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { PageHeader } from "../../components/shared/PageHeader";
@@ -52,7 +50,25 @@ export const TrashPage: React.FC = () => {
   };
 
   useEffect(() => {
-    loadTrash();
+    let active = true;
+    api
+      .getTrash()
+      .then((data) => {
+        if (!active) return;
+        setErrorMsg(null);
+        setAllTrash(Array.isArray(data) ? data : []);
+      })
+      .catch((err: any) => {
+        if (!active) return;
+        console.error(err);
+        setErrorMsg(err.error?.message || "Failed to load trash");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const items = allTrash.filter((t) => t.type === "item");

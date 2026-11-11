@@ -1,8 +1,7 @@
-from typing import List, Optional
+from typing import List
 from datetime import date
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from backend.app.core.db import get_db
 from backend.app.models import Contact, Item, Activity, Profile
 from backend.app.schemas import (
@@ -38,7 +37,7 @@ def _to_out(c: Contact, is_viewer: bool, db: Session) -> ContactOut:
 def list_contacts(
     include_inactive: bool = False,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("viewer"))
+    current: Profile = Depends(require("contacts:read"))
 ):
     q = db.query(Contact)
     if not include_inactive:
@@ -50,7 +49,7 @@ def list_contacts(
 def create_contact(
     payload: ContactCreate,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("contacts:write"))
 ):
     name = payload.name.strip()
     if not name:
@@ -82,7 +81,7 @@ def update_contact(
     contact_id: int,
     payload: ContactUpdate,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("contacts:write"))
 ):
     contact = db.query(Contact).filter(Contact.id == contact_id).first()
     if not contact:
@@ -115,7 +114,7 @@ def update_contact(
 def delete_or_deactivate_contact(
     contact_id: int,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("admin"))
+    current: Profile = Depends(require("contacts:delete"))
 ):
     contact = db.query(Contact).filter(Contact.id == contact_id).first()
     if not contact:
@@ -142,7 +141,7 @@ def delete_or_deactivate_contact(
 def get_contact_loans(
     contact_id: int,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("viewer"))
+    current: Profile = Depends(require("contacts:read"))
 ):
     contact = db.query(Contact).filter(Contact.id == contact_id).first()
     if not contact:
@@ -158,6 +157,8 @@ def get_contact_loans(
             name=it.name,
             category_name=it.category.name if it.category else None,
             location_path=it.location.name if it.location else None,
+            quantity=max(1, int(it.quantity or 1)),
+            taken_out_quantity=int(it.taken_out_quantity) if it.taken_out_quantity is not None else (1 if it.taken_out else 0),
             taken_at=it.taken_at,
             taken_due=it.taken_due,
             is_overdue=bool(it.taken_due and it.taken_due < today_str)

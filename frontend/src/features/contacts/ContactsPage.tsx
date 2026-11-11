@@ -38,8 +38,9 @@ import { AlertDialog } from "../../components/shared/AlertDialog";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { PageHeader } from "../../components/shared/PageHeader";
 import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
-import { api, ApiException } from "../../api/client";
+import { api } from "../../api/client";
 import { ItemDetailDialog } from "../items/ItemDetailDialog";
+import { formatTakenOutStatusLabel, getItemQuantity } from "../items/quantityUtils";
 
 export const ContactsPage: React.FC = () => {
   const theme = useTheme();
@@ -84,7 +85,23 @@ export const ContactsPage: React.FC = () => {
   };
 
   useEffect(() => {
-    loadContacts();
+    let active = true;
+    api
+      .getContacts()
+      .then((data) => {
+        if (active) setContacts(data);
+      })
+      .catch((err: any) => {
+        if (!active) return;
+        console.error(err);
+        setErrorMsg(err.error?.message || "Failed to load contacts");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleOpenAdd = () => {
@@ -414,13 +431,23 @@ export const ContactsPage: React.FC = () => {
                           <Inventory2OutlinedIcon color="primary" />
                           <ListItemText
                             primary={
-                              <Typography
-                                variant="subtitle2"
-                                sx={{ fontWeight: 600, cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
-                                onClick={() => setSelectedItemId(item.id)}
-                              >
-                                {item.name}
-                              </Typography>
+                              <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+                                <Typography
+                                  variant="subtitle2"
+                                  sx={{ fontWeight: 600, cursor: "pointer", "&:hover": { textDecoration: "underline" } }}
+                                  onClick={() => setSelectedItemId(item.id)}
+                                >
+                                  {item.name}
+                                </Typography>
+                                {getItemQuantity(item) > 1 && (
+                                  <Chip
+                                    label={formatTakenOutStatusLabel(item)}
+                                    size="small"
+                                    color="secondary"
+                                    variant="outlined"
+                                  />
+                                )}
+                              </Box>
                             }
                             secondary={`Taken: ${item.taken_at ? item.taken_at.substring(0, 10) : "N/A"}${
                               item.taken_due ? ` • Due: ${item.taken_due}` : ""

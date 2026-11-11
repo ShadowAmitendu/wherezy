@@ -1,18 +1,29 @@
-import os
 from pathlib import Path
-from typing import List
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from backend.app.core.db import get_db
 from backend.app.core.config import PHOTOS_DIR
-from backend.app.models import Photo, Item, Location
+from backend.app.models import Photo, Item, Location, Profile
 from backend.app.schemas import PhotoOut, PhotoReorderRequest, SuccessResponse
 from backend.app.services.photo_service import process_and_save_image, delete_photo_files
+from backend.app.services.permissions import require
 from backend.app.routers.settings import get_setting_val
 
 router = APIRouter(prefix="/photos", tags=["Photos"])
+
+
+def _resolve_photo_path(owner_type: str, owner_id: int, file_name: str) -> Path:
+    """Resolve photo file safely inside PHOTOS_DIR, with legacy flat-inbox fallback."""
+    base_dir = PHOTOS_DIR.resolve()
+    scoped = (PHOTOS_DIR / owner_type / str(owner_id) / file_name).resolve()
+    if scoped.is_relative_to(base_dir) and scoped.exists():
+        return scoped
+    legacy_flat = (PHOTOS_DIR / file_name).resolve()
+    if legacy_flat.is_relative_to(base_dir) and legacy_flat.exists():
+        return legacy_flat
+    raise HTTPException(status_code=404, detail="Photo file not found on disk")
 
 def map_photo(p: Photo) -> PhotoOut:
     return PhotoOut(
@@ -36,7 +47,8 @@ def upload_photo(
     owner_type: str = Form(...),
     owner_id: int = Form(...),
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("photos:write"))
 ):
     if owner_type not in ("item", "location"):
         raise HTTPException(status_code=400, detail={"error": {"code": "INVALID_OWNER_TYPE", "message": "Owner must be 'item' or 'location'"}})
@@ -81,30 +93,38 @@ def upload_photo(
     return map_photo(photo)
 
 @router.get("/{id}/file")
-def get_photo_file(id: int, db: Session = Depends(get_db)):
+def get_photo_file(
+    id: int,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("items:read"))
+):
     photo = db.query(Photo).filter(Photo.id == id).first()
     if not photo:
         raise HTTPException(status_code=404, detail="Photo not found")
-    file_path = PHOTOS_DIR / photo.owner_type / str(photo.owner_id) / photo.file_name
-    if not file_path.exists():
-        raise HTTPException(status_code=404, detail="Photo file not found on disk")
+    file_path = _resolve_photo_path(photo.owner_type, photo.owner_id, photo.file_name)
     return FileResponse(str(file_path), media_type="image/jpeg")
 
 @router.get("/{id}/thumb")
-def get_photo_thumb(id: int, db: Session = Depends(get_db)):
+def get_photo_thumb(
+    id: int,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("items:read"))
+):
     photo = db.query(Photo).filter(Photo.id == id).first()
     if not photo:
         raise HTTPException(status_code=404, detail="Photo not found")
-    thumb_path = PHOTOS_DIR / photo.owner_type / str(photo.owner_id) / photo.thumb_name
-    if not thumb_path.exists():
-        # Fallback to main file
-        thumb_path = PHOTOS_DIR / photo.owner_type / str(photo.owner_id) / photo.file_name
-    if not thumb_path.exists():
-        raise HTTPException(status_code=404, detail="Photo file not found on disk")
+    try:
+        thumb_path = _resolve_photo_path(photo.owner_type, photo.owner_id, photo.thumb_name)
+    except HTTPException:
+        thumb_path = _resolve_photo_path(photo.owner_type, photo.owner_id, photo.file_name)
     return FileResponse(str(thumb_path), media_type="image/jpeg")
 
 @router.put("/{id}/cover", response_model=PhotoOut)
-def set_cover_photo(id: int, db: Session = Depends(get_db)):
+def set_cover_photo(
+    id: int,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("photos:write"))
+):
     photo = db.query(Photo).filter(Photo.id == id).first()
     if not photo:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Photo not found"}})
@@ -117,14 +137,22 @@ def set_cover_photo(id: int, db: Session = Depends(get_db)):
     return map_photo(photo)
 
 @router.post("/reorder", response_model=SuccessResponse)
-def reorder_photos(payload: PhotoReorderRequest, db: Session = Depends(get_db)):
+def reorder_photos(
+    payload: PhotoReorderRequest,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("photos:write"))
+):
     for order, p_id in enumerate(payload.photo_ids, start=1):
         db.query(Photo).filter(Photo.id == p_id).update({"sort_order": order})
     db.commit()
     return SuccessResponse(ok=True, message="Photos reordered")
 
 @router.delete("/{id}", response_model=SuccessResponse)
-def delete_photo(id: int, db: Session = Depends(get_db)):
+def delete_photo(
+    id: int,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("photos:write"))
+):
     photo = db.query(Photo).filter(Photo.id == id).first()
     if not photo:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Photo not found"}})

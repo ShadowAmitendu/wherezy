@@ -4,7 +4,6 @@ import {
   Typography,
   Grid,
   Card,
-  CardContent,
   CardActionArea,
   Button,
   IconButton,
@@ -41,7 +40,7 @@ import DriveFileMoveOutlinedIcon from "@mui/icons-material/DriveFileMoveOutlined
 import RemoveCircleOutlineOutlinedIcon from "@mui/icons-material/RemoveCircleOutlineOutlined";
 import CheckCircleOutlineOutlinedIcon from "@mui/icons-material/CheckCircleOutlineOutlined";
 import RefreshIcon from "@mui/icons-material/Refresh";
-import { api, ApiException } from "../../api/client";
+import { api } from "../../api/client";
 import { LocationPicker } from "../locations/LocationPicker";
 import { ItemDetailDialog } from "../items/ItemDetailDialog";
 
@@ -70,7 +69,7 @@ export const HealthPage: React.FC = () => {
   // Quick retire dialog
   const [retireItem, setRetireItem] = useState<any | null>(null);
   const [retireReason, setRetireReason] = useState<string>("thrown_away");
-  const [retireDate, setRetireDate] = useState<string>(new Date().toISOString().split("T")[0]);
+  const [retireDate, setRetireDate] = useState<string>(() => new Date().toISOString().split("T")[0]);
   const [retireNote, setRetireNote] = useState<string>("");
 
   const loadData = async (checkKey = activeTab) => {
@@ -98,7 +97,31 @@ export const HealthPage: React.FC = () => {
   };
 
   useEffect(() => {
-    loadData(activeTab);
+    let active = true;
+    Promise.all([api.getHealthOverview(), api.getHealthItems(activeTab)])
+      .then(([overview, list]) => {
+        if (!active) return;
+        setErrorMsg(null);
+        setCounts({
+          no_location: overview.no_location || 0,
+          no_photo: overview.no_photo || 0,
+          long_expired: overview.long_expired || 0,
+          duplicate: overview.duplicate || 0,
+          stale_inbox: overview.stale_inbox || 0,
+        });
+        setItems(Array.isArray(list) ? list : []);
+      })
+      .catch((err: any) => {
+        if (!active) return;
+        console.error(err);
+        setErrorMsg(err.error?.message || "Failed to load data health checks");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [activeTab]);
 
   const handleTabChange = (key: HealthCheckKey) => {

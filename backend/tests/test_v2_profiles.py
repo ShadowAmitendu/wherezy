@@ -35,7 +35,10 @@ def test_profiles_crud_and_guards(client, db_session):
     assert res.status_code == 401
 
     # 4. Cannot deactivate the last remaining admin
-    res = client.delete("/api/profiles/1", cookies=auth_cookies)
+    # Restore admin session cookie after step 2's profile/select switched client cookies to Asha
+    client.cookies.clear()
+    client.cookies.set("hi_session", admin_token)
+    res = client.delete("/api/profiles/1")
     assert res.status_code == 400
     assert "LAST_ADMIN" in res.text
 
@@ -131,7 +134,9 @@ def test_login_and_update_password_flow(client, db_session):
     assert res.json()["must_change_password"] is True
 
     # Reset admin password back to admin for ongoing dev convenience
-    client.post("/api/auth/update-password", json={
+    res = client.post("/api/auth/update-password", json={
+        "current_password": "NewAdminPassword123",
         "new_password": "admin"
     }, cookies={"hi_session": new_token})
+    assert res.status_code == 200
 

@@ -36,7 +36,7 @@ def get_global_activity(
     cursor: Optional[int] = Query(None),
     limit: int = Query(50, ge=1, le=100),
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("viewer"))
+    current: Profile = Depends(require("activity:read"))
 ):
     query = db.query(Activity)
 
@@ -76,7 +76,7 @@ def get_item_activity(
     item_id: int,
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("viewer"))
+    current: Profile = Depends(require("activity:read"))
 ):
     rows = (
         db.query(Activity)
@@ -92,7 +92,7 @@ def get_location_activity(
     location_id: int,
     limit: int = Query(50, ge=1, le=200),
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("viewer"))
+    current: Profile = Depends(require("activity:read"))
 ):
     rows = (
         db.query(Activity)
@@ -107,7 +107,7 @@ def get_location_activity(
 def revert_event(
     activity_id: int,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("activity:revert"))
 ):
     try:
         new_act = revert_activity(db=db, activity_id=activity_id, actor=current)

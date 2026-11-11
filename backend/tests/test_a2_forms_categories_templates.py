@@ -1,10 +1,4 @@
-import pytest
-from fastapi.testclient import TestClient
-from backend.app.main import app
-
-client = TestClient(app)
-
-def test_category_crud_and_fields():
+def test_category_crud_and_fields(client):
     # 1. Create Category
     res = client.post("/api/categories", json={
         "name": "Electronics Test",

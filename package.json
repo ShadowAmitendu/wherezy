@@ -1,5 +1,5 @@
 {
-  "name": "homeinventory",
+  "name": "wherezy",
   "version": "1.0.0",
   "private": true,
   "description": "LAN-only household inventory web app with custom forms, location hierarchy, QR/barcode labels, and expiry tracking",

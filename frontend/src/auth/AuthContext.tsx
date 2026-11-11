@@ -1,34 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
-import { api, ApiException, ProfileOut } from "../api/client";
+import React, { useState, useEffect, useCallback } from "react";
+import { api, type ProfileOut } from "../api/client";
 import { UpdatePasswordDialog } from "../features/auth/UpdatePasswordDialog";
-
-interface AuthContextType {
-  authenticated: boolean;
-  pinSet: boolean;
-  currentProfile: ProfileOut | null;
-  isLoading: boolean;
-  mustChangePassword: boolean;
-  setMustChangePassword: (val: boolean) => void;
-  login: (usernameOrPin: string, password?: string) => Promise<any>;
-  logout: () => Promise<void>;
-  selectProfile: (profileId: number, pin?: string) => Promise<ProfileOut>;
-  refreshAuth: () => Promise<void>;
-}
-
-const AuthContext = createContext<AuthContextType>({
-  authenticated: false,
-  pinSet: true,
-  currentProfile: null,
-  isLoading: true,
-  mustChangePassword: false,
-  setMustChangePassword: () => {},
-  login: async () => {},
-  logout: async () => {},
-  selectProfile: async () => { throw new Error("Not implemented"); },
-  refreshAuth: async () => {},
-});
-
-export const useAuth = () => useContext(AuthContext);
+import { AuthContext } from "./useAuth";
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [authenticated, setAuthenticated] = useState<boolean>(false);
@@ -37,39 +10,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [mustChangePassword, setMustChangePassword] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  const refreshAuth = async () => {
+  const applyAuthStatus = useCallback((status: Awaited<ReturnType<typeof api.getAuthStatus>>) => {
+    setPinSet(Boolean(status.pin_set));
+    if (status.authenticated && status.current_profile) {
+      setAuthenticated(true);
+      setCurrentProfile(status.current_profile);
+      setMustChangePassword(Boolean(status.current_profile.must_change_password));
+    } else {
+      setAuthenticated(false);
+      setCurrentProfile(null);
+      setMustChangePassword(false);
+    }
+  }, []);
+
+  const refreshAuth = useCallback(async () => {
     try {
       const status = await api.getAuthStatus();
-      setPinSet(Boolean(status.pin_set));
-      if (status.authenticated && status.current_profile) {
-        setAuthenticated(true);
-        setCurrentProfile(status.current_profile);
-        setMustChangePassword(Boolean(status.current_profile.must_change_password));
-      } else {
-        setAuthenticated(false);
-        setCurrentProfile(null);
-        setMustChangePassword(false);
-      }
+      applyAuthStatus(status);
     } catch {
       setAuthenticated(false);
       setCurrentProfile(null);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [applyAuthStatus]);
 
   useEffect(() => {
-    refreshAuth();
-  }, []);
+    let active = true;
+    api
+      .getAuthStatus()
+      .then((status) => {
+        if (active) applyAuthStatus(status);
+      })
+      .catch(() => {
+        if (active) {
+          setAuthenticated(false);
+          setCurrentProfile(null);
+        }
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [applyAuthStatus]);
 
   const login = async (usernameOrPin: string, password?: string) => {
     try {
-      let res;
-      if (password !== undefined) {
-        res = await api.login({ username: usernameOrPin, password });
-      } else {
-        res = await api.login({ pin: usernameOrPin });
-      }
+      const res =
+        password !== undefined
+          ? await api.login({ username: usernameOrPin, password })
+          : await api.login({ pin: usernameOrPin });
 
       setAuthenticated(true);
       if (res.profile) {
@@ -86,15 +78,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const selectProfile = async (profileId: number, pin?: string): Promise<ProfileOut> => {
-    try {
-      const prof = await api.selectProfile(profileId, pin);
-      setAuthenticated(true);
-      setCurrentProfile(prof);
-      setMustChangePassword(Boolean(prof.must_change_password));
-      return prof;
-    } catch (err) {
-      throw err;
-    }
+    const prof = await api.selectProfile(profileId, pin);
+    setAuthenticated(true);
+    setCurrentProfile(prof);
+    setMustChangePassword(Boolean(prof.must_change_password));
+    return prof;
   };
 
   const logout = async () => {

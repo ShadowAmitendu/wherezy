@@ -4,7 +4,6 @@ import {
   Box,
   Card,
   CardContent,
-  CardActionArea,
   Typography,
   Button,
   IconButton,
@@ -15,22 +14,18 @@ import {
   TextField,
   FormControlLabel,
   Switch,
-  Chip,
-  Snackbar,
-  Tooltip,
   Grid,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
-import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import AutoFixHighIcon from "@mui/icons-material/AutoFixHigh";
 import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { EmptyState } from "../../components/shared/EmptyState";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
-import { IconPicker, renderMuiIcon } from "../../components/shared/IconPicker";
+import { IconPicker } from "../../components/shared/IconPicker";
+import { renderMuiIcon } from "../../components/shared/iconUtils";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { ColorSwatchPicker } from "../../components/shared/ColorSwatchPicker";
 import { CategoryCard } from "./CategoryCard";
@@ -67,7 +62,6 @@ export const CategoriesPage: React.FC = () => {
 
   const loadCategories = async () => {
     try {
-      setIsLoading(true);
       const data = await api.getCategories();
       setCategories(data);
     } catch (err) {
@@ -77,18 +71,23 @@ export const CategoriesPage: React.FC = () => {
     }
   };
 
-  const loadTemplates = async () => {
-    try {
-      const data = await api.getTemplates();
-      setTemplates(data);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   useEffect(() => {
-    loadCategories();
-    loadTemplates();
+    let active = true;
+    Promise.all([api.getCategories(), api.getTemplates()])
+      .then(([cats, tpls]) => {
+        if (!active) return;
+        setCategories(cats);
+        setTemplates(tpls);
+      })
+      .catch((err) => {
+        if (active) console.error(err);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleOpenAddCustom = () => {

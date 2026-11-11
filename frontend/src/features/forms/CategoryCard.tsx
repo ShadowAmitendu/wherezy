@@ -11,7 +11,7 @@ import {
 } from "@mui/material";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
-import { renderMuiIcon } from "../../components/shared/IconPicker";
+import { renderMuiIcon } from "../../components/shared/iconUtils";
 import { Category } from "./types";
 
 export interface CategoryCardProps {

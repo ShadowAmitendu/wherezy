@@ -1,4 +1,5 @@
 import io
+from PIL import Image
 from backend.app.models import Category, Location, Item, Profile
 from backend.app.core.security import create_session_token
 
@@ -15,7 +16,9 @@ def test_lifecycle_health_contacts(client, db_session):
     db_session.commit()
 
     # 1. Quick capture inbox
-    fake_img = io.BytesIO(b"fake image data")
+    fake_img = io.BytesIO()
+    Image.new("RGB", (16, 16), color="red").save(fake_img, format="JPEG")
+    fake_img.seek(0)
     res = client.post(
         "/api/inbox",
         data={"name": "Captured Kettle"},

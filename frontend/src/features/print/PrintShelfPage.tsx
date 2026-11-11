@@ -25,6 +25,7 @@ import QRCode from "qrcode";
 import { api } from "../../api/client";
 import { CoverThumb } from "../photos/CoverThumb";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
+import { formatTakenOutStatusLabel, getItemQuantity } from "../items/quantityUtils";
 
 export const PrintShelfPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -34,6 +35,7 @@ export const PrintShelfPage: React.FC = () => {
   useDocumentTitle(location?.name ? `Shelf Audit: ${location.name}` : "Shelf Audit Sheet");
   const [items, setItems] = useState<any[]>([]);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
+  const [printedAt] = useState(() => new Date());
 
   // Options
   const [includeSub, setIncludeSub] = useState<boolean>(() => {
@@ -49,27 +51,29 @@ export const PrintShelfPage: React.FC = () => {
     return localStorage.getItem("print_font") || "medium";
   });
 
-  const loadData = async () => {
-    if (!id) return;
-    try {
-      const loc = await api.getLocation(Number(id));
-      setLocation(loc);
-
-      const locItems = await api.getLocationItems(Number(id), includeSub);
-      setItems(locItems);
-
-      // Generate QR code encoding location URL
-      const origin = window.location.origin;
-      const targetUrl = `${origin}/#/l/${loc.id}`;
-      const url = await QRCode.toDataURL(targetUrl, { width: 100, margin: 1 });
-      setQrDataUrl(url);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
   useEffect(() => {
-    loadData();
+    if (!id) return;
+    let active = true;
+    (async () => {
+      try {
+        const [loc, locItems] = await Promise.all([
+          api.getLocation(Number(id)),
+          api.getLocationItems(Number(id), includeSub),
+        ]);
+        if (!active) return;
+        setLocation(loc);
+        setItems(locItems);
+
+        const targetUrl = `${window.location.origin}/#/l/${loc.id}`;
+        const url = await QRCode.toDataURL(targetUrl, { width: 100, margin: 1 });
+        if (active) setQrDataUrl(url);
+      } catch (err) {
+        if (active) console.error(err);
+      }
+    })();
+    return () => {
+      active = false;
+    };
   }, [id, includeSub]);
 
   const handlePrint = () => {
@@ -196,7 +200,7 @@ export const PrintShelfPage: React.FC = () => {
               Path: {location?.path || location?.name}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-              Printed on {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}
+              Printed on {printedAt.toLocaleDateString()} at {printedAt.toLocaleTimeString()}
             </Typography>
           </Box>
 
@@ -227,6 +231,7 @@ export const PrintShelfPage: React.FC = () => {
                     {showPhotos && <TableCell width={50}>Photo</TableCell>}
                     <TableCell>Item Name</TableCell>
                     <TableCell>Category</TableCell>
+                    <TableCell width={60} align="center">Qty</TableCell>
                     <TableCell>Expiry</TableCell>
                     <TableCell>Status</TableCell>
                     <TableCell>Notes</TableCell>
@@ -260,8 +265,13 @@ export const PrintShelfPage: React.FC = () => {
                         </Typography>
                       </TableCell>
                       <TableCell>{it.category_name || "—"}</TableCell>
+                      <TableCell align="center" sx={{ fontFamily: "var(--font-mono)" }}>
+                        {getItemQuantity(it)}
+                      </TableCell>
                       <TableCell>{it.expiry_date || "—"}</TableCell>
-                      <TableCell>{it.taken_out ? "Out" : "In place"}</TableCell>
+                      <TableCell>
+                        {formatTakenOutStatusLabel(it)}
+                      </TableCell>
                       <TableCell>{it.notes || "—"}</TableCell>
                     </TableRow>
                   ))}

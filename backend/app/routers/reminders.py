@@ -1,6 +1,11 @@
+import ipaddress
+import json
+import socket
+import urllib.parse
+import urllib.request
 from datetime import date, timedelta
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from backend.app.core.db import get_db
 from backend.app.models import ReminderState, Profile, Setting
@@ -13,19 +18,50 @@ from backend.app.services.reminders import compute_reminders
 
 router = APIRouter(tags=["Reminders"])
 
+
+class _NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise ValueError("Webhook redirects are not allowed")
+
+
+def _validate_webhook_url(url: str) -> Optional[str]:
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https") or not parsed.hostname:
+        return "Webhook URL must be a valid http:// or https:// URL"
+
+    host = parsed.hostname.lower()
+    if host in ("localhost", "localhost.localdomain", "metadata.google.internal"):
+        return "Webhook URL target host is not permitted"
+
+    try:
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+        infos = socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+    except (ValueError, socket.gaierror):
+        return "Unable to resolve webhook host"
+
+    for info in infos:
+        ip_str = info[4][0].split("%")[0]
+        try:
+            ip = ipaddress.ip_address(ip_str)
+        except ValueError:
+            return "Unable to validate webhook address"
+        if ip.is_loopback or ip.is_link_local or ip.is_unspecified or ip.is_multicast or ip.is_reserved:
+            return "Webhook URL target address is not permitted"
+    return None
+
 @router.get("/reminders", response_model=List[ReminderOut])
 def get_reminders(
-    status: Optional[str] = Query(None),
+    status_filter: Optional[str] = Query(None, alias="status"),
     source: Optional[str] = Query(None),
     within_days: Optional[int] = Query(None),
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("viewer"))
+    current: Profile = Depends(require("reminders:read"))
 ):
     """List computed reminders (overdue, due_soon, snoozed, dismissed) for current user."""
     return compute_reminders(
         db=db,
         profile_id=current.id,
-        status_filter=status,
+        status_filter=status_filter,
         source_filter=source,
         within_days=within_days
     )
@@ -33,7 +69,7 @@ def get_reminders(
 @router.get("/reminders/count", response_model=ReminderCountResponse)
 def get_reminders_count(
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("viewer"))
+    current: Profile = Depends(require("reminders:read"))
 ):
     """Badge counts for reminder centre."""
     all_rems = compute_reminders(db=db, profile_id=current.id)
@@ -49,7 +85,7 @@ def get_reminders_count(
 def snooze_reminder(
     payload: ReminderSnoozeRequest,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("viewer"))
+    current: Profile = Depends(require("reminders:write"))
 ):
     """Snooze a reminder for current profile."""
     if payload.snoozed_until:
@@ -88,7 +124,7 @@ def snooze_reminder(
 def dismiss_reminder(
     payload: ReminderDismissRequest,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("viewer"))
+    current: Profile = Depends(require("reminders:write"))
 ):
     """Dismiss a reminder for current profile."""
     today_str = date.today().isoformat()
@@ -120,31 +156,32 @@ def dismiss_reminder(
 @router.post("/admin/webhook-test", response_model=WebhookTestResponse)
 def test_webhook(
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("admin"))
+    current: Profile = Depends(require("admin:webhook"))
 ):
     """Test the configured LAN webhook URL."""
-    import urllib.request
-    import json
     row = db.query(Setting).filter(Setting.key == "webhook_url").first()
     url = None
     if row:
         try:
             url = json.loads(row.value_json)
-        except Exception:
-            pass
+        except (json.JSONDecodeError, TypeError):
+            url = None
 
-    if not url:
+    if not url or not isinstance(url, str):
         return WebhookTestResponse(ok=False, message="No webhook URL configured in settings")
 
-    # SSRF Guard: only allow http or https
-    if not (url.startswith("http://") or url.startswith("https://")):
-        return WebhookTestResponse(ok=False, message="Webhook URL must begin with http:// or https://")
+    err = _validate_webhook_url(url.strip())
+    if err:
+        return WebhookTestResponse(ok=False, message=err)
 
     payload = json.dumps({"event": "test", "message": "Wherezy LAN Webhook Test", "sent_by": current.name}).encode("utf-8")
-    req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"}, method="POST")
+    req = urllib.request.Request(url.strip(), data=payload, headers={"Content-Type": "application/json"}, method="POST")
+    opener = urllib.request.build_opener(_NoRedirectHandler)
 
     try:
-        with urllib.request.urlopen(req, timeout=5) as response:
+        with opener.open(req, timeout=5) as response:
             return WebhookTestResponse(ok=True, status_code=response.status, message="Webhook test successful")
-    except Exception as e:
-        return WebhookTestResponse(ok=False, message=f"Webhook request failed: {str(e)}")
+    except ValueError as e:
+        return WebhookTestResponse(ok=False, message=str(e))
+    except Exception:
+        return WebhookTestResponse(ok=False, message="Webhook request failed")

@@ -16,7 +16,7 @@ def test_health():
     assert data["status"] == "ok"
     assert "time" in data
 
-def test_templates_and_categories():
+def test_templates_and_categories(client):
     # List templates
     res = client.get("/api/templates")
     assert res.status_code == 200

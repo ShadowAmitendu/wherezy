@@ -1,9 +1,10 @@
 import json
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from backend.app.core.db import get_db
-from backend.app.models import Setting
+from backend.app.models import Setting, Profile
 from backend.app.schemas import SettingsResponse, SettingsUpdateRequest, PrintDefaults
+from backend.app.services.permissions import require
 
 router = APIRouter(prefix="/settings", tags=["Settings"])
 
@@ -40,8 +41,7 @@ def set_setting_val(db: Session, key: str, value: any):
     else:
         row.value_json = val_json
 
-@router.get("", response_model=SettingsResponse)
-def get_settings(db: Session = Depends(get_db)):
+def _build_settings_response(db: Session) -> SettingsResponse:
     warn_days = get_setting_val(db, "expiry_warn_days", DEFAULT_SETTINGS["expiry_warn_days"])
     base_url = get_setting_val(db, "base_url", DEFAULT_SETTINGS["base_url"])
     label_preset = get_setting_val(db, "label_preset", DEFAULT_SETTINGS["label_preset"])
@@ -60,8 +60,19 @@ def get_settings(db: Session = Depends(get_db)):
         photo_limit_per_owner=int(photo_limit)
     )
 
+@router.get("", response_model=SettingsResponse)
+def get_settings(
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("viewer"))
+):
+    return _build_settings_response(db)
+
 @router.put("", response_model=SettingsResponse)
-def update_settings(payload: SettingsUpdateRequest, db: Session = Depends(get_db)):
+def update_settings(
+    payload: SettingsUpdateRequest,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("admin:settings"))
+):
     if payload.expiry_warn_days is not None:
         set_setting_val(db, "expiry_warn_days", payload.expiry_warn_days)
     if payload.base_url is not None:
@@ -78,4 +89,4 @@ def update_settings(payload: SettingsUpdateRequest, db: Session = Depends(get_db
         set_setting_val(db, "photo_limit_per_owner", payload.photo_limit_per_owner)
 
     db.commit()
-    return get_settings(db)
+    return _build_settings_response(db)

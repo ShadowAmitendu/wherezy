@@ -24,14 +24,14 @@ export const ItemMoveDialog: React.FC<ItemMoveDialogProps> = ({
   onClose,
   onMoved,
 }) => {
+  const [prevItem, setPrevItem] = useState<Item | null>(item);
   const [selectedLoc, setSelectedLoc] = useState<number | null>(item?.location_id || null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  React.useEffect(() => {
-    if (item) {
-      setSelectedLoc(item.location_id || null);
-    }
-  }, [item]);
+  if (item !== prevItem) {
+    setPrevItem(item);
+    setSelectedLoc(item?.location_id || null);
+  }
 
   const handleMove = async () => {
     if (!item) return;

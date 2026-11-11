@@ -40,6 +40,12 @@ import { BulkMoveDialog } from "./BulkMoveDialog";
 import { BulkAddDialog, type BulkAddTab } from "./BulkAddDialog";
 import { ItemCard } from "./ItemCard";
 import { ItemsFilterToolbar } from "./ItemsFilterToolbar";
+import { TakenOutDialog, type TakenOutTarget } from "./TakenOutDialog";
+import {
+  formatTakenOutStatusLabel,
+  getItemQuantity,
+  getItemTakenOutQuantity,
+} from "./quantityUtils";
 import { api } from "../../api/client";
 import { Item } from "./types";
 import { Category } from "../forms/types";
@@ -98,6 +104,7 @@ export const ItemsPage: React.FC = () => {
   const [bulkSuccessMsg, setBulkSuccessMsg] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [movingItem, setMovingItem] = useState<Item | null>(null);
+  const [takenOutTarget, setTakenOutTarget] = useState<TakenOutTarget | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Item | null>(null);
 
   // Undo Snackbar
@@ -109,15 +116,6 @@ export const ItemsPage: React.FC = () => {
     if (newMode) {
       setViewMode(newMode);
       localStorage.setItem("hi_items_view", newMode);
-    }
-  };
-
-  const loadCategories = async () => {
-    try {
-      const data = await api.getCategories();
-      setCategories(data);
-    } catch (err) {
-      console.error(err);
     }
   };
 
@@ -155,15 +153,69 @@ export const ItemsPage: React.FC = () => {
   }, [paginationModel, sortModel, searchQuery, selectedCategory, selectedLocation, takenOutFilter, expiryFilter]);
 
   useEffect(() => {
-    loadCategories();
+    let active = true;
+    api
+      .getCategories()
+      .then((data) => {
+        if (active) setCategories(data);
+      })
+      .catch(console.error);
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
-    loadItems();
-  }, [loadItems]);
+    let active = true;
+    const sortField = sortModel[0]?.field || "created_at";
+    const sortOrder = sortModel[0]?.sort || "desc";
+
+    const params: Record<string, any> = {
+      page: paginationModel.page + 1,
+      page_size: paginationModel.pageSize,
+      sort: sortField,
+      order: sortOrder,
+    };
+
+    if (searchQuery.trim()) params.q = searchQuery.trim();
+    if (selectedCategory) params.category_id = selectedCategory;
+    if (selectedLocation) {
+      params.location_id = selectedLocation;
+      params.include_sub = true;
+    }
+    if (takenOutFilter === "out") params.taken_out = true;
+    if (takenOutFilter === "in") params.taken_out = false;
+    if (expiryFilter !== "all") params.expiry_status = expiryFilter;
+
+    Promise.resolve()
+      .then(() => {
+        if (!active) return null;
+        setIsLoading(true);
+        return api.getItems(params);
+      })
+      .then((res) => {
+        if (!active || !res) return;
+        setItems(res.items);
+        setTotal(res.total);
+      })
+      .catch((err) => {
+        if (active) console.error(err);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [paginationModel, sortModel, searchQuery, selectedCategory, selectedLocation, takenOutFilter, expiryFilter]);
 
   const handleToggleTaken = async (item: Item, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
+    if (getItemQuantity(item) > 1) {
+      setTakenOutTarget(item);
+      return;
+    }
     try {
       await api.toggleTaken(item.id, !item.taken_out);
       await loadItems();
@@ -258,14 +310,35 @@ export const ItemsPage: React.FC = () => {
       valueGetter: (_, row) => row.location_path || "—",
     },
     {
+      field: "quantity",
+      headerName: "Qty",
+      width: 115,
+      renderCell: (params: GridRenderCellParams) => {
+        const qty = getItemQuantity(params.row);
+        const out = getItemTakenOutQuantity(params.row);
+        return (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, height: "100%" }}>
+            <Typography variant="body2" sx={{ fontFamily: "var(--font-mono)", fontWeight: 700 }}>
+              {out > 0 && qty > 1 ? `${qty - out}/${qty}` : qty}
+            </Typography>
+            {out > 0 && qty > 1 && (
+              <Typography variant="caption" color="secondary.main" sx={{ fontWeight: 600 }}>
+                ({out} out)
+              </Typography>
+            )}
+          </Box>
+        );
+      },
+    },
+    {
       field: "taken_out",
       headerName: "Status",
-      width: 130,
+      width: 140,
       renderCell: (params: GridRenderCellParams) => (
         <Box sx={{ display: "flex", alignItems: "center", height: "100%" }}>
           <Chip
             icon={params.value ? <RemoveCircleOutlinedIcon /> : <CheckCircleOutlinedIcon />}
-            label={params.value ? "Taken Out" : "In Place"}
+            label={formatTakenOutStatusLabel(params.row)}
             size="small"
             color={params.value ? "secondary" : "default"}
             variant={params.value ? "filled" : "outlined"}
@@ -507,6 +580,14 @@ export const ItemsPage: React.FC = () => {
           setSelectedItemIds([]);
           loadItems();
         }}
+      />
+
+      {/* Taken Out Quantity Dialog */}
+      <TakenOutDialog
+        open={Boolean(takenOutTarget)}
+        item={takenOutTarget}
+        onClose={() => setTakenOutTarget(null)}
+        onSaved={loadItems}
       />
 
       {/* Bulk Add / CSV Import Dialog */}

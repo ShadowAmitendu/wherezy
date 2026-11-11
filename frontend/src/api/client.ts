@@ -2,7 +2,7 @@
  * Type-safe API client for Wherezy.
  */
 
-export interface ApiError {
+interface ApiError {
   code: string;
   message: string;
   fields?: Record<string, string>;
@@ -20,7 +20,7 @@ export class ApiException extends Error {
   }
 }
 
-export async function apiFetch<T>(
+async function apiFetch<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
@@ -60,16 +60,18 @@ export async function apiFetch<T>(
   return (await response.text()) as unknown as T;
 }
 
-export interface BulkItemEntryPayload {
+interface BulkItemEntryPayload {
   name: string;
+  quantity?: number;
   location_id?: number | null;
   expiry_date?: string | null;
   notes?: string | null;
   values?: Record<string, any>;
 }
 
-export interface BulkCreatePayload {
+interface BulkCreatePayload {
   category_id: number;
+  quantity?: number;
   location_id?: number | null;
   expiry_date?: string | null;
   notes?: string | null;
@@ -77,7 +79,7 @@ export interface BulkCreatePayload {
   items: BulkItemEntryPayload[];
 }
 
-export interface BulkCreateResult {
+interface BulkCreateResult {
   ok: boolean;
   created_count: number;
   batch_id: string;
@@ -115,7 +117,7 @@ export interface ProfileOut {
   updated_at: string;
 }
 
-export interface AuthStatusResponse {
+interface AuthStatusResponse {
   pin_set: boolean;
   authenticated: boolean;
   current_profile?: ProfileOut | null;
@@ -289,11 +291,22 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ location_id }),
     }),
-  toggleTaken: (id: number, taken_out: boolean, taken_by?: string | null) =>
-    apiFetch<any>(`/api/items/${id}/taken`, {
+  toggleTaken: (
+    id: number,
+    optionsOrTakenOut:
+      | boolean
+      | { taken_out?: boolean; taken_out_quantity?: number; taken_by?: string | null; taken_due?: string | null },
+    taken_by?: string | null
+  ) => {
+    const body =
+      typeof optionsOrTakenOut === "boolean"
+        ? { taken_out: optionsOrTakenOut, taken_by }
+        : optionsOrTakenOut;
+    return apiFetch<any>(`/api/items/${id}/taken`, {
       method: "POST",
-      body: JSON.stringify({ taken_out, taken_by }),
-    }),
+      body: JSON.stringify(body),
+    });
+  },
   bulkMove: (item_ids: number[], location_id: number | null) =>
     apiFetch<{ ok: boolean; moved_count: number }>("/api/items/bulk-move", {
       method: "POST",

@@ -1,7 +1,7 @@
 import React from "react";
 import { Box, Chip, Grid, Paper, Tooltip, Typography } from "@mui/material";
 import CheckIcon from "@mui/icons-material/Check";
-import { THEME_PRESETS, ThemePreset } from "../../theme";
+import { THEME_PRESETS, ThemePreset } from "../../theme/themeConstants";
 
 export interface ThemePalettePickerProps {
   preset: ThemePreset;

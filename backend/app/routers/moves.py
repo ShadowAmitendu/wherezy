@@ -1,19 +1,18 @@
 from datetime import datetime, timezone
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from backend.app.core.db import get_db
 from backend.app.models import Move, Box, BoxItem, Item, Location, Profile
 from backend.app.schemas import (
     MoveOut, MoveCreate, MoveUpdate, BoxOut, BoxCreate, BoxUpdate,
-    BoxItemOut, BoxUnpackRequest, SuccessResponse
+    BoxItemOut, BoxUnpackRequest, BulkRequest, SuccessResponse
 )
 from backend.app.services.permissions import require
 from backend.app.services.activity import record
 from backend.app.services.visibility import items_visible
 from backend.app.services.bulk import execute_bulk
-from backend.app.schemas import BulkRequest
 
 router = APIRouter(tags=["Moving-House Mode"])
 
@@ -52,7 +51,8 @@ def _box_to_out(b: Box, db: Session) -> BoxOut:
             id=it.id,
             name=it.name,
             category_name=it.category.name if it.category else None,
-            location_path=it.location.name if it.location else None
+            location_path=it.location.name if it.location else None,
+            quantity=max(1, int(it.quantity or 1)),
         )
         for it in box_items
     ]
@@ -74,7 +74,7 @@ def _box_to_out(b: Box, db: Session) -> BoxOut:
     )
 
 @router.get("/moves", response_model=List[MoveOut])
-def list_moves(db: Session = Depends(get_db), current: Profile = Depends(require("viewer"))):
+def list_moves(db: Session = Depends(get_db), current: Profile = Depends(require("items:read"))):
     moves = db.query(Move).order_by(Move.id.desc()).all()
     return [_move_to_out(m, db) for m in moves]
 
@@ -82,7 +82,7 @@ def list_moves(db: Session = Depends(get_db), current: Profile = Depends(require
 def create_move(
     payload: MoveCreate,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("moves:write"))
 ):
     # Enforce one active move at a time
     active = db.query(Move).filter(Move.status == "planning").first()
@@ -112,7 +112,7 @@ def update_move(
     move_id: int,
     payload: MoveUpdate,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("moves:write"))
 ):
     move = db.query(Move).filter(Move.id == move_id).first()
     if not move:
@@ -139,7 +139,7 @@ def update_move(
 def finish_move(
     move_id: int,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("moves:write"))
 ):
     move = db.query(Move).filter(Move.id == move_id).first()
     if not move:
@@ -158,7 +158,7 @@ def finish_move(
 # --- Boxes ---
 
 @router.get("/moves/{move_id}/boxes", response_model=List[BoxOut])
-def list_boxes(move_id: int, db: Session = Depends(get_db), current: Profile = Depends(require("viewer"))):
+def list_boxes(move_id: int, db: Session = Depends(get_db), current: Profile = Depends(require("items:read"))):
     boxes = db.query(Box).filter(Box.move_id == move_id).order_by(Box.number).all()
     return [_box_to_out(b, db) for b in boxes]
 
@@ -167,7 +167,7 @@ def create_box(
     move_id: int,
     payload: BoxCreate,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("moves:write"))
 ):
     move = db.query(Move).filter(Move.id == move_id).first()
     if not move:
@@ -200,7 +200,7 @@ def create_box(
     return _box_to_out(box, db)
 
 @router.get("/boxes/{box_id}", response_model=BoxOut)
-def get_box(box_id: int, db: Session = Depends(get_db), current: Profile = Depends(require("viewer"))):
+def get_box(box_id: int, db: Session = Depends(get_db), current: Profile = Depends(require("items:read"))):
     box = db.query(Box).filter(Box.id == box_id).first()
     if not box:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Box not found"}})
@@ -211,7 +211,7 @@ def update_box(
     box_id: int,
     payload: BoxUpdate,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("moves:write"))
 ):
     box = db.query(Box).filter(Box.id == box_id).first()
     if not box:
@@ -239,7 +239,7 @@ def update_box(
     return _box_to_out(box, db)
 
 @router.delete("/boxes/{box_id}", response_model=SuccessResponse)
-def delete_box(box_id: int, db: Session = Depends(get_db), current: Profile = Depends(require("member"))):
+def delete_box(box_id: int, db: Session = Depends(get_db), current: Profile = Depends(require("moves:write"))):
     box = db.query(Box).filter(Box.id == box_id).first()
     if not box:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Box not found"}})
@@ -258,7 +258,7 @@ def add_items_to_box(
     box_id: int,
     item_ids: List[int],
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("moves:write"))
 ):
     box = db.query(Box).filter(Box.id == box_id).first()
     if not box:
@@ -290,7 +290,7 @@ def remove_item_from_box(
     box_id: int,
     item_id: int,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("moves:write"))
 ):
     bitem = db.query(BoxItem).filter(BoxItem.box_id == box_id, BoxItem.item_id == item_id).first()
     if not bitem:
@@ -301,7 +301,7 @@ def remove_item_from_box(
     return SuccessResponse(ok=True, message="Item removed from box")
 
 @router.post("/boxes/{box_id}/pack", response_model=SuccessResponse)
-def pack_box(box_id: int, db: Session = Depends(get_db), current: Profile = Depends(require("member"))):
+def pack_box(box_id: int, db: Session = Depends(get_db), current: Profile = Depends(require("moves:write"))):
     box = db.query(Box).filter(Box.id == box_id).first()
     if not box:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Box not found"}})
@@ -316,7 +316,7 @@ def unpack_box(
     box_id: int,
     payload: BoxUnpackRequest,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("moves:write"))
 ):
     box = db.query(Box).filter(Box.id == box_id).first()
     if not box:

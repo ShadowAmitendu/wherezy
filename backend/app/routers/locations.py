@@ -1,15 +1,15 @@
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from backend.app.core.db import get_db
 from backend.app.models import Location, Item, Photo, Profile, utc_now_iso
 from backend.app.schemas import (
     LocationOut, LocationTreeOut, LocationDetailOut, LocationCreate,
-    LocationUpdate, LocationMoveRequest, ItemOut, SuccessResponse
+    LocationUpdate, LocationMoveRequest, SuccessResponse
 )
 from backend.app.services.location_service import (
-    get_descendant_location_ids, would_create_cycle,
+    would_create_cycle,
     get_location_breadcrumbs, get_location_path_str
 )
 from backend.app.routers.photos import map_photo
@@ -46,7 +46,10 @@ def build_tree(nodes: List[Location], parent_id: Optional[int], counts_map: dict
     return branch
 
 @router.get("/tree", response_model=List[LocationTreeOut])
-def get_locations_tree(db: Session = Depends(get_db)):
+def get_locations_tree(
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("locations:read"))
+):
     all_locs = db.query(Location).filter(Location.deleted_at.is_(None)).all()
     # Count active items per location
     counts = (
@@ -61,7 +64,7 @@ def get_locations_tree(db: Session = Depends(get_db)):
 def create_location(
     payload: LocationCreate,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("admin"))
+    current: Profile = Depends(require("locations:write"))
 ):
     if payload.parent_id:
         parent = db.query(Location).filter(Location.id == payload.parent_id, Location.deleted_at.is_(None)).first()
@@ -91,7 +94,11 @@ def create_location(
     return map_location(loc, db, 0)
 
 @router.get("/{id}", response_model=LocationDetailOut)
-def get_location(id: int, db: Session = Depends(get_db)):
+def get_location(
+    id: int,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("locations:read"))
+):
     loc = db.query(Location).filter(Location.id == id, Location.deleted_at.is_(None)).first()
     if not loc:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Location not found"}})
@@ -116,7 +123,7 @@ def update_location(
     id: int,
     payload: LocationUpdate,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("admin"))
+    current: Profile = Depends(require("locations:write"))
 ):
     loc = db.query(Location).filter(Location.id == id, Location.deleted_at.is_(None)).first()
     if not loc:
@@ -154,7 +161,7 @@ def update_location(
 def delete_location(
     id: int,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("admin"))
+    current: Profile = Depends(require("locations:write"))
 ):
     loc = db.query(Location).filter(Location.id == id, Location.deleted_at.is_(None)).first()
     if not loc:
@@ -200,7 +207,7 @@ def move_location(
     id: int,
     payload: LocationMoveRequest,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("admin"))
+    current: Profile = Depends(require("locations:write"))
 ):
     loc = db.query(Location).filter(Location.id == id, Location.deleted_at.is_(None)).first()
     if not loc:

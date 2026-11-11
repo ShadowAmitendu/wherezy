@@ -6,15 +6,12 @@ import {
   Tabs,
   Tab,
   Card,
-  CardContent,
   List,
   ListItem,
   ListItemText,
   ListItemIcon,
   Chip,
   Button,
-  IconButton,
-  Tooltip,
   Menu,
   MenuItem,
   CircularProgress,
@@ -25,7 +22,6 @@ import ScheduleOutlinedIcon from "@mui/icons-material/ScheduleOutlined";
 import SnoozeOutlinedIcon from "@mui/icons-material/SnoozeOutlined";
 import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { api } from "../../api/client";
 
@@ -50,7 +46,21 @@ export const RemindersPage: React.FC = () => {
   };
 
   useEffect(() => {
-    loadReminders();
+    let active = true;
+    api
+      .getReminders()
+      .then((data) => {
+        if (active) setReminders(data);
+      })
+      .catch((err) => {
+        if (active) console.error(err);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleSnooze = async (days: number) => {

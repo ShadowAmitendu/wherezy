@@ -37,21 +37,21 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, onClose })
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const [prevOpen, setPrevOpen] = useState(open);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
+  if (open !== prevOpen) {
+    setPrevOpen(open);
     if (!open) {
       setQuery("");
       setResults([]);
-      return;
     }
-  }, [open]);
+  }
 
   useEffect(() => {
     if (!query.trim()) {
-      setResults([]);
       return;
     }
     const timer = setTimeout(async () => {
@@ -100,7 +100,11 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, onClose })
             fullWidth
             placeholder={isMobile ? "Search inventory..." : "Search items, locations, categories, tags, contacts, actions..."}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              const next = e.target.value;
+              setQuery(next);
+              if (!next.trim()) setResults([]);
+            }}
             variant="outlined"
             size="medium"
             slotProps={{

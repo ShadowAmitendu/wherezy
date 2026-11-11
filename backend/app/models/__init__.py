@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from sqlalchemy import (
-    Column, Integer, String, Float, Boolean, Text, ForeignKey, CheckConstraint, UniqueConstraint
+    Column, Integer, String, Float, Text, ForeignKey, CheckConstraint, UniqueConstraint
 )
 from sqlalchemy.orm import relationship
 from backend.app.core.db import Base
@@ -81,7 +81,9 @@ class Item(Base):
     category_id = Column(Integer, ForeignKey("categories.id", ondelete="RESTRICT"), nullable=False)
     name = Column(String, nullable=False)
     location_id = Column(Integer, ForeignKey("locations.id", ondelete="RESTRICT"), nullable=True)
+    quantity = Column(Integer, nullable=False, default=1)
     taken_out = Column(Integer, nullable=False, default=0)
+    taken_out_quantity = Column(Integer, nullable=False, default=0)
     taken_by = Column(String, nullable=True)
     taken_at = Column(String, nullable=True)
     taken_due = Column(String, nullable=True)

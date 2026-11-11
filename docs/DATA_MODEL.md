@@ -1,4 +1,4 @@
-# HomeInventory Data Model
+# Wherezy Data Model
 
 All timestamps are ISO-8601 UTC strings (`YYYY-MM-DDTHH:MM:SSZ`).
 Primary keys are auto-incrementing integers.
@@ -49,7 +49,9 @@ Soft-delete is used on `categories`, `locations`, and `items` via `deleted_at IS
 - `category_id` INTEGER NOT NULL REFERENCES categories(id) ON DELETE RESTRICT
 - `name` TEXT NOT NULL
 - `location_id` INTEGER NULL REFERENCES locations(id) ON DELETE RESTRICT
-- `taken_out` INTEGER NOT NULL DEFAULT 0 (boolean 0/1)
+- `quantity` INTEGER NOT NULL DEFAULT 1 (total units stored, >= 1)
+- `taken_out` INTEGER NOT NULL DEFAULT 0 (boolean 0/1, synchronized with `taken_out_quantity > 0`)
+- `taken_out_quantity` INTEGER NOT NULL DEFAULT 0 (number of units currently taken out, `0 .. quantity`)
 - `taken_by` TEXT NULL
 - `taken_at` TEXT NULL
 - `expiry_date` TEXT NULL (YYYY-MM-DD, built-in, indexed)

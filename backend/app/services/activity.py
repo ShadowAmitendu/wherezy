@@ -1,27 +1,7 @@
 import json
-from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, Union
 from sqlalchemy.orm import Session
-from backend.app.models import Activity, Profile, Item, Location, Setting
-
-SENSITIVE_KEYS = {"pin", "pin_hash", "current_pin", "new_pin", "phone", "token", "cookie", "secret"}
-
-def build_diff(old_vals: Dict[str, Any], new_vals: Dict[str, Any]) -> Optional[str]:
-    diff = {}
-    all_keys = set(old_vals.keys()).union(new_vals.keys())
-    for k in all_keys:
-        v_old = old_vals.get(k)
-        v_new = new_vals.get(k)
-        if v_old != v_new:
-            # Sensitive key protection
-            if k in SENSITIVE_KEYS:
-                diff[k] = ["***" if v_old else None, "***" if v_new else None]
-                continue
-            # Long string truncation
-            s_old = str(v_old)[:80] if isinstance(v_old, str) and len(v_old) > 80 else v_old
-            s_new = str(v_new)[:80] if isinstance(v_new, str) and len(v_new) > 80 else v_new
-            diff[k] = [s_old, s_new]
-    return json.dumps(diff) if diff else None
+from backend.app.models import Activity, Profile, Item
 
 def record(
     db: Session,
@@ -83,10 +63,17 @@ def revert_activity(db: Session, activity_id: int, actor: Optional[Profile] = No
             return revert_event
 
     elif act.action in ("taken_out", "returned"):
-        # Revert taken_out state
+        # Revert taken_out state and quantity
         old_taken = diff.get("taken_out", [None, None])[0]
-        if old_taken is not None:
-            item.taken_out = 1 if old_taken else 0
+        old_taken_qty = diff.get("taken_out_quantity", [None, None])[0]
+        if old_taken is not None or old_taken_qty is not None:
+            item_qty = max(1, int(item.quantity or 1))
+            if old_taken_qty is not None:
+                restored_qty = max(0, min(item_qty, int(old_taken_qty)))
+            else:
+                restored_qty = 1 if old_taken else 0
+            item.taken_out_quantity = restored_qty
+            item.taken_out = 1 if restored_qty > 0 else 0
             if "taken_by" in diff:
                 item.taken_by = diff["taken_by"][0]
             if "taken_due" in diff:
@@ -105,20 +92,3 @@ def revert_activity(db: Session, activity_id: int, actor: Optional[Profile] = No
 
     raise ValueError("Could not revert activity event")
 
-def prune_retention(db: Session, retention_days: Optional[int] = 365) -> int:
-    """Prunes activity older than retention days (system event)."""
-    if not retention_days or retention_days <= 0:
-        return 0
-
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=retention_days)).isoformat()
-    deleted = db.query(Activity).filter(Activity.at < cutoff).delete()
-    if deleted > 0:
-        record(
-            db=db,
-            entity_type="system",
-            action="retention_prune",
-            summary=f"Activity retention job pruned {deleted} events older than {retention_days} days",
-            actor=None
-        )
-        db.commit()
-    return deleted

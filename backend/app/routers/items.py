@@ -4,13 +4,13 @@ from datetime import date, timedelta
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, func
+from sqlalchemy import or_
 from backend.app.core.db import get_db
-from backend.app.models import Item, Category, Location, Tag, Profile, Contact
+from backend.app.models import Item, Category, Location, Tag, Profile
 from backend.app.schemas import (
     ItemCreate, ItemUpdate, ItemMoveRequest, ItemTakenRequest,
     BulkMoveRequest, BulkMoveResponse, BulkCreateRequest, BulkCreateResponse,
-    ItemsListResponse, ItemDetailOut, ItemOut, SuccessResponse
+    BulkRequest, ItemsListResponse, ItemDetailOut, ItemOut, SuccessResponse
 )
 from backend.app.routers.settings import get_setting_val
 from backend.app.services.item_service import map_item, map_item_detail
@@ -19,6 +19,7 @@ from backend.app.models import utc_now_iso
 from backend.app.services.visibility import items_visible
 from backend.app.services.permissions import require
 from backend.app.services.activity import record
+from backend.app.services.bulk import execute_bulk
 
 router = APIRouter(tags=["Items"])
 
@@ -32,7 +33,7 @@ def validate_values(category: Category, values_dict: Optional[dict]) -> dict:
         val = values_dict.get(f.key)
         if f.required and (val is None or val == "" or val == []):
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail={"error": {"code": "VALIDATION_ERROR", "message": f"Field '{f.label}' is required", "fields": {f.key: "Required"}}}
             )
         if val is not None and val != "":
@@ -41,7 +42,7 @@ def validate_values(category: Category, values_dict: Optional[dict]) -> dict:
                     val = float(val) if "." in str(val) else int(val)
                 except ValueError:
                     raise HTTPException(
-                        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                         detail={"error": {"code": "VALIDATION_ERROR", "message": f"Field '{f.label}' must be a number", "fields": {f.key: "Must be a number"}}}
                     )
             cleaned[f.key] = val
@@ -65,7 +66,7 @@ def list_items(
     page: int = Query(1, ge=1),
     page_size: int = Query(25, ge=1, le=100),
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("viewer"))
+    current: Profile = Depends(require("items:read"))
 ):
     warn_days = int(get_setting_val(db, "expiry_warn_days", 30))
 
@@ -145,6 +146,8 @@ def list_items(
     # Sorting
     if sort == "name":
         col = Item.name
+    elif sort == "quantity":
+        col = Item.quantity
     elif sort == "expiry_date":
         col = Item.expiry_date
     elif sort == "updated_at":
@@ -173,7 +176,7 @@ def list_items(
 def create_item(
     payload: ItemCreate,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("items:write"))
 ):
     category = db.query(Category).filter(Category.id == payload.category_id, Category.deleted_at.is_(None)).first()
     if not category:
@@ -190,7 +193,9 @@ def create_item(
         name=payload.name.strip(),
         category_id=payload.category_id,
         location_id=payload.location_id,
+        quantity=payload.quantity,
         taken_out=0,
+        taken_out_quantity=0,
         expiry_date=payload.expiry_date.strip() if (payload.expiry_date and category.track_expiry) else None,
         notes=payload.notes.strip() if payload.notes else None,
         values_json=json.dumps(validated_vals),
@@ -207,7 +212,11 @@ def create_item(
     return map_item_detail(item, db, warn_days)
 
 @router.get("/items/{id}", response_model=ItemDetailOut)
-def get_item(id: int, db: Session = Depends(get_db)):
+def get_item(
+    id: int,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("items:read"))
+):
     item = db.query(Item).filter(Item.id == id, Item.deleted_at.is_(None)).first()
     if not item:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Item not found"}})
@@ -219,7 +228,7 @@ def update_item(
     id: int,
     payload: ItemUpdate,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("items:write"))
 ):
     item = db.query(Item).filter(Item.id == id, Item.deleted_at.is_(None)).first()
     if not item:
@@ -247,6 +256,20 @@ def update_item(
     if payload.expiry_date is not None:
         item.expiry_date = payload.expiry_date.strip() if (payload.expiry_date and category.track_expiry) else None
 
+    if payload.quantity is not None:
+        current_out_qty = int(item.taken_out_quantity) if item.taken_out_quantity is not None else (1 if item.taken_out else 0)
+        if payload.quantity < current_out_qty:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail={
+                    "error": {
+                        "code": "VALIDATION_ERROR",
+                        "message": f"Quantity ({payload.quantity}) cannot be less than currently taken out count ({current_out_qty})",
+                    }
+                },
+            )
+        item.quantity = payload.quantity
+
     if payload.notes is not None:
         item.notes = payload.notes.strip() if payload.notes else None
 
@@ -268,7 +291,7 @@ def update_item(
 def delete_item(
     id: int,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("items:delete"))
 ):
     item = db.query(Item).filter(Item.id == id, Item.deleted_at.is_(None)).first()
     if not item:
@@ -286,7 +309,7 @@ def delete_item(
 def restore_item(
     id: int,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("trash:restore"))
 ):
     item = db.query(Item).filter(Item.id == id).first()
     if not item:
@@ -307,7 +330,7 @@ def restore_item(
 def duplicate_item(
     id: int,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("items:write"))
 ):
     item = db.query(Item).filter(Item.id == id, Item.deleted_at.is_(None)).first()
     if not item:
@@ -317,7 +340,9 @@ def duplicate_item(
         name=f"{item.name} (Copy)",
         category_id=item.category_id,
         location_id=item.location_id,
+        quantity=max(1, int(item.quantity or 1)),
         taken_out=0,
+        taken_out_quantity=0,
         taken_by=None,
         taken_at=None,
         expiry_date=item.expiry_date,
@@ -340,7 +365,7 @@ def move_item(
     id: int,
     payload: ItemMoveRequest,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("items:write"))
 ):
     item = db.query(Item).filter(Item.id == id, Item.deleted_at.is_(None)).first()
     if not item:
@@ -375,20 +400,60 @@ def toggle_taken_item(
     id: int,
     payload: ItemTakenRequest,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("items:write"))
 ):
     item = db.query(Item).filter(Item.id == id, Item.deleted_at.is_(None)).first()
     if not item:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Item not found"}})
 
-    old_taken = item.taken_out
-    item.taken_out = 1 if payload.taken_out else 0
-    if payload.taken_out:
-        item.taken_by = payload.taken_by.strip() if payload.taken_by else None
-        item.taken_due = payload.taken_due
-        item.taken_by_profile_id = payload.taken_by_profile_id
-        item.taken_by_contact_id = payload.taken_by_contact_id
-        item.taken_at = utc_now_iso()
+    total_qty = max(1, int(item.quantity or 1))
+    old_taken = int(item.taken_out or 0)
+    old_taken_qty = int(item.taken_out_quantity) if item.taken_out_quantity is not None else old_taken
+
+    if payload.taken_out is False and payload.taken_out_quantity is not None and payload.taken_out_quantity > 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"error": {"code": "VALIDATION_ERROR", "message": "Cannot set taken_out=false with taken_out_quantity > 0"}}
+        )
+    if payload.taken_out is None and payload.taken_out_quantity is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail={"error": {"code": "VALIDATION_ERROR", "message": "Specify taken_out or taken_out_quantity"}}
+        )
+
+    if payload.taken_out_quantity is not None:
+        if payload.taken_out_quantity > total_qty:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail={"error": {"code": "EXCEEDS_QUANTITY", "message": f"Cannot take out {payload.taken_out_quantity} units; total quantity is {total_qty}"}}
+            )
+        new_taken_qty = payload.taken_out_quantity
+    elif payload.taken_out:
+        new_taken_qty = old_taken_qty if old_taken_qty > 0 else 1
+    else:
+        new_taken_qty = 0
+
+    item.taken_out_quantity = new_taken_qty
+    item.taken_out = 1 if new_taken_qty > 0 else 0
+    if new_taken_qty > 0:
+        if "taken_by" in payload.model_fields_set:
+            item.taken_by = payload.taken_by.strip() if payload.taken_by else None
+        elif old_taken == 0:
+            item.taken_by = None
+        if "taken_due" in payload.model_fields_set:
+            item.taken_due = payload.taken_due
+        elif old_taken == 0:
+            item.taken_due = None
+        if "taken_by_profile_id" in payload.model_fields_set:
+            item.taken_by_profile_id = payload.taken_by_profile_id
+        elif old_taken == 0:
+            item.taken_by_profile_id = None
+        if "taken_by_contact_id" in payload.model_fields_set:
+            item.taken_by_contact_id = payload.taken_by_contact_id
+        elif old_taken == 0:
+            item.taken_by_contact_id = None
+        if old_taken == 0 or not item.taken_at:
+            item.taken_at = utc_now_iso()
     else:
         item.taken_by = None
         item.taken_due = None
@@ -400,12 +465,13 @@ def toggle_taken_item(
     db.commit()
     db.refresh(item)
 
-    action_name = "taken_out" if payload.taken_out else "returned"
+    action_name = "taken_out" if new_taken_qty > 0 else "returned"
+    qty_note = f" ({new_taken_qty}/{total_qty})" if total_qty > 1 and new_taken_qty > 0 else ""
     record(
         db, "item", action_name,
-        f"{'Lent out' if payload.taken_out else 'Returned'} '{item.name}'",
+        f"{'Lent out' if new_taken_qty > 0 else 'Returned'} '{item.name}'{qty_note}",
         entity_id=item.id, actor=current,
-        diff={"taken_out": [old_taken, item.taken_out]}
+        diff={"taken_out": [old_taken, item.taken_out], "taken_out_quantity": [old_taken_qty, item.taken_out_quantity]}
     )
     db.commit()
 
@@ -416,27 +482,21 @@ def toggle_taken_item(
 def bulk_move_items(
     payload: BulkMoveRequest,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("bulk:write"))
 ):
-    if payload.location_id:
-        loc = db.query(Location).filter(Location.id == payload.location_id, Location.deleted_at.is_(None)).first()
-        if not loc:
-            raise HTTPException(status_code=404, detail={"error": {"code": "LOCATION_NOT_FOUND", "message": "Location not found"}})
-
-    moved = (
-        db.query(Item)
-        .filter(Item.id.in_(payload.item_ids), Item.deleted_at.is_(None))
-        .update({"location_id": payload.location_id, "updated_at": utc_now_iso()}, synchronize_session=False)
+    result = execute_bulk(
+        db,
+        BulkRequest(ids=payload.item_ids, action="move", params={"location_id": payload.location_id}),
+        actor=current,
     )
-    db.commit()
-    return BulkMoveResponse(ok=True, moved_count=moved)
+    return BulkMoveResponse(ok=True, moved_count=result.changed)
 
 
 @router.post("/items/bulk-create", response_model=BulkCreateResponse)
 def bulk_create_items(
     payload: BulkCreateRequest,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("bulk:write"))
 ):
     if not payload.items:
         raise HTTPException(
@@ -488,10 +548,15 @@ def bulk_create_items(
         merged_values = {**payload.values, **(entry.values or {})}
         clean_vals = validate_values(category, merged_values)
 
+        entry_qty = entry.quantity if entry.quantity is not None else payload.quantity
+
         prepared.append({
             "name": clean_name,
             "category_id": payload.category_id,
             "location_id": target_loc_id,
+            "quantity": entry_qty,
+            "taken_out": 0,
+            "taken_out_quantity": 0,
             "expiry_date": clean_expiry,
             "notes": clean_notes,
             "values_json": json.dumps(clean_vals),
@@ -527,7 +592,12 @@ def bulk_create_items(
     )
 
 @router.get("/locations/{id}/items", response_model=List[ItemOut])
-def get_location_items(id: int, include_sub: bool = True, db: Session = Depends(get_db)):
+def get_location_items(
+    id: int,
+    include_sub: bool = True,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("items:read"))
+):
     warn_days = int(get_setting_val(db, "expiry_warn_days", 30))
     if include_sub:
         loc_ids = get_descendant_location_ids(db, id)
@@ -537,7 +607,11 @@ def get_location_items(id: int, include_sub: bool = True, db: Session = Depends(
     return [map_item(it, db, warn_days) for it in items]
 
 @router.get("/expiring", response_model=List[ItemOut])
-def get_expiring_items(within_days: Optional[int] = None, db: Session = Depends(get_db)):
+def get_expiring_items(
+    within_days: Optional[int] = None,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("items:read"))
+):
     warn_days = within_days if within_days is not None else int(get_setting_val(db, "expiry_warn_days", 30))
     warn_date_str = (date.today() + timedelta(days=warn_days)).isoformat()
 

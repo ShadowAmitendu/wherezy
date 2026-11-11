@@ -4,11 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from backend.app.core.db import get_db
-from backend.app.models import Category, Item, FieldDef, utc_now_iso
+from backend.app.models import Category, Item, FieldDef, Profile, utc_now_iso
 from backend.app.schemas import (
     CategoryOut, CategoryDetailOut, CategoryCreate, CategoryUpdate,
     FieldDefOut, SuccessResponse
 )
+from backend.app.services.permissions import require
 
 router = APIRouter(prefix="/categories", tags=["Categories"])
 
@@ -49,7 +50,10 @@ def map_category(cat: Category, items_count: int = 0) -> CategoryOut:
     )
 
 @router.get("", response_model=List[CategoryOut])
-def list_categories(db: Session = Depends(get_db)):
+def list_categories(
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("categories:read"))
+):
     cats = db.query(Category).filter(Category.deleted_at.is_(None)).order_by(Category.sort_order, Category.id).all()
     # compute active item counts per category
     counts_query = (
@@ -63,7 +67,11 @@ def list_categories(db: Session = Depends(get_db)):
     return [map_category(c, counts_map.get(c.id, 0)) for c in cats]
 
 @router.post("", response_model=CategoryOut)
-def create_category(payload: CategoryCreate, db: Session = Depends(get_db)):
+def create_category(
+    payload: CategoryCreate,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("categories:write"))
+):
     existing = db.query(Category).filter(
         Category.name == payload.name.strip(),
         Category.deleted_at.is_(None)
@@ -89,7 +97,11 @@ def create_category(payload: CategoryCreate, db: Session = Depends(get_db)):
     return map_category(cat, 0)
 
 @router.get("/{id}", response_model=CategoryDetailOut)
-def get_category(id: int, db: Session = Depends(get_db)):
+def get_category(
+    id: int,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("categories:read"))
+):
     cat = db.query(Category).filter(Category.id == id, Category.deleted_at.is_(None)).first()
     if not cat:
         raise HTTPException(
@@ -102,7 +114,12 @@ def get_category(id: int, db: Session = Depends(get_db)):
     return CategoryDetailOut(**cat_out.model_dump(), fields=fields)
 
 @router.put("/{id}", response_model=CategoryOut)
-def update_category(id: int, payload: CategoryUpdate, db: Session = Depends(get_db)):
+def update_category(
+    id: int,
+    payload: CategoryUpdate,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("categories:write"))
+):
     cat = db.query(Category).filter(Category.id == id, Category.deleted_at.is_(None)).first()
     if not cat:
         raise HTTPException(
@@ -141,7 +158,11 @@ def update_category(id: int, payload: CategoryUpdate, db: Session = Depends(get_
     return map_category(cat, items_count)
 
 @router.delete("/{id}", response_model=SuccessResponse)
-def delete_category(id: int, db: Session = Depends(get_db)):
+def delete_category(
+    id: int,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("categories:write"))
+):
     cat = db.query(Category).filter(Category.id == id, Category.deleted_at.is_(None)).first()
     if not cat:
         raise HTTPException(

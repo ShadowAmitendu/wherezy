@@ -8,23 +8,16 @@ import {
   CardContent,
   CardActions,
   Chip,
-  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
   CircularProgress,
-  Tooltip,
   Divider,
   List,
   ListItem,
   ListItemText,
-  LinearProgress,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
@@ -32,7 +25,7 @@ import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined
 import AddIcon from "@mui/icons-material/Add";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import UnarchiveOutlinedIcon from "@mui/icons-material/UnarchiveOutlined";
-import { api, ApiException } from "../../api/client";
+import { api } from "../../api/client";
 import { LocationPicker } from "../locations/LocationPicker";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
@@ -57,7 +50,7 @@ export const MovesPage: React.FC = () => {
   const [boxLabel, setBoxLabel] = useState("");
   const [boxDestination, setBoxDestination] = useState("");
   const [boxDestLocId, setBoxDestLocId] = useState<number | null>(null);
-  const [boxColour, setBoxColour] = useState("");
+  const [boxColour, _setBoxColour] = useState("");
   const [boxNotes, setBoxNotes] = useState("");
 
   // Box Contents Dialog
@@ -91,7 +84,30 @@ export const MovesPage: React.FC = () => {
   };
 
   useEffect(() => {
-    loadMoveData();
+    let active = true;
+    (async () => {
+      try {
+        const moves = await api.getMoves();
+        if (!active) return;
+        const move = moves.find((m: any) => m.status === "planning") || moves[0] || null;
+        setActiveMove(move);
+        if (move && move.id) {
+          const boxList = await api.getBoxes(move.id);
+          if (active) setBoxes(boxList);
+        } else {
+          setBoxes([]);
+        }
+      } catch (err: any) {
+        if (!active) return;
+        console.error(err);
+        setErrorMsg(err.error?.message || "Failed to load move data");
+      } finally {
+        if (active) setLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleCreateMove = async () => {

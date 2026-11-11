@@ -2,9 +2,10 @@ import re
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from backend.app.core.db import get_db
-from backend.app.models import Item, Location
+from backend.app.models import Item, Location, Profile
 from backend.app.schemas import CodeResolveResponse
 from backend.app.services.item_service import map_item
+from backend.app.services.permissions import require
 from backend.app.routers.locations import map_location
 from backend.app.routers.settings import get_setting_val
 
@@ -16,7 +17,11 @@ URL_ITEM_REGEX = re.compile(r"(?:#/i/|/items/|/i/)(\d+)")
 URL_LOC_REGEX = re.compile(r"(?:#/l/|/locations/|/l/)(\d+)")
 
 @router.get("/resolve", response_model=CodeResolveResponse)
-def resolve_code(code: str = Query(...), db: Session = Depends(get_db)):
+def resolve_code(
+    code: str = Query(...),
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("items:read"))
+):
     raw = code.strip()
     target_type = None
     target_id = None

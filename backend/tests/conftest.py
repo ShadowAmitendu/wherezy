@@ -13,6 +13,7 @@ from sqlalchemy import text
 from fastapi.testclient import TestClient
 from backend.app.core.db import engine, SessionLocal
 from backend.app.core.migrations import run_migrations
+from backend.app.core.security import create_session_token, SESSION_COOKIE_NAME
 from backend.app.main import app
 
 @pytest.fixture(scope="session", autouse=True)
@@ -64,5 +65,10 @@ def db_session():
 @pytest.fixture
 def client():
     c = TestClient(app)
-    c.headers["X-Profile-ID"] = "1"
+    admin_token = create_session_token({"authenticated": True, "profile_id": 1, "role": "admin", "username": "admin"})
+    c.cookies.set(SESSION_COOKIE_NAME, admin_token)
     return c
+
+@pytest.fixture
+def anon_client():
+    return TestClient(app)

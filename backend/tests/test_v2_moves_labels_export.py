@@ -64,17 +64,13 @@ def test_moves_labels_and_excel_export(client, db_session):
     assert res.status_code == 200
     assert res.headers["content-type"] == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 
-    # Open with openpyxl to verify sheets and NO quantity column
+    # Open with openpyxl to verify sheets and Quantity columns
     wb = openpyxl.load_workbook(io.BytesIO(res.content))
     assert "All Items" in wb.sheetnames
     assert "Locations" in wb.sheetnames
     assert "Loans" in wb.sheetnames
 
-    # Check headers for absence of any Qty/Quantity column
     all_sheet = wb["All Items"]
     header_values = [cell.value for cell in all_sheet[1]]
-    for h in header_values:
-        if h:
-            assert "qty" not in str(h).lower()
-            assert "quantity" not in str(h).lower()
-            assert "stock" not in str(h).lower()
+    assert "Quantity" in header_values
+    assert "Taken Out Qty" in header_values

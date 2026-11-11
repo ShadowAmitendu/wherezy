@@ -1,5 +1,5 @@
+import json
 from datetime import datetime, timezone
-from typing import List, Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from backend.app.core.db import get_db
@@ -14,10 +14,36 @@ from backend.app.services.reminders import compute_reminders
 
 router = APIRouter(prefix="/offline", tags=["Offline Mode"])
 
+def _map_offline_item(it: Item) -> ItemOut:
+    qty = max(1, int(it.quantity or 1))
+    out_qty = int(it.taken_out_quantity) if it.taken_out_quantity is not None else (1 if it.taken_out else 0)
+    out_qty = max(0, min(qty, out_qty))
+    return ItemOut(
+        id=it.id,
+        name=it.name,
+        category_id=it.category_id,
+        category_name=it.category.name if it.category else None,
+        category_icon=it.category.icon if it.category else None,
+        category_color=it.category.color if it.category else None,
+        location_id=it.location_id,
+        location_name=it.location.name if it.location else None,
+        quantity=qty,
+        taken_out=out_qty > 0,
+        taken_out_quantity=out_qty,
+        available_quantity=max(0, qty - out_qty),
+        taken_by=it.taken_by,
+        taken_at=it.taken_at,
+        expiry_date=it.expiry_date,
+        notes=it.notes,
+        created_at=it.created_at,
+        updated_at=it.updated_at,
+    )
+
+
 @router.get("/snapshot", response_model=OfflineSnapshotOut)
 def get_offline_snapshot(
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("viewer"))
+    current: Profile = Depends(require("offline:read"))
 ):
     """
     Complete active read-only snapshot for client IndexedDB storage.
@@ -27,26 +53,7 @@ def get_offline_snapshot(
 
     # Active items only
     items = items_visible(db).all()
-    it_outs = [
-        ItemOut(
-            id=it.id,
-            name=it.name,
-            category_id=it.category_id,
-            category_name=it.category.name if it.category else None,
-            category_icon=it.category.icon if it.category else None,
-            category_color=it.category.color if it.category else None,
-            location_id=it.location_id,
-            location_name=it.location.name if it.location else None,
-            taken_out=bool(it.taken_out),
-            taken_by=it.taken_by,
-            taken_at=it.taken_at,
-            expiry_date=it.expiry_date,
-            notes=it.notes,
-            created_at=it.created_at,
-            updated_at=it.updated_at
-        )
-        for it in items
-    ]
+    it_outs = [_map_offline_item(it) for it in items]
 
     # Categories
     cats = db.query(Category).filter(Category.deleted_at.is_(None)).all()
@@ -90,7 +97,6 @@ def get_offline_snapshot(
 
     # Field Defs
     fdefs = db.query(FieldDef).filter(FieldDef.archived == 0).all()
-    import json
     fdef_outs = [
         FieldDefOut(
             id=f.id,
@@ -140,30 +146,11 @@ def get_offline_snapshot(
 def get_offline_changes(
     cursor: str = Query(...),  # ISO timestamp
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("viewer"))
+    current: Profile = Depends(require("offline:read"))
 ):
     """Incremental sync: changed rows + tombstones for deleted/retired/inbox items."""
     changed_items = items_visible(db).filter(Item.updated_at > cursor).all()
-    it_outs = [
-        ItemOut(
-            id=it.id,
-            name=it.name,
-            category_id=it.category_id,
-            category_name=it.category.name if it.category else None,
-            category_icon=it.category.icon if it.category else None,
-            category_color=it.category.color if it.category else None,
-            location_id=it.location_id,
-            location_name=it.location.name if it.location else None,
-            taken_out=bool(it.taken_out),
-            taken_by=it.taken_by,
-            taken_at=it.taken_at,
-            expiry_date=it.expiry_date,
-            notes=it.notes,
-            created_at=it.created_at,
-            updated_at=it.updated_at
-        )
-        for it in changed_items
-    ]
+    it_outs = [_map_offline_item(it) for it in changed_items]
 
     # Removed/tombstoned items (deleted_at > cursor OR (status != 'active' AND updated_at > cursor))
     removed_ids = [

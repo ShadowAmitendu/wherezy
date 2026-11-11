@@ -1,7 +1,7 @@
 import React from "react";
 import { Navigate, useLocation, Outlet } from "react-router-dom";
 import { Box, CircularProgress } from "@mui/material";
-import { useAuth } from "./AuthContext";
+import { useAuth } from "./useAuth";
 
 export const ProtectedRoute: React.FC = () => {
   const { authenticated, isLoading } = useAuth();

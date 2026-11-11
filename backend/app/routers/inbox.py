@@ -1,23 +1,18 @@
-import os
-import uuid
+import json
 from datetime import datetime, timezone
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
-from backend.app.core.config import DATA_DIR
 from backend.app.core.db import get_db
-from backend.app.models import Item, Category, Location, Photo, ItemTag, Tag, Profile
+from backend.app.models import Item, Category, Location, Photo, ItemTag, Profile
 from backend.app.schemas import (
-    InboxItemOut, InboxSortRequest, InboxBulkRequest, ItemOut, SuccessResponse, PhotoOut
+    InboxItemOut, InboxSortRequest, InboxBulkRequest, SuccessResponse, PhotoOut
 )
 from backend.app.services.permissions import require
 from backend.app.services.activity import record
-from PIL import Image
+from backend.app.services.photo_service import process_and_save_image
 
 router = APIRouter(prefix="/inbox", tags=["Inbox & Capture"])
-
-PHOTOS_DIR = DATA_DIR / "photos"
-PHOTOS_DIR.mkdir(parents=True, exist_ok=True)
 
 def _get_placeholder_category_id(db: Session) -> int:
     cat = db.query(Category).filter(Category.name == "__inbox_unsorted__").first()
@@ -33,107 +28,113 @@ def _get_placeholder_category_id(db: Session) -> int:
     db.refresh(new_cat)
     return new_cat.id
 
+def _to_photo_out(p: Photo) -> PhotoOut:
+    return PhotoOut(
+        id=p.id,
+        owner_type=p.owner_type,
+        owner_id=p.owner_id,
+        file_name=p.file_name,
+        thumb_name=p.thumb_name,
+        width=p.width,
+        height=p.height,
+        bytes=p.bytes,
+        is_cover=bool(p.is_cover),
+        sort_order=p.sort_order,
+        created_at=p.created_at,
+        url=f"/api/photos/{p.id}/file",
+        thumb_url=f"/api/photos/{p.id}/thumb",
+    )
+
+def _validate_location_id(db: Session, location_id: Optional[int]) -> Optional[int]:
+    if location_id is None or location_id == 0:
+        return None
+    loc = db.query(Location).filter(Location.id == location_id, Location.deleted_at.is_(None)).first()
+    if not loc:
+        raise HTTPException(status_code=404, detail={"error": {"code": "LOCATION_NOT_FOUND", "message": "Location not found"}})
+    return loc.id
+
 @router.post("", response_model=InboxItemOut)
 async def quick_capture(
     photos: List[UploadFile] = File(...),
     name: Optional[str] = Form(None),
     location_id: Optional[int] = Form(None),
+    quantity: int = Form(1),
     client_id: Optional[str] = Form(None),
     attach_to: Optional[int] = Form(None),
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("inbox:write"))
 ):
+    if quantity < 1:
+        raise HTTPException(status_code=422, detail={"error": {"code": "VALIDATION_ERROR", "message": "Quantity must be at least 1"}})
     now_dt = datetime.now(timezone.utc)
     now_iso = now_dt.isoformat()
     now_human = now_dt.strftime("%Y-%m-%d %H:%M")
 
     # If attaching to previous inbox item
     item = None
+    created_new = False
     if attach_to:
-        item = db.query(Item).filter(Item.id == attach_to, Item.status == "inbox").first()
+        item = db.query(Item).filter(
+            Item.id == attach_to,
+            Item.status == "inbox",
+            Item.deleted_at.is_(None),
+        ).first()
+        if not item:
+            raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Inbox item not found"}})
 
     if not item:
+        validated_loc_id = _validate_location_id(db, location_id)
         cat_id = _get_placeholder_category_id(db)
         item_name = name.strip() if name and name.strip() else f"Untitled {now_human}"
         item = Item(
             name=item_name,
             category_id=cat_id,
-            location_id=location_id,
+            location_id=validated_loc_id,
+            quantity=quantity,
+            taken_out=0,
+            taken_out_quantity=0,
             status="inbox",
             captured_at=now_iso,
         )
         db.add(item)
-        db.commit()
-        db.refresh(item)
+        db.flush()
+        created_new = True
 
-        record(db, "item", "captured", f"Captured photo to inbox: '{item.name}'", entity_id=item.id, actor=current)
-        db.commit()
-
-    # Save photos
-    saved_photos = []
+    existing_count = db.query(Photo).filter(Photo.owner_type == "item", Photo.owner_id == item.id).count()
+    saved_count = 0
     for f in photos:
-        content = await f.read()
-        if not content:
+        f.file.seek(0, 2)
+        size = f.file.tell()
+        f.file.seek(0)
+        if size == 0:
             continue
-        photo_id_str = str(uuid.uuid4())
-        fname = f"{photo_id_str}.jpg"
-        tname = f"{photo_id_str}_thumb.jpg"
-        fpath = PHOTOS_DIR / fname
-        tpath = PHOTOS_DIR / tname
 
-        with open(fpath, "wb") as out:
-            out.write(content)
-
-        # Generate thumbnail
-        try:
-            with Image.open(fpath) as img:
-                w, h = img.size
-                img.thumbnail((300, 300))
-                img.save(tpath, "JPEG", quality=85)
-        except Exception:
-            w, h = 0, 0
-            with open(tpath, "wb") as out:
-                out.write(content)
-
+        file_name, thumb_name, w, h, saved_bytes = process_and_save_image(f, "item", item.id)
         photo = Photo(
             owner_type="item",
             owner_id=item.id,
-            file_name=fname,
-            thumb_name=tname,
+            file_name=file_name,
+            thumb_name=thumb_name,
             width=w,
             height=h,
-            bytes=len(content),
-            is_cover=1 if len(saved_photos) == 0 else 0
+            bytes=saved_bytes,
+            is_cover=1 if (existing_count == 0 and saved_count == 0) else 0,
         )
         db.add(photo)
-        saved_photos.append(photo)
+        saved_count += 1
 
+    if created_new:
+        record(db, "item", "captured", f"Captured photo to inbox: '{item.name}'", entity_id=item.id, actor=current)
     db.commit()
+    db.refresh(item)
 
-    # Build response
     all_photos = db.query(Photo).filter(Photo.owner_type == "item", Photo.owner_id == item.id).all()
-    p_outs = [
-        PhotoOut(
-            id=p.id,
-            owner_type=p.owner_type,
-            owner_id=p.owner_id,
-            file_name=p.file_name,
-            thumb_name=p.thumb_name,
-            width=p.width,
-            height=p.height,
-            bytes=p.bytes,
-            is_cover=bool(p.is_cover),
-            sort_order=p.sort_order,
-            created_at=p.created_at,
-            url=f"/api/photos/{p.id}/file",
-            thumb_url=f"/api/photos/{p.id}/thumb"
-        )
-        for p in all_photos
-    ]
+    p_outs = [_to_photo_out(p) for p in all_photos]
 
     return InboxItemOut(
         id=item.id,
         name=item.name,
+        quantity=max(1, int(item.quantity or 1)),
         captured_at=item.captured_at,
         photos=p_outs,
         location_id=item.location_id,
@@ -141,49 +142,42 @@ async def quick_capture(
     )
 
 @router.get("", response_model=List[InboxItemOut])
-def list_inbox_items(db: Session = Depends(get_db), current: Profile = Depends(require("member"))):
+def list_inbox_items(db: Session = Depends(get_db), current: Profile = Depends(require("items:read"))):
     """List items currently sitting in inbox."""
     items = db.query(Item).filter(Item.status == "inbox", Item.deleted_at.is_(None)).order_by(Item.id.desc()).all()
-    results = []
-    for it in items:
-        photos = db.query(Photo).filter(Photo.owner_type == "item", Photo.owner_id == it.id).all()
-        p_outs = [
-            PhotoOut(
-                id=p.id,
-                owner_type=p.owner_type,
-                owner_id=p.owner_id,
-                file_name=p.file_name,
-                thumb_name=p.thumb_name,
-                width=p.width,
-                height=p.height,
-                bytes=p.bytes,
-                is_cover=bool(p.is_cover),
-                sort_order=p.sort_order,
-                created_at=p.created_at,
-                url=f"/api/photos/{p.id}/file",
-                thumb_url=f"/api/photos/{p.id}/thumb"
-            )
-            for p in photos
-        ]
-        results.append(InboxItemOut(
+    item_ids = [it.id for it in items]
+    photos_by_item: dict[int, list[PhotoOut]] = {}
+    if item_ids:
+        photos = db.query(Photo).filter(Photo.owner_type == "item", Photo.owner_id.in_(item_ids)).all()
+        for p in photos:
+            photos_by_item.setdefault(p.owner_id, []).append(_to_photo_out(p))
+
+    return [
+        InboxItemOut(
             id=it.id,
             name=it.name,
+            quantity=max(1, int(it.quantity or 1)),
             captured_at=it.captured_at,
-            photos=p_outs,
+            photos=photos_by_item.get(it.id, []),
             location_id=it.location_id,
             location_name=it.location.name if it.location else None
-        ))
-    return results
+        )
+        for it in items
+    ]
 
 @router.post("/{item_id}/sort", response_model=SuccessResponse)
 def sort_inbox_item(
     item_id: int,
     payload: InboxSortRequest,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("inbox:write"))
 ):
     """Sort an inbox item into active inventory."""
-    item = db.query(Item).filter(Item.id == item_id, Item.status == "inbox").first()
+    item = db.query(Item).filter(
+        Item.id == item_id,
+        Item.status == "inbox",
+        Item.deleted_at.is_(None),
+    ).first()
     if not item:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Inbox item not found"}})
 
@@ -191,10 +185,13 @@ def sort_inbox_item(
     if not cat:
         raise HTTPException(status_code=400, detail={"error": {"code": "INVALID_CATEGORY", "message": "Category not found"}})
 
-    import json
+    validated_loc_id = _validate_location_id(db, payload.location_id)
+
     item.name = payload.name.strip()
     item.category_id = cat.id
-    item.location_id = payload.location_id
+    item.location_id = validated_loc_id
+    if payload.quantity is not None:
+        item.quantity = payload.quantity
     item.values_json = json.dumps(payload.values or {})
     item.notes = payload.notes
     item.expiry_date = payload.expiry_date
@@ -221,13 +218,27 @@ def sort_inbox_item(
 def bulk_inbox_action(
     payload: InboxBulkRequest,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("inbox:write"))
 ):
-    items = db.query(Item).filter(Item.id.in_(payload.ids), Item.status == "inbox").all()
+    validated_loc_id = None
+    if payload.action == "set_location":
+        validated_loc_id = _validate_location_id(db, payload.params.get("location_id"))
+    elif payload.action == "set_category":
+        cat_id = payload.params.get("category_id")
+        if cat_id:
+            cat = db.query(Category).filter(Category.id == cat_id, Category.deleted_at.is_(None)).first()
+            if not cat:
+                raise HTTPException(status_code=400, detail={"error": {"code": "INVALID_CATEGORY", "message": "Category not found"}})
+
+    items = db.query(Item).filter(
+        Item.id.in_(payload.ids),
+        Item.status == "inbox",
+        Item.deleted_at.is_(None),
+    ).all()
     count = 0
     for it in items:
         if payload.action == "set_location":
-            it.location_id = payload.params.get("location_id")
+            it.location_id = validated_loc_id
             count += 1
         elif payload.action == "set_category":
             cat_id = payload.params.get("category_id")
@@ -255,9 +266,13 @@ def bulk_inbox_action(
 def delete_inbox_item(
     item_id: int,
     db: Session = Depends(get_db),
-    current: Profile = Depends(require("member"))
+    current: Profile = Depends(require("inbox:write"))
 ):
-    item = db.query(Item).filter(Item.id == item_id, Item.status == "inbox").first()
+    item = db.query(Item).filter(
+        Item.id == item_id,
+        Item.status == "inbox",
+        Item.deleted_at.is_(None),
+    ).first()
     if not item:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Inbox item not found"}})
 

@@ -1,4 +1,4 @@
-# HomeInventory API Contract
+# Wherezy API Contract
 
 All endpoints reside under `/api`.
 Request bodies and non-binary response bodies are JSON (`Content-Type: application/json`).

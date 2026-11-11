@@ -31,7 +31,7 @@ def test_attachments_audit_and_trash(client, db_session):
     # Get file (inline preview)
     res = client.get(f"/api/attachments/{att['id']}/file", cookies=auth_cookies)
     assert res.status_code == 200
-    assert res.headers["content-disposition"] == "inline"
+    assert res.headers["content-disposition"].startswith("inline")
 
     # 2. Shelf Audit
     res = client.post("/api/audits", json={"location_id": loc.id, "include_sub": True}, cookies=auth_cookies)

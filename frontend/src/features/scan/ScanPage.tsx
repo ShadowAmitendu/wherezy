@@ -7,8 +7,6 @@ import {
   Typography,
   TextField,
   Button,
-  Paper,
-  Divider,
 } from "@mui/material";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import PhotoCameraOutlinedIcon from "@mui/icons-material/PhotoCameraOutlined";
@@ -115,7 +113,10 @@ export const ScanPage: React.FC = () => {
 
   useEffect(() => {
     return () => {
-      stopCamera();
+      const scanner = qrScannerRef.current;
+      if (scanner && scanner.isScanning) {
+        scanner.stop().catch(console.error);
+      }
     };
   }, []);
 

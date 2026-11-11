@@ -1,17 +1,11 @@
-import pytest
-from fastapi.testclient import TestClient
-from backend.app.main import app
-
-client = TestClient(app)
-
-def test_auth_status_initially():
+def test_auth_status_initially(client):
     res = client.get("/api/auth/status")
     assert res.status_code == 200
     data = res.json()
     assert "pin_set" in data
     assert "authenticated" in data
 
-def test_settings_crud():
+def test_settings_crud(client):
     # Get settings
     res = client.get("/api/settings")
     assert res.status_code == 200

@@ -1,13 +1,14 @@
 import json
 from pathlib import Path
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from backend.app.core.db import get_db
-from backend.app.models import Category, FieldDef
+from backend.app.models import Category, FieldDef, Profile
 from backend.app.schemas import TemplateSummary, CategoryDetailOut
 from backend.app.services.form_validator import generate_field_key
+from backend.app.services.permissions import require
 from backend.app.routers.categories import map_category, map_field
 
 router = APIRouter(prefix="/templates", tags=["Templates"])
@@ -22,7 +23,7 @@ AVAILABLE_TEMPLATES = [
 ]
 
 @router.get("", response_model=List[TemplateSummary])
-def list_templates():
+def list_templates(current: Profile = Depends(require("categories:read"))):
     summaries = []
     for t in AVAILABLE_TEMPLATES:
         path = TEMPLATES_DIR / t["file"]
@@ -51,7 +52,11 @@ def list_templates():
     return summaries
 
 @router.post("/{slug}/apply", response_model=CategoryDetailOut)
-def apply_template(slug: str, db: Session = Depends(get_db)):
+def apply_template(
+    slug: str,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("templates:write"))
+):
     if slug == "blank":
         base_name = "Custom Category"
         icon = "category"

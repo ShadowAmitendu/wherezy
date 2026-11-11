@@ -1,18 +1,17 @@
-import os
 from contextlib import asynccontextmanager
 from pathlib import Path
-from fastapi import FastAPI, Request, HTTPException, status
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from backend.app.core.config import HOST, PORT, DATA_DIR
+from backend.app.core.config import HOST, PORT
 from backend.app.core.migrations import run_migrations
 from backend.app.routers import (
     health, auth, settings, categories, fields,
     templates, items, locations, dashboard, photos, codes, admin,
     profiles, activity, tags, bulk, reminders, attachments, audits,
     trash, search, inbox, lifecycle, contacts, moves, labels,
-    exports, wall, second_copy, offline, saved_filters
+    exports, wall, second_copy, offline
 )
 
 @asynccontextmanager
@@ -69,7 +68,6 @@ app.include_router(exports.router, prefix=api_prefix)
 app.include_router(wall.router, prefix=api_prefix)
 app.include_router(second_copy.router, prefix=api_prefix)
 app.include_router(offline.router, prefix=api_prefix)
-app.include_router(saved_filters.router, prefix=api_prefix)
 app.include_router(settings.router, prefix=api_prefix)
 app.include_router(categories.router, prefix=api_prefix)
 app.include_router(fields.router, prefix=api_prefix)
@@ -88,8 +86,11 @@ if FRONTEND_DIST.exists() and (FRONTEND_DIST / "index.html").exists():
 
     @app.get("/{full_path:path}", include_in_schema=False)
     async def serve_spa(full_path: str):
-        file_path = FRONTEND_DIST / full_path
-        if file_path.exists() and file_path.is_file():
+        if full_path == "api" or full_path.startswith("api/"):
+            raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Not found"}})
+        dist_root = FRONTEND_DIST.resolve()
+        file_path = (FRONTEND_DIST / full_path).resolve()
+        if file_path.is_relative_to(dist_root) and file_path.exists() and file_path.is_file():
             return FileResponse(str(file_path))
         return FileResponse(str(FRONTEND_DIST / "index.html"))
 

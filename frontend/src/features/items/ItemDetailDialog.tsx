@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Dialog,
@@ -8,7 +8,6 @@ import {
   Typography,
   Button,
   Box,
-  Divider,
   Chip,
   IconButton,
   Tooltip,
@@ -20,8 +19,6 @@ import {
   Tab,
   List,
   ListItem,
-  ListItemText,
-  ListItemIcon,
   CircularProgress,
   MenuItem,
   Select,
@@ -45,15 +42,23 @@ import DownloadOutlinedIcon from "@mui/icons-material/DownloadOutlined";
 import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import RemoveCircleOutlineOutlinedIcon from "@mui/icons-material/RemoveCircleOutlineOutlined";
 import RestoreFromTrashIcon from "@mui/icons-material/RestoreFromTrash";
+import AddIcon from "@mui/icons-material/Add";
+import RemoveIcon from "@mui/icons-material/Remove";
 import QRCode from "qrcode";
 import JsBarcode from "jsbarcode";
 import { Item } from "./types";
+import {
+  clampTakenOutQuantity,
+  getItemAvailableQuantity,
+  getItemQuantity,
+  getItemTakenOutQuantity,
+} from "./quantityUtils";
 import { PhotoManager } from "../photos/PhotoManager";
 import { ExpiryChip } from "../../components/shared/ExpiryChip";
 import { LocationBreadcrumb } from "../../components/shared/LocationBreadcrumb";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
-import { api, ApiException } from "../../api/client";
+import { api } from "../../api/client";
 
 interface ItemDetailDialogProps {
   itemId: number | null;
@@ -104,19 +109,28 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
   // Retire dialog state
   const [retireDialogOpen, setRetireDialogOpen] = useState(false);
   const [retireReason, setRetireReason] = useState("sold");
-  const [retireDate, setRetireDate] = useState(new Date().toISOString().split("T")[0]);
+  const [retireDate, setRetireDate] = useState(() => new Date().toISOString().split("T")[0]);
   const [retireNote, setRetireNote] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [deleteAttachmentId, setDeleteAttachmentId] = useState<number | null>(null);
   const [deleteItemConfirmOpen, setDeleteItemConfirmOpen] = useState(false);
   const [isConfirmingAction, setIsConfirmingAction] = useState(false);
 
+  const openKey = open ? itemId : null;
+  const [prevOpenKey, setPrevOpenKey] = useState<number | null>(openKey);
+  if (openKey !== prevOpenKey) {
+    setPrevOpenKey(openKey);
+    if (openKey) {
+      setTabIndex(0);
+    }
+  }
+
   const notifyChange = () => {
     if (onItemUpdated) onItemUpdated();
     if (onUpdated) onUpdated();
   };
 
-  const loadItem = async () => {
+  const loadItem = useCallback(async () => {
     if (!itemId) return;
     try {
       setIsLoading(true);
@@ -135,32 +149,59 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const loadActivity = async () => {
-    if (!itemId) return;
-    try {
-      setLoadingActivity(true);
-      const acts = await api.getItemActivity(itemId);
-      setActivityEvents(acts);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoadingActivity(false);
-    }
-  };
+  }, [itemId]);
 
   useEffect(() => {
-    if (open && itemId) {
-      setTabIndex(0);
-      loadItem();
-    }
+    if (!open || !itemId) return;
+    let active = true;
+    Promise.resolve()
+      .then(() => {
+        if (!active) return null;
+        setIsLoading(true);
+        return api.getItem(itemId);
+      })
+      .then(async (data) => {
+        if (!active || !data) return;
+        setItem(data);
+        setTakenOut(data.taken_out);
+        setTakenBy(data.taken_by || "");
+        setAttachments(data.attachments || []);
+        const qrTarget = `${window.location.origin}/#/i/${data.id}`;
+        const q = await QRCode.toDataURL(qrTarget, { width: 120, margin: 1 });
+        if (active) setQrUrl(q);
+      })
+      .catch((err) => {
+        if (active) console.error(err);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [open, itemId]);
 
   useEffect(() => {
-    if (tabIndex === 2 && itemId) {
-      loadActivity();
-    }
+    if (tabIndex !== 2 || !itemId) return;
+    let active = true;
+    Promise.resolve()
+      .then(() => {
+        if (!active) return null;
+        setLoadingActivity(true);
+        return api.getItemActivity(itemId);
+      })
+      .then((acts) => {
+        if (active && acts) setActivityEvents(acts);
+      })
+      .catch((err) => {
+        if (active) console.error(err);
+      })
+      .finally(() => {
+        if (active) setLoadingActivity(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [tabIndex, itemId]);
 
   useEffect(() => {
@@ -181,27 +222,42 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
     }
   }, [item, tabIndex]);
 
-  const handleToggleTaken = async (checked: boolean) => {
+  const handleSetTakenOutQty = async (nextQty: number) => {
     if (!item) return;
+    const clamped = clampTakenOutQuantity(nextQty, getItemQuantity(item));
     try {
-      const updated = await api.toggleTaken(item.id, checked, checked ? takenBy || null : null);
+      const updated = await api.toggleTaken(item.id, {
+        taken_out_quantity: clamped,
+        taken_by: clamped > 0 ? takenBy.trim() || null : null,
+      });
       setItem(updated);
       setTakenOut(updated.taken_out);
+      if (clamped === 0) setEditingTakenBy(false);
       notifyChange();
     } catch (err) {
       console.error(err);
+      setErrorMsg(err instanceof Error ? err.message : "Failed to update taken out status");
     }
+  };
+
+  const handleToggleTaken = async (checked: boolean) => {
+    await handleSetTakenOutQty(checked ? 1 : 0);
   };
 
   const handleSaveTakenBy = async () => {
     if (!item) return;
     try {
-      const updated = await api.toggleTaken(item.id, true, takenBy.trim() || null);
+      const currentOut = Math.max(1, getItemTakenOutQuantity(item));
+      const updated = await api.toggleTaken(item.id, {
+        taken_out_quantity: currentOut,
+        taken_by: takenBy.trim() || null,
+      });
       setItem(updated);
       setEditingTakenBy(false);
       notifyChange();
     } catch (err) {
       console.error(err);
+      setErrorMsg(err instanceof Error ? err.message : "Failed to update borrower");
     }
   };
 
@@ -301,6 +357,10 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
 
   if (!item && !isLoading) return null;
 
+  const totalQty = item ? getItemQuantity(item) : 1;
+  const outQty = item ? getItemTakenOutQuantity(item) : 0;
+  const availQty = item ? getItemAvailableQuantity(item) : 1;
+
   return (
     <>
       <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth fullScreen={isMobile}>
@@ -314,6 +374,14 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
                 color="primary"
                 variant="outlined"
               />
+              {item && (
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={totalQty > 1 ? `Qty: ${availQty}/${totalQty} in place` : "Qty: 1"}
+                  sx={{ fontFamily: "var(--font-mono)", fontWeight: 600 }}
+                />
+              )}
               {item?.category_name && (
                 <Chip
                   label={item.category_name}
@@ -412,9 +480,8 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
                 <Box
                   sx={{
                     display: "flex",
-                    flexWrap: "wrap",
-                    alignItems: "center",
-                    justifyContent: "space-between",
+                    flexDirection: "column",
+                    gap: 1.5,
                     p: 2,
                     border: "1px solid",
                     borderColor: takenOut ? "secondary.main" : "divider",
@@ -422,47 +489,120 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
                     bgcolor: takenOut ? "action.selected" : "background.paper",
                   }}
                 >
-                  <FormControlLabel
-                    control={
-                      <Switch
-                        checked={takenOut}
-                        onChange={(e) => handleToggleTaken(e.target.checked)}
-                        color="secondary"
-                      />
-                    }
-                    label={
-                      <Box>
-                        <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
-                          {takenOut ? "Currently Taken Out" : "In Storage Location"}
-                        </Typography>
-                        {takenOut && item?.taken_at && (
-                          <Typography variant="caption" color="text.secondary">
-                            Taken {new Date(item.taken_at).toLocaleDateString()}
-                            {item.taken_by ? ` by ${item.taken_by}` : ""}
-                            {item.taken_due ? ` • Due: ${item.taken_due}` : ""}
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 1.5,
+                    }}
+                  >
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={takenOut}
+                          onChange={(e) => handleToggleTaken(e.target.checked)}
+                          color="secondary"
+                        />
+                      }
+                      label={
+                        <Box>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                            {totalQty > 1
+                              ? outQty > 0
+                                ? `${outQty} of ${totalQty} Taken Out (${availQty} in place)`
+                                : `All ${totalQty} in Storage Location`
+                              : takenOut
+                              ? "Currently Taken Out"
+                              : "In Storage Location"}
                           </Typography>
+                          {takenOut && item?.taken_at && (
+                            <Typography variant="caption" color="text.secondary">
+                              Taken {new Date(item.taken_at).toLocaleDateString()}
+                              {item.taken_by ? ` by ${item.taken_by}` : ""}
+                              {item.taken_due ? ` • Due: ${item.taken_due}` : ""}
+                            </Typography>
+                          )}
+                        </Box>
+                      }
+                    />
+
+                    {takenOut && (
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        {editingTakenBy ? (
+                          <>
+                            <TextField
+                              size="small"
+                              placeholder="Who took it?"
+                              value={takenBy}
+                              onChange={(e) => setTakenBy(e.target.value)}
+                            />
+                            <Button size="small" variant="contained" onClick={handleSaveTakenBy}>
+                              Save
+                            </Button>
+                          </>
+                        ) : (
+                          <Button size="small" onClick={() => setEditingTakenBy(true)}>
+                            {takenBy ? `Change: ${takenBy}` : "+ Add Who Took It"}
+                          </Button>
                         )}
                       </Box>
-                    }
-                  />
+                    )}
+                  </Box>
 
-                  {takenOut && (
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      {editingTakenBy ? (
-                        <>
-                          <TextField
-                            size="small"
-                            placeholder="Who took it?"
-                            value={takenBy}
-                            onChange={(e) => setTakenBy(e.target.value)}
-                          />
-                          <Button size="small" variant="contained" onClick={handleSaveTakenBy}>
-                            Save
-                          </Button>
-                        </>
-                      ) : (
-                        <Button size="small" onClick={() => setEditingTakenBy(true)}>
-                          {takenBy ? `Change: ${takenBy}` : "+ Add Who Took It"}
+                  {totalQty > 1 && (
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        alignItems: "center",
+                        gap: 1,
+                        pt: 1,
+                        borderTop: "1px dashed",
+                        borderColor: "divider",
+                      }}
+                    >
+                      <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
+                        Taken out count:
+                      </Typography>
+                      <IconButton
+                        size="small"
+                        aria-label="Decrease taken out quantity"
+                        disabled={outQty <= 0}
+                        onClick={() => handleSetTakenOutQty(outQty - 1)}
+                        sx={{ border: 1, borderColor: "divider" }}
+                      >
+                        <RemoveIcon fontSize="small" />
+                      </IconButton>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontFamily: "var(--font-mono)",
+                          fontWeight: 700,
+                          minWidth: 52,
+                          textAlign: "center",
+                        }}
+                      >
+                        {outQty} / {totalQty}
+                      </Typography>
+                      <IconButton
+                        size="small"
+                        aria-label="Increase taken out quantity"
+                        disabled={outQty >= totalQty}
+                        onClick={() => handleSetTakenOutQty(outQty + 1)}
+                        sx={{ border: 1, borderColor: "divider" }}
+                      >
+                        <AddIcon fontSize="small" />
+                      </IconButton>
+                      {outQty < totalQty && (
+                        <Button size="small" variant="outlined" onClick={() => handleSetTakenOutQty(totalQty)}>
+                          Take All ({totalQty})
+                        </Button>
+                      )}
+                      {outQty > 0 && (
+                        <Button size="small" variant="outlined" onClick={() => handleSetTakenOutQty(0)}>
+                          Return All
                         </Button>
                       )}
                     </Box>

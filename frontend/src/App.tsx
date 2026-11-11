@@ -77,19 +77,20 @@ export const App: React.FC = () => {
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/lock" element={<NetflixUserPicker />} />
 
-                {/* Standalone Printable Routes (without app chrome) */}
-                <Route path="/print/location/:id" element={<PrintShelfPage />} />
-                <Route path="/labels" element={<LabelSheetPage />} />
-
-                {/* Standalone Wall Display Mode for Kitchen Tablets */}
+                {/* Standalone Wall Display Mode for Kitchen Tablets (redirects on 401/403) */}
                 <Route path="/wall" element={<WallPage />} />
 
                 {/* Direct QR scan redirects */}
                 <Route path="/i/:id" element={<DirectItemShortcut />} />
                 <Route path="/l/:id" element={<DirectLocationShortcut />} />
 
-                {/* Main App with Shell Layout - Protected */}
+                {/* Protected routes */}
                 <Route element={<ProtectedRoute />}>
+                  {/* Standalone Printable Routes (without app chrome) */}
+                  <Route path="/print/location/:id" element={<PrintShelfPage />} />
+                  <Route path="/labels" element={<LabelSheetPage />} />
+
+                  {/* Main App with Shell Layout */}
                   <Route element={<AppLayout />}>
                     <Route path="/" element={<DashboardPage />} />
                     <Route path="/items" element={<ItemsPage />} />
@@ -100,7 +101,7 @@ export const App: React.FC = () => {
                     <Route path="/locations" element={<LocationsPage />} />
                     <Route path="/users" element={<UsersPage />} />
                     <Route path="/account" element={<AccountProfilePage />} />
-                    <Route path="/profile" element={<AccountProfilePage />} />
+                    <Route path="/profile" element={<Navigate to="/account" replace />} />
                     <Route path="/health" element={<HealthPage />} />
                     <Route path="/moves" element={<MovesPage />} />
                     <Route path="/contacts" element={<ContactsPage />} />

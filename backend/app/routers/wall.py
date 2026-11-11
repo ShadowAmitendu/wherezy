@@ -1,10 +1,11 @@
+import json
 from datetime import datetime, timezone, date
-from typing import List, Optional
+from typing import List
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from backend.app.core.db import get_db
 from backend.app.models import Item, Photo, Profile, Setting, Contact
-from backend.app.schemas import WallResponse, WallItemOut, ReminderOut
+from backend.app.schemas import WallResponse, WallItemOut
 from backend.app.services.permissions import require
 from backend.app.services.visibility import items_visible
 from backend.app.services.reminders import compute_reminders
@@ -27,11 +28,10 @@ def get_wall_data(
     h_row = db.query(Setting).filter(Setting.key == "household_name").first()
     household_name = None
     if h_row:
-        import json
         try:
             household_name = json.loads(h_row.value_json)
-        except Exception:
-            pass
+        except (json.JSONDecodeError, TypeError):
+            household_name = None
 
     # Reminders: overdue & due soon
     all_rems = compute_reminders(db=db, profile_id=current.id)
@@ -68,6 +68,8 @@ def get_wall_data(
         wall_taken.append(WallItemOut(
             id=it.id,
             name=it.name,
+            quantity=max(1, int(it.quantity or 1)),
+            taken_out_quantity=int(it.taken_out_quantity) if it.taken_out_quantity is not None else (1 if it.taken_out else 0),
             since=it.taken_at[:10] if it.taken_at else None,
             due_date=it.taken_due,
             borrower_name=borrower_name,

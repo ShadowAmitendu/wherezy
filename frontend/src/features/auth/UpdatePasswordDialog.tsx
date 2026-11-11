@@ -15,7 +15,7 @@ import LockResetOutlinedIcon from "@mui/icons-material/LockResetOutlined";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import { api, ApiException } from "../../api/client";
-import { useAuth } from "../../auth/AuthContext";
+import { useAuth } from "../../auth/useAuth";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 
 interface UpdatePasswordDialogProps {

@@ -1,9 +1,9 @@
 import json
-from datetime import datetime, timezone, date, timedelta
-from typing import List, Optional, Dict, Any
+from datetime import date, timedelta
+from typing import List, Optional, Dict
 from sqlalchemy.orm import Session
-from backend.app.models import Item, Category, FieldDef, ReminderState, Profile, Contact, Setting
-from backend.app.schemas import ReminderOut, ReminderCountResponse
+from backend.app.models import FieldDef, ReminderState, Profile, Contact, Setting
+from backend.app.schemas import ReminderOut
 from backend.app.services.visibility import items_visible
 
 def get_today_str(ref_date: Optional[str] = None) -> str:
@@ -28,8 +28,8 @@ def compute_reminders(
     if warn_row:
         try:
             default_lead_days = int(json.loads(warn_row.value_json))
-        except Exception:
-            pass
+        except (json.JSONDecodeError, TypeError, ValueError):
+            default_lead_days = 30
 
     # Read per-profile reminder state
     state_map: Dict[str, ReminderState] = {}

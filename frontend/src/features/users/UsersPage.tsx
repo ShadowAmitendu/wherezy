@@ -17,13 +17,11 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  FormGroup,
   FormControlLabel,
   Checkbox,
   Avatar,
   Tooltip,
   Divider,
-  Stack,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
@@ -38,7 +36,7 @@ import SecurityOutlinedIcon from "@mui/icons-material/SecurityOutlined";
 import PeopleOutlinedIcon from "@mui/icons-material/PeopleOutlined";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { api, ApiException, ProfileOut, ProfileRole } from "../../api/client";
-import { useAuth } from "../../auth/AuthContext";
+import { useAuth } from "../../auth/useAuth";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { AccountIcon } from "../../components/shared/AccountIcon";
 import { AccountIconPicker } from "../../components/shared/AccountIconPicker";
@@ -70,7 +68,7 @@ export const UsersPage: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { currentProfile } = useAuth();
   const [profiles, setProfiles] = useState<ProfileOut[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
@@ -100,7 +98,7 @@ export const UsersPage: React.FC = () => {
     try {
       const data = await api.getProfiles(true);
       setProfiles(data);
-    } catch (err: any) {
+    } catch {
       setErrorMsg("Failed to load users list.");
     } finally {
       setLoading(false);
@@ -108,7 +106,21 @@ export const UsersPage: React.FC = () => {
   };
 
   useEffect(() => {
-    loadProfiles();
+    let active = true;
+    api
+      .getProfiles(true)
+      .then((data) => {
+        if (active) setProfiles(data);
+      })
+      .catch(() => {
+        if (active) setErrorMsg("Failed to load users list.");
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleOpenAdd = () => {

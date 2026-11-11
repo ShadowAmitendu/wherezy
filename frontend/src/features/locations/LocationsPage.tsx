@@ -24,7 +24,6 @@ import {
   Collapse,
   Chip,
   Tooltip,
-  Snackbar,
   Divider,
   Switch,
   FormControlLabel,
@@ -51,6 +50,7 @@ import { PhotoManager } from "../photos/PhotoManager";
 import { LocationPicker } from "./LocationPicker";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { api, ApiException } from "../../api/client";
+import { formatTakenOutStatusLabel, getItemQuantity } from "../items/quantityUtils";
 
 const SUGGESTED_KINDS = [
   "Room",
@@ -133,13 +133,53 @@ export const LocationsPage: React.FC = () => {
   };
 
   useEffect(() => {
-    loadTree();
+    let active = true;
+    api
+      .getLocationsTree()
+      .then((data) => {
+        if (!active) return;
+        setTree(data);
+        const initExpanded: Record<number, boolean> = {};
+        data.forEach((n) => {
+          initExpanded[n.id] = true;
+        });
+        setExpandedNodes((prev) => ({ ...initExpanded, ...prev }));
+        if (data.length > 0) {
+          setSelectedLocationId((prev) => prev ?? data[0].id);
+        }
+      })
+      .catch((err) => {
+        if (active) console.error(err);
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
-    if (selectedLocationId) {
-      loadDetail(selectedLocationId);
-    }
+    if (!selectedLocationId) return;
+    let active = true;
+    Promise.all([
+      api.getLocation(selectedLocationId),
+      api.getLocationItems(selectedLocationId, includeSub),
+    ])
+      .then(([detail, items]) => {
+        if (!active) return;
+        setSelectedDetail(detail);
+        setLocationItems(items);
+      })
+      .catch((err) => {
+        if (!active) return;
+        console.error(err);
+        setSelectedDetail(null);
+        setLocationItems([]);
+      });
+    return () => {
+      active = false;
+    };
   }, [selectedLocationId, includeSub]);
 
   const toggleExpand = (id: number, e: React.MouseEvent) => {
@@ -502,10 +542,17 @@ export const LocationsPage: React.FC = () => {
                             </ListItemIcon>
                             <ListItemText
                               primary={it.name}
-                              secondary={`${it.category_name || "Uncategorized"}${it.location_path ? ` • ${it.location_path}` : ""}`}
+                              secondary={`${it.category_name || "Uncategorized"}${it.location_path ? ` • ${it.location_path}` : ""}${
+                                getItemQuantity(it) > 1 ? ` • Qty: ${getItemQuantity(it)}` : ""
+                              }`}
                             />
                             {it.taken_out && (
-                              <Chip label="Taken out" size="small" color="secondary" variant="outlined" />
+                              <Chip
+                                label={formatTakenOutStatusLabel(it)}
+                                size="small"
+                                color="secondary"
+                                variant="outlined"
+                              />
                             )}
                           </ListItem>
                         ))}

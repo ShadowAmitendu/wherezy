@@ -1,9 +1,9 @@
 import json
 import secrets
 import re
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 from fastapi import HTTPException, status
-from backend.app.models import Category, FieldDef
+from backend.app.models import Category
 
 FIELD_KEY_REGEX = re.compile(r"^f_[a-z0-9]{8}$")
 
@@ -99,7 +99,7 @@ def validate_values(category: Category, values: Optional[Dict[str, Any]]) -> Dic
 
     if errors:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail={"error": {"code": "VALIDATION_ERROR", "message": "Form validation failed", "fields": errors}}
         )
 
