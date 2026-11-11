@@ -5,7 +5,11 @@ from typing import Optional
 from sqlalchemy.orm import Session
 from backend.app.models import Item, Photo
 from backend.app.schemas import ItemOut, ItemDetailOut, ExpiryStatus
-from backend.app.services.location_service import get_location_breadcrumbs, get_location_path_str
+from backend.app.services.location_service import (
+    get_location_breadcrumbs,
+    get_location_path_str,
+    get_root_room,
+)
 from backend.app.routers.categories import map_field
 from backend.app.routers.photos import map_photo
 
@@ -56,7 +60,9 @@ def map_item(item: Item, db: Session, warn_days: int = 30) -> ItemOut:
     cat_color = item.category.color if item.category else None
 
     loc_name = item.location.name if item.location else None
+    loc_kind = item.location.kind if item.location else None
     loc_path = get_location_path_str(db, item.location_id) if item.location_id else None
+    root_room = get_root_room(db, item.location_id) if item.location_id else None
 
     # Cover photo
     cover_photo = db.query(Photo).filter(Photo.owner_type == "item", Photo.owner_id == item.id, Photo.is_cover == 1).first()
@@ -82,7 +88,10 @@ def map_item(item: Item, db: Session, warn_days: int = 30) -> ItemOut:
         category_color=cat_color,
         location_id=item.location_id,
         location_name=loc_name,
+        location_kind=loc_kind,
         location_path=loc_path,
+        room_id=root_room.id if root_room else None,
+        room_name=root_room.name if root_room else None,
         quantity=qty,
         taken_out=out_qty > 0,
         taken_out_quantity=out_qty,

@@ -261,6 +261,7 @@ export interface AiLocationNodePlan {
   parent_temp_id?: string | null;
   name: string;
   kind: string;
+  storage_only?: boolean;
   notes?: string | null;
 }
 
@@ -604,6 +605,11 @@ export const api = {
     apiFetch<any>("/api/locations", {
       method: "POST",
       body: JSON.stringify(data),
+    }),
+  addLocationChildren: (id: number, children: Array<{ name: string; kind: string; notes?: string | null }>) =>
+    apiFetch<any[]>(`/api/locations/${id}/children`, {
+      method: "POST",
+      body: JSON.stringify({ children }),
     }),
   updateLocation: (id: number, data: any) =>
     apiFetch<any>(`/api/locations/${id}`, {

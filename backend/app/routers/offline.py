@@ -11,6 +11,7 @@ from backend.app.schemas import (
 from backend.app.services.permissions import require
 from backend.app.services.visibility import items_visible
 from backend.app.services.reminders import compute_reminders
+from backend.app.services.location_service import is_room_kind
 
 router = APIRouter(prefix="/offline", tags=["Offline Mode"])
 
@@ -80,6 +81,8 @@ def get_offline_snapshot(
             parent_id=l.parent_id,
             name=l.name,
             kind=l.kind,
+            is_room=is_room_kind(l.kind),
+            storage_only=bool(getattr(l, "storage_only", 0)) and is_room_kind(l.kind),
             notes=l.notes,
             sort_order=l.sort_order,
             created_at=l.created_at,

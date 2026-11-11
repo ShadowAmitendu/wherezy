@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from "react";
 import {
+  Box,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
   FormHelperText,
+  Typography,
 } from "@mui/material";
 import { api } from "../../api/client";
 import { FlatLocationOption, flattenLocationTree } from "./locationUtils";
+import { LocationIcon } from "./LocationIcon";
 
 interface LocationPickerProps {
   value: number | null | undefined;
@@ -15,6 +18,7 @@ interface LocationPickerProps {
   label?: string;
   required?: boolean;
   excludeId?: number | null; // For avoiding cycles when reparenting
+  roomsOnly?: boolean;
   helperText?: string;
   size?: "small" | "medium";
   emptyLabel?: string;
@@ -26,6 +30,7 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   label = "Storage Location",
   required = false,
   excludeId,
+  roomsOnly = false,
   helperText,
   size = "medium",
   emptyLabel = "None / Unassigned",
@@ -33,10 +38,13 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
   const [options, setOptions] = useState<FlatLocationOption[]>([]);
 
   useEffect(() => {
-    api.getLocationsTree().then((tree) => {
-      setOptions(flattenLocationTree(tree, 0, excludeId));
-    }).catch(console.error);
-  }, [excludeId]);
+    api
+      .getLocationsTree()
+      .then((tree) => {
+        setOptions(flattenLocationTree(tree, 0, excludeId, { roomsOnly }));
+      })
+      .catch(console.error);
+  }, [excludeId, roomsOnly]);
 
   return (
     <FormControl fullWidth required={required} size={size}>
@@ -53,7 +61,8 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
             return <span style={{ opacity: 0.75 }}>{emptyLabel}</span>;
           }
           const opt = options.find((o) => String(o.id) === selected);
-          return opt ? `${opt.name} (${opt.kind})` : selected;
+          if (!opt) return selected;
+          return opt.depth > 0 ? `${opt.path} (${opt.kind})` : `${opt.name} (${opt.kind})`;
         }}
         onChange={(e) => {
           const val = e.target.value;
@@ -63,19 +72,51 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
         <MenuItem value="">
           <em>{emptyLabel}</em>
         </MenuItem>
-        {options.map((opt) => (
-          <MenuItem
-            key={opt.id}
-            value={String(opt.id)}
-            sx={{
-              pl: 2 + opt.depth * 2,
-              fontWeight: opt.depth === 0 ? 600 : 400,
-            }}
-          >
-            {"— ".repeat(opt.depth)}
-            {opt.name} ({opt.kind})
-          </MenuItem>
-        ))}
+        {options.map((opt) => {
+          const roleHint = opt.isRoom
+            ? opt.storageOnly && opt.childrenCount === 0
+              ? "Storage-only place"
+              : opt.childrenCount > 0
+                ? `${opt.childrenCount} ${opt.childrenCount === 1 ? "area" : "areas"}`
+                : "Room"
+            : opt.kind;
+          return (
+            <MenuItem
+              key={opt.id}
+              value={String(opt.id)}
+              sx={{
+                pl: 2 + opt.depth * 2,
+                fontWeight: opt.isRoom || opt.depth === 0 ? 600 : 400,
+              }}
+            >
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 1.5,
+                  width: "100%",
+                  minWidth: 0,
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, minWidth: 0 }}>
+                  {opt.depth > 0 && (
+                    <Typography component="span" variant="caption" color="text.secondary">
+                      {"└─".padStart(opt.depth + 2, " ")}
+                    </Typography>
+                  )}
+                  <LocationIcon kind={opt.kind} fontSize="inherit" />
+                  <Typography variant="body2" sx={{ fontWeight: opt.isRoom ? 700 : 500 }} noWrap>
+                    {opt.name}
+                  </Typography>
+                </Box>
+                <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
+                  {roleHint}
+                </Typography>
+              </Box>
+            </MenuItem>
+          );
+        })}
       </Select>
       {helperText && <FormHelperText>{helperText}</FormHelperText>}
     </FormControl>

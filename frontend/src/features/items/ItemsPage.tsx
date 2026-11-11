@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Box,
   Card,
@@ -15,12 +15,14 @@ import {
   Alert,
   Fade,
   Grow,
+  Stack,
   useTheme,
   useMediaQuery,
 } from "@mui/material";
 import { DataGrid, GridColDef, GridRenderCellParams, GridPaginationModel, GridSortModel } from "@mui/x-data-grid";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
+import MeetingRoomOutlinedIcon from "@mui/icons-material/MeetingRoomOutlined";
 import AddIcon from "@mui/icons-material/Add";
 import PlaylistAddIcon from "@mui/icons-material/PlaylistAdd";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
@@ -54,13 +56,14 @@ import { Item } from "./types";
 import { Category } from "../forms/types";
 
 export const ItemsPage: React.FC = () => {
+  const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [searchParams] = useSearchParams();
 
-  // View mode: 'table' or 'card', remembered in localStorage; defaults to 'card' on mobile
-  const [viewMode, setViewMode] = useState<"table" | "card">(() => {
-    const saved = localStorage.getItem("hi_items_view") as "table" | "card" | null;
+  // View mode: 'table', 'card', or 'room' (grouped by higher Room), remembered in localStorage
+  const [viewMode, setViewMode] = useState<"table" | "card" | "room">(() => {
+    const saved = localStorage.getItem("hi_items_view") as "table" | "card" | "room" | null;
     if (saved) return saved;
     return typeof window !== "undefined" && window.innerWidth < 768 ? "card" : "table";
   });
@@ -115,12 +118,38 @@ export const ItemsPage: React.FC = () => {
   const [undoItemId, setUndoItemId] = useState<number | null>(null);
   const [undoItemName, setUndoItemName] = useState("");
 
-  const handleViewModeChange = (_: any, newMode: "table" | "card" | null) => {
+  const handleViewModeChange = (_: any, newMode: "table" | "card" | "room" | null) => {
     if (newMode) {
       setViewMode(newMode);
       localStorage.setItem("hi_items_view", newMode);
     }
   };
+
+  const itemsGroupedByRoom = useMemo(() => {
+    const groups = new Map<
+      string,
+      { roomId: number | null; roomName: string; isUnassigned: boolean; items: Item[] }
+    >();
+    for (const item of items) {
+      const roomId = item.room_id ?? null;
+      const roomName = item.room_name
+        ? item.room_name
+        : item.location_name
+          ? "Other Storage Places"
+          : "No Room Assigned";
+      const key = roomId ? `room:${roomId}` : `other:${roomName}`;
+      if (!groups.has(key)) {
+        groups.set(key, {
+          roomId,
+          roomName,
+          isUnassigned: !item.location_id,
+          items: [],
+        });
+      }
+      groups.get(key)!.items.push(item);
+    }
+    return Array.from(groups.values());
+  }, [items]);
 
   const loadItems = useCallback(async () => {
     setIsLoading(true);
@@ -435,10 +464,25 @@ export const ItemsPage: React.FC = () => {
               aria-label="view mode"
             >
               <ToggleButton value="table" aria-label="table view">
-                <ViewListIcon fontSize="small" />
+                <Tooltip title="Table view">
+                  <Box component="span" sx={{ display: "inline-flex" }}>
+                    <ViewListIcon fontSize="small" />
+                  </Box>
+                </Tooltip>
               </ToggleButton>
               <ToggleButton value="card" aria-label="card view">
-                <ViewModuleIcon fontSize="small" />
+                <Tooltip title="Card view">
+                  <Box component="span" sx={{ display: "inline-flex" }}>
+                    <ViewModuleIcon fontSize="small" />
+                  </Box>
+                </Tooltip>
+              </ToggleButton>
+              <ToggleButton value="room" aria-label="group by room">
+                <Tooltip title="Group by Room">
+                  <Box component="span" sx={{ display: "inline-flex" }}>
+                    <MeetingRoomOutlinedIcon fontSize="small" />
+                  </Box>
+                </Tooltip>
               </ToggleButton>
             </ToggleButtonGroup>
             <Button
@@ -530,6 +574,62 @@ export const ItemsPage: React.FC = () => {
             </Box>
           </Card>
         </Fade>
+      ) : viewMode === "room" ? (
+        /* Grouped by Room View */
+        <Stack spacing={3}>
+          {itemsGroupedByRoom.map((group) => (
+            <Box key={`${group.roomId ?? "none"}-${group.roomName}`}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 1,
+                  mb: 1.5,
+                  px: 1.5,
+                  py: 1,
+                  borderRadius: 1.5,
+                  bgcolor: "action.hover",
+                }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+                  <MeetingRoomOutlinedIcon
+                    fontSize="small"
+                    color={group.isUnassigned ? "disabled" : "primary"}
+                  />
+                  <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>
+                    {group.roomName}
+                  </Typography>
+                  <Chip
+                    size="small"
+                    label={`${group.items.length} ${group.items.length === 1 ? "item" : "items"}`}
+                    color={group.roomId ? "primary" : "default"}
+                    variant="outlined"
+                  />
+                </Box>
+                {group.roomId && (
+                  <Button
+                    size="small"
+                    onClick={() => navigate(`/locations?selected=${group.roomId}`)}
+                  >
+                    Open Room
+                  </Button>
+                )}
+              </Box>
+              <Grid container spacing={2.5}>
+                {group.items.map((item, idx) => (
+                  <Grid key={item.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
+                    <Grow in appear timeout={Math.min(180 + idx * 35, 450)}>
+                      <Box sx={{ height: "100%" }}>
+                        <ItemCard item={item} onClick={(it) => setDetailItemId(it.id)} />
+                      </Box>
+                    </Grow>
+                  </Grid>
+                ))}
+              </Grid>
+            </Box>
+          ))}
+        </Stack>
       ) : (
         /* Card View */
         <Grid container spacing={2.5}>

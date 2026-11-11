@@ -5756,6 +5756,62 @@
         }
       }
     },
+    "/api/locations/{id}/children": {
+      "post": {
+        "tags": [
+          "Locations"
+        ],
+        "summary": "Add Location Children",
+        "operationId": "add_location_children_api_locations__id__children_post",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationBatchChildrenRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LocationOut"
+                  },
+                  "title": "Response Add Location Children Api Locations  Id  Children Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/locations/{id}": {
       "get": {
         "tags": [
@@ -7440,6 +7496,11 @@
             "type": "string",
             "title": "Kind",
             "default": "Room"
+          },
+          "storage_only": {
+            "type": "boolean",
+            "title": "Storage Only",
+            "default": false
           },
           "notes": {
             "anyOf": [
@@ -9619,6 +9680,13 @@
             "type": "array",
             "title": "Category Counts"
           },
+          "room_counts": {
+            "items": {
+              "$ref": "#/components/schemas/RoomCount"
+            },
+            "type": "array",
+            "title": "Room Counts"
+          },
           "taken_out_count": {
             "type": "integer",
             "title": "Taken Out Count"
@@ -10441,6 +10509,17 @@
             ],
             "title": "Location Name"
           },
+          "location_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Kind"
+          },
           "location_path": {
             "anyOf": [
               {
@@ -10451,6 +10530,28 @@
               }
             ],
             "title": "Location Path"
+          },
+          "room_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Room Id"
+          },
+          "room_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Room Name"
           },
           "quantity": {
             "type": "integer",
@@ -10767,6 +10868,17 @@
             ],
             "title": "Location Name"
           },
+          "location_kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Kind"
+          },
           "location_path": {
             "anyOf": [
               {
@@ -10777,6 +10889,28 @@
               }
             ],
             "title": "Location Path"
+          },
+          "room_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Room Id"
+          },
+          "room_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Room Name"
           },
           "quantity": {
             "type": "integer",
@@ -11530,6 +11664,19 @@
         "type": "object",
         "title": "LabelTemplateUpdate"
       },
+      "LocationBatchChildrenRequest": {
+        "properties": {
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/LocationChildCreate"
+            },
+            "type": "array",
+            "title": "Children"
+          }
+        },
+        "type": "object",
+        "title": "LocationBatchChildrenRequest"
+      },
       "LocationBreadcrumb": {
         "properties": {
           "id": {
@@ -11552,6 +11699,35 @@
           "kind"
         ],
         "title": "LocationBreadcrumb"
+      },
+      "LocationChildCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind",
+            "default": "Shelf"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "LocationChildCreate"
       },
       "LocationCreate": {
         "properties": {
@@ -11585,6 +11761,18 @@
               }
             ],
             "title": "Parent Id"
+          },
+          "storage_only": {
+            "type": "boolean",
+            "title": "Storage Only",
+            "default": false
+          },
+          "children": {
+            "items": {
+              "$ref": "#/components/schemas/LocationChildCreate"
+            },
+            "type": "array",
+            "title": "Children"
           }
         },
         "type": "object",
@@ -11645,6 +11833,48 @@
             "type": "integer",
             "title": "Items Count",
             "default": 0
+          },
+          "total_items_count": {
+            "type": "integer",
+            "title": "Total Items Count",
+            "default": 0
+          },
+          "children_count": {
+            "type": "integer",
+            "title": "Children Count",
+            "default": 0
+          },
+          "is_room": {
+            "type": "boolean",
+            "title": "Is Room",
+            "default": false
+          },
+          "storage_only": {
+            "type": "boolean",
+            "title": "Storage Only",
+            "default": false
+          },
+          "room_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Room Id"
+          },
+          "room_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Room Name"
           },
           "path": {
             "anyOf": [
@@ -11770,6 +12000,48 @@
             "title": "Items Count",
             "default": 0
           },
+          "total_items_count": {
+            "type": "integer",
+            "title": "Total Items Count",
+            "default": 0
+          },
+          "children_count": {
+            "type": "integer",
+            "title": "Children Count",
+            "default": 0
+          },
+          "is_room": {
+            "type": "boolean",
+            "title": "Is Room",
+            "default": false
+          },
+          "storage_only": {
+            "type": "boolean",
+            "title": "Storage Only",
+            "default": false
+          },
+          "room_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Room Id"
+          },
+          "room_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Room Name"
+          },
           "path": {
             "anyOf": [
               {
@@ -11852,6 +12124,48 @@
             ],
             "title": "Items Count",
             "default": 0
+          },
+          "total_items_count": {
+            "type": "integer",
+            "title": "Total Items Count",
+            "default": 0
+          },
+          "children_count": {
+            "type": "integer",
+            "title": "Children Count",
+            "default": 0
+          },
+          "is_room": {
+            "type": "boolean",
+            "title": "Is Room",
+            "default": false
+          },
+          "storage_only": {
+            "type": "boolean",
+            "title": "Storage Only",
+            "default": false
+          },
+          "room_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Room Id"
+          },
+          "room_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Room Name"
           },
           "path": {
             "anyOf": [
@@ -11940,6 +12254,17 @@
               }
             ],
             "title": "Sort Order"
+          },
+          "storage_only": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storage Only"
           }
         },
         "type": "object",
@@ -13126,6 +13451,49 @@
           "due_date"
         ],
         "title": "ReminderSnoozeRequest"
+      },
+      "RoomCount": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "storage_only": {
+            "type": "boolean",
+            "title": "Storage Only",
+            "default": false
+          },
+          "sub_locations_count": {
+            "type": "integer",
+            "title": "Sub Locations Count",
+            "default": 0
+          },
+          "direct_items_count": {
+            "type": "integer",
+            "title": "Direct Items Count",
+            "default": 0
+          },
+          "items_count": {
+            "type": "integer",
+            "title": "Items Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind"
+        ],
+        "title": "RoomCount"
       },
       "SecondCopyConfig": {
         "properties": {

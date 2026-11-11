@@ -217,14 +217,23 @@ class LocationBreadcrumb(BaseModel):
     name: str
     kind: str
 
+class LocationChildCreate(BaseModel):
+    name: str
+    kind: str = "Shelf"
+    notes: Optional[str] = None
+
+class LocationBatchChildrenRequest(BaseModel):
+    children: List[LocationChildCreate] = Field(default_factory=list)
+
 class LocationBase(BaseModel):
     name: str
     kind: str = "Room"
     notes: Optional[str] = None
     parent_id: Optional[int] = None
+    storage_only: bool = False
 
 class LocationCreate(LocationBase):
-    pass
+    children: List[LocationChildCreate] = Field(default_factory=list)
 
 class LocationUpdate(BaseModel):
     name: Optional[str] = None
@@ -232,6 +241,7 @@ class LocationUpdate(BaseModel):
     notes: Optional[str] = None
     parent_id: Optional[int] = None
     sort_order: Optional[int] = None
+    storage_only: Optional[bool] = None
 
 class LocationMoveRequest(BaseModel):
     parent_id: Optional[int] = None
@@ -246,6 +256,12 @@ class LocationOut(BaseModel):
     created_at: str
     updated_at: str
     items_count: Optional[int] = 0
+    total_items_count: int = 0
+    children_count: int = 0
+    is_room: bool = False
+    storage_only: bool = False
+    room_id: Optional[int] = None
+    room_name: Optional[str] = None
     path: Optional[str] = None
 
 class LocationTreeOut(LocationOut):
@@ -315,7 +331,10 @@ class ItemOut(BaseModel):
     category_color: Optional[str] = None
     location_id: Optional[int] = None
     location_name: Optional[str] = None
+    location_kind: Optional[str] = None
     location_path: Optional[str] = None
+    room_id: Optional[int] = None
+    room_name: Optional[str] = None
     quantity: int = 1
     taken_out: bool = False
     taken_out_quantity: int = 0
@@ -370,10 +389,20 @@ class CategoryCount(BaseModel):
     color: str
     count: int
 
+class RoomCount(BaseModel):
+    id: int
+    name: str
+    kind: str
+    storage_only: bool = False
+    sub_locations_count: int = 0
+    direct_items_count: int = 0
+    items_count: int = 0
+
 class DashboardResponse(BaseModel):
     total_items: int
     total_quantity: int = 0
     category_counts: List[CategoryCount]
+    room_counts: List[RoomCount] = Field(default_factory=list)
     taken_out_count: int
     taken_out_quantity_total: int = 0
     expired_count: int
@@ -1029,6 +1058,7 @@ class AiLocationNodePlan(BaseModel):
     parent_temp_id: Optional[str] = None
     name: str
     kind: str = "Room"
+    storage_only: bool = False
     notes: Optional[str] = None
 
 

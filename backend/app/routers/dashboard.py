@@ -3,9 +3,10 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from backend.app.core.db import get_db
-from backend.app.models import Item, Category, Profile
-from backend.app.schemas import DashboardResponse, CategoryCount
+from backend.app.models import Item, Category, Location, Profile
+from backend.app.schemas import DashboardResponse, CategoryCount, RoomCount
 from backend.app.services.item_service import map_item
+from backend.app.services.location_service import compute_location_tree_metrics, is_room_kind
 from backend.app.routers.settings import get_setting_val
 from backend.app.services.visibility import items_visible
 from backend.app.services.permissions import require
@@ -65,6 +66,30 @@ def get_dashboard(
         for c in cats
     ]
 
+    # Room / top-level storage space counts (higher grouping totals across shelves/storage areas)
+    all_locs = db.query(Location).filter(Location.deleted_at.is_(None)).all()
+    loc_counts_raw = (
+        items_visible(db, db.query(Item.location_id, func.count(Item.id)))
+        .filter(Item.location_id.isnot(None))
+        .group_by(Item.location_id)
+        .all()
+    )
+    loc_metrics = compute_location_tree_metrics(all_locs, dict(loc_counts_raw))
+    root_rooms = [l for l in all_locs if l.parent_id is None and is_room_kind(l.kind)]
+    root_rooms.sort(key=lambda l: (l.sort_order, l.id))
+    room_counts = [
+        RoomCount(
+            id=r.id,
+            name=r.name,
+            kind=r.kind,
+            storage_only=bool(getattr(r, "storage_only", 0)) and (loc_metrics[r.id].children_count == 0 if r.id in loc_metrics else True),
+            sub_locations_count=loc_metrics[r.id].children_count if r.id in loc_metrics else 0,
+            direct_items_count=loc_metrics[r.id].direct_items_count if r.id in loc_metrics else 0,
+            items_count=loc_metrics[r.id].total_items_count if r.id in loc_metrics else 0,
+        )
+        for r in root_rooms
+    ]
+
     # Expiring items (both expired and soon)
     expiring_items_models = (
         items_visible(db)
@@ -92,6 +117,7 @@ def get_dashboard(
         total_items=total_items,
         total_quantity=total_quantity,
         category_counts=category_counts,
+        room_counts=room_counts,
         taken_out_count=taken_out_count,
         taken_out_quantity_total=taken_out_quantity_total,
         expired_count=expired_count,

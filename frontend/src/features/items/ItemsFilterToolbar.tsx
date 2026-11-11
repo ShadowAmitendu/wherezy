@@ -112,8 +112,8 @@ export const ItemsFilterToolbar: React.FC<ItemsFilterToolbarProps> = ({
               size={isMobile ? "small" : "medium"}
               value={selectedLocation}
               onChange={onLocationChange}
-              label="Location"
-              emptyLabel="All Locations"
+              label="Room / Location"
+              emptyLabel="All Rooms & Locations"
             />
           </Grid>
 

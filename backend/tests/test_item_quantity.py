@@ -265,6 +265,6 @@ def test_migration_012_backfills_taken_out_quantity():
         finally:
             check.close()
 
-        assert ver_row == 12
+        assert ver_row >= 12
         assert rows[10] == (1, 1)
         assert rows[11] == (1, 0)

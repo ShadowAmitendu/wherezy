@@ -27,6 +27,7 @@ import { PageHeader } from "../../components/shared/PageHeader";
 import { ExpiryChip } from "../../components/shared/ExpiryChip";
 import { CoverThumb } from "../photos/CoverThumb";
 import { renderMuiIcon } from "../../components/shared/iconUtils";
+import { LocationIcon } from "../locations/LocationIcon";
 import { api } from "../../api/client";
 import { formatTakenOutStatusLabel, getItemQuantity } from "../items/quantityUtils";
 
@@ -434,6 +435,110 @@ export const DashboardPage: React.FC = () => {
                 </Grow>
               </Grid>
             ))}
+          </Grid>
+        )}
+      </Box>
+
+      {/* Rooms & Storage Places Grid */}
+      <Box sx={{ mb: 4 }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1, mb: 2 }}>
+          <Typography variant="h6" noWrap sx={sectionTitleSx}>
+            Rooms &amp; Storage Places
+          </Typography>
+          <Button size="small" onClick={() => navigate("/locations")} sx={sectionActionBtnSx}>
+            Manage Rooms
+          </Button>
+        </Box>
+
+        {!data?.room_counts || data.room_counts.length === 0 ? (
+          <Card sx={{ p: 3, textAlign: "center" }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Organize items by Rooms (each holding shelves &amp; storage areas) or standalone storage rooms:
+            </Typography>
+            <Button
+              variant="outlined"
+              onClick={() => navigate("/locations")}
+            >
+              Set Up Rooms
+            </Button>
+          </Card>
+        ) : (
+          <Grid container spacing={{ xs: 1.25, sm: 2 }}>
+            {data.room_counts.map((room: any, idx: number) => {
+              const subSummary =
+                room.storage_only && room.sub_locations_count === 0
+                  ? "Separate storage place"
+                  : room.sub_locations_count > 0
+                    ? `${room.sub_locations_count} ${room.sub_locations_count === 1 ? "shelf / area" : "shelves & areas"}`
+                    : `${room.kind} • Direct storage`;
+              return (
+                <Grid key={room.id} size={{ xs: 6, sm: 4, md: 3 }}>
+                  <Grow in={!isLoading} appear timeout={Math.min(260 + idx * 35, 520)}>
+                    <Card
+                      variant="outlined"
+                      sx={{
+                        transition: (t) =>
+                          t.transitions.create(["border-color", "transform", "box-shadow"], {
+                            duration: t.transitions.duration.shortest,
+                          }),
+                        "&:hover": { borderColor: "primary.main", transform: "translateY(-2px)", boxShadow: 2 },
+                      }}
+                    >
+                      <CardActionArea onClick={() => navigate(`/locations?selected=${room.id}`)}>
+                        <CardContent
+                          sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: { xs: 1, sm: 1.5 },
+                            p: { xs: 1.25, sm: 1.75, md: 2 },
+                            "&:last-child": { pb: { xs: 1.25, sm: 1.75, md: 2 } },
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              width: { xs: 30, sm: 38 },
+                              height: { xs: 30, sm: 38 },
+                              minWidth: { xs: 30, sm: 38 },
+                              borderRadius: 1.5,
+                              bgcolor: "action.hover",
+                              color: "primary.main",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                            }}
+                          >
+                            <LocationIcon kind={room.kind} fontSize="small" />
+                          </Box>
+                          <Box sx={{ overflow: "hidden", minWidth: 0 }}>
+                            <Typography
+                              variant="subtitle2"
+                              sx={{
+                                fontWeight: 700,
+                                fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                              }}
+                              noWrap
+                            >
+                              {room.name}
+                            </Typography>
+                            <Typography
+                              variant="caption"
+                              color="text.secondary"
+                              sx={{
+                                fontSize: { xs: "0.65rem", sm: "0.75rem" },
+                                display: "block",
+                              }}
+                              noWrap
+                            >
+                              {room.items_count} {room.items_count === 1 ? "item" : "items"} • {subSummary}
+                            </Typography>
+                          </Box>
+                        </CardContent>
+                      </CardActionArea>
+                    </Card>
+                  </Grow>
+                </Grid>
+              );
+            })}
           </Grid>
         )}
       </Box>

@@ -11,7 +11,10 @@ export interface Item {
   category_color?: string | null;
   location_id?: number | null;
   location_name?: string | null;
+  location_kind?: string | null;
   location_path?: string | null;
+  room_id?: number | null;
+  room_name?: string | null;
   quantity: number;
   taken_out: boolean;
   taken_out_quantity: number;

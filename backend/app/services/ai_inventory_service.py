@@ -38,26 +38,17 @@ from backend.app.services.gemini_shared import (
     normalize_image_mime_type,
 )
 from backend.app.services.item_service import map_item_detail
-from backend.app.services.location_service import get_location_path_str
+from backend.app.services.location_service import (
+    ALLOWED_LOCATION_KINDS,
+    LOCATION_KIND_BY_LOWER,
+    get_location_path_str,
+    is_room_kind,
+    validate_location_hierarchy,
+)
 
 MAX_AI_BULK_ITEMS = 100
 MAX_AI_LOCATIONS = 60
 
-ALLOWED_LOCATION_KINDS: Tuple[str, ...] = (
-    "Room",
-    "Cupboard",
-    "Shelf",
-    "Drawer",
-    "Box",
-    "Bag",
-    "Bin",
-    "Rack",
-    "Garage",
-    "Shed",
-    "Attic",
-    "Basement",
-)
-LOCATION_KIND_BY_LOWER: Dict[str, str] = {k.lower(): k for k in ALLOWED_LOCATION_KINDS}
 ISO_DATE_REGEX = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
@@ -105,7 +96,8 @@ class _GeminiLocationNodeSchema(BaseModel):
     temp_id: str = Field(description="Short unique node identifier within this plan, e.g. 'loc_1', 'loc_2'.")
     parent_temp_id: str = Field(default="", description="temp_id of parent node inside this plan, or empty string for top-level/root attachment.")
     name: str = Field(description="Short human-readable location name, e.g. 'Kitchen', 'Top Shelf', 'Red Toolbox'.")
-    kind: str = Field(description="Location kind from the allowed list: Room, Cupboard, Shelf, Drawer, Box, Bag, Bin, Rack, Garage, Shed, Attic, Basement.")
+    kind: str = Field(description="Location kind from the allowed list: Room, Storage Room, Garage, Shed, Attic, Basement, Storage Area, Shelf, Cupboard, Closet, Rack, Drawer, Box, Bin, Bag.")
+    storage_only: bool = Field(default=False, description="True only when a standalone Room / Storage Room is meant for direct storage with no shelves or sub-areas inside it.")
     notes: str = Field(default="", description="Optional short description or empty string.")
 
 
@@ -745,6 +737,7 @@ def _sanitize_location_nodes(raw_nodes: Sequence[Any]) -> List[AiLocationNodePla
                 parent_temp_id=raw_parent or None,
                 name=clean_name,
                 kind=clean_kind,
+                storage_only=bool(getattr(node, "storage_only", False)) and is_room_kind(clean_kind),
                 notes=clean_notes,
             )
         )
@@ -753,6 +746,14 @@ def _sanitize_location_nodes(raw_nodes: Sequence[Any]) -> List[AiLocationNodePla
     for n in normalized:
         if n.parent_temp_id == n.temp_id or (n.parent_temp_id and n.parent_temp_id not in by_id):
             n.parent_temp_id = None
+        elif is_room_kind(n.kind) and n.parent_temp_id and not is_room_kind(by_id[n.parent_temp_id].kind):
+            # Enforce Room as a higher grouping element above shelves/storage areas
+            n.parent_temp_id = None
+
+    referenced_parents = {n.parent_temp_id for n in normalized if n.parent_temp_id}
+    for n in normalized:
+        if n.temp_id in referenced_parents or not is_room_kind(n.kind):
+            n.storage_only = False
 
     # Topological parent-first sort with explicit cycle breaking
     ordered: List[AiLocationNodePlan] = []
@@ -816,9 +817,10 @@ def generate_location_hierarchy_plan(
         f"ALLOWED LOCATION KINDS: {', '.join(ALLOWED_LOCATION_KINDS)}\n\n"
         "RULES:\n"
         "1. Output a parent-before-child flat list of nodes linked via temp_id and parent_temp_id (empty string means attach directly to TARGET ATTACHMENT ROOT).\n"
-        "2. Expand compact descriptions naturally (e.g., '3 pantry shelves' -> 'Shelf 1', 'Shelf 2', 'Shelf 3' each with kind='Shelf' inside 'Pantry').\n"
-        "3. Use the exact most fitting 'kind' from ALLOWED LOCATION KINDS.\n"
-        "4. Generate at most 60 clean, practical nodes without redundant repetition."
+        "2. Treat Rooms & standalone spaces (Room, Storage Room, Garage, Shed, Attic, Basement) as the higher grouping level at top level (`parent_temp_id = \"\"`) above Shelves, Storage Areas, Cupboards, Closets, Racks, Drawers, and Boxes.\n"
+        "3. A Room can contain multiple shelves or storage areas (`kind='Shelf'`, `'Storage Area'`, etc.), OR stand alone as a separate storage-only place (`storage_only=true`, no child nodes) when no sub-shelves are needed.\n"
+        "4. Expand compact descriptions naturally (e.g., '3 pantry shelves' -> 'Shelf 1', 'Shelf 2', 'Shelf 3' each with kind='Shelf' inside 'Pantry').\n"
+        "5. Use the exact most fitting 'kind' from ALLOWED LOCATION KINDS and keep at most 60 clean, practical nodes."
     )
 
     parts: List[str] = []
@@ -872,6 +874,7 @@ def commit_location_hierarchy(
             detail={"error": {"code": "VALIDATION_ERROR", "message": "At least one location node is required"}},
         )
 
+    parent_ids_used = {n.parent_temp_id for n in ordered_nodes if n.parent_temp_id}
     temp_to_db_id: Dict[str, int] = {}
     created_models: List[Location] = []
 
@@ -881,15 +884,25 @@ def commit_location_hierarchy(
             if node.parent_temp_id
             else payload.root_parent_id
         )
+        parent_obj = validate_location_hierarchy(db, node.kind, parent_id)
+        if parent_obj and getattr(parent_obj, "storage_only", 0):
+            parent_obj.storage_only = 0
+            parent_obj.updated_at = utc_now_iso()
         max_sort = (
             db.query(func.max(Location.sort_order))
             .filter(Location.parent_id == parent_id, Location.deleted_at.is_(None))
             .scalar()
             or 0
         )
+        is_storage_only = (
+            1
+            if (node.storage_only and is_room_kind(node.kind) and node.temp_id not in parent_ids_used)
+            else 0
+        )
         loc = Location(
             name=node.name,
             kind=node.kind,
+            storage_only=is_storage_only,
             notes=node.notes,
             parent_id=parent_id,
             sort_order=max_sort + 1,

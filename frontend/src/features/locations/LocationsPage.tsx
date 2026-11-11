@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Box,
   Card,
@@ -28,6 +28,10 @@ import {
   Switch,
   FormControlLabel,
   Grid,
+  Paper,
+  Stack,
+  ToggleButton,
+  ToggleButtonGroup,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
@@ -44,6 +48,9 @@ import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import DriveFileMoveOutlinedIcon from "@mui/icons-material/DriveFileMoveOutlined";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
+import MeetingRoomOutlinedIcon from "@mui/icons-material/MeetingRoomOutlined";
+import ShelvesIcon from "@mui/icons-material/Shelves";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { EmptyState } from "../../components/shared/EmptyState";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
@@ -51,31 +58,47 @@ import { LocationBreadcrumb } from "../../components/shared/LocationBreadcrumb";
 import { PhotoManager } from "../photos/PhotoManager";
 import { AILocationTreeDialog } from "./AILocationTreeDialog";
 import { LocationPicker } from "./LocationPicker";
+import { LocationIcon } from "./LocationIcon";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { api, ApiException } from "../../api/client";
 import { formatTakenOutStatusLabel, getItemQuantity } from "../items/quantityUtils";
+import {
+  isRoomKind,
+  ROOM_GROUP_KINDS,
+  STORAGE_AREA_KINDS,
+} from "./locationUtils";
 
-const SUGGESTED_KINDS = [
-  "Room",
-  "Cupboard",
-  "Shelf",
-  "Drawer",
-  "Box",
-  "Bag",
-  "Bin",
-  "Rack",
-  "Garage",
-  "Shed",
-  "Attic",
-  "Basement",
-];
+interface DraftSubLocation {
+  key: string;
+  name: string;
+  kind: string;
+}
+
+function findAncestorIds(nodes: any[], targetId: number, trail: number[] = []): number[] | null {
+  for (const node of nodes) {
+    if (node.id === targetId) {
+      return [...trail, node.id];
+    }
+    if (Array.isArray(node.children) && node.children.length > 0) {
+      const found = findAncestorIds(node.children, targetId, [...trail, node.id]);
+      if (found) return found;
+    }
+  }
+  return null;
+}
 
 export const LocationsPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const requestedIdParam = searchParams.get("selected");
+  const requestedSelectedId = requestedIdParam ? Number(requestedIdParam) : null;
+
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [tree, setTree] = useState<any[]>([]);
-  const [selectedLocationId, setSelectedLocationId] = useState<number | null>(null);
+  const [selectedLocationId, setSelectedLocationId] = useState<number | null>(
+    requestedSelectedId && !Number.isNaN(requestedSelectedId) ? requestedSelectedId : null
+  );
   const [selectedDetail, setSelectedDetail] = useState<any | null>(null);
   const [locationItems, setLocationItems] = useState<any[]>([]);
   const [includeSub, setIncludeSub] = useState(true);
@@ -87,11 +110,21 @@ export const LocationsPage: React.FC = () => {
   const [aiDialogOpen, setAiDialogOpen] = useState(false);
   const [aiNotice, setAiNotice] = useState<string | null>(null);
   const [editingLoc, setEditingLoc] = useState<any | null>(null);
+  const [locationRole, setLocationRole] = useState<"room" | "area">("room");
   const [parentTargetId, setParentTargetId] = useState<number | null>(null);
   const [name, setName] = useState("");
   const [kind, setKind] = useState("Room");
+  const [storageOnly, setStorageOnly] = useState(false);
+  const [starterChildren, setStarterChildren] = useState<DraftSubLocation[]>([]);
   const [notes, setNotes] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Batch add shelves / storage areas modal state
+  const [batchParent, setBatchParent] = useState<any | null>(null);
+  const [batchRows, setBatchRows] = useState<DraftSubLocation[]>([]);
+  const [batchError, setBatchError] = useState<string | null>(null);
+  const [batchSaving, setBatchSaving] = useState(false);
 
   // Move Dialog state
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
@@ -102,19 +135,33 @@ export const LocationsPage: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  const loadTree = async () => {
+  const expandTreeDefaults = useCallback((data: any[], focusId?: number | null) => {
+    const initExpanded: Record<number, boolean> = {};
+    data.forEach((n) => {
+      initExpanded[n.id] = true;
+    });
+    if (focusId) {
+      const pathIds = findAncestorIds(data, focusId);
+      if (pathIds) {
+        pathIds.forEach((id) => {
+          initExpanded[id] = true;
+        });
+      }
+    }
+    setExpandedNodes((prev) => ({ ...initExpanded, ...prev }));
+  }, []);
+
+  const loadTree = async (nextFocusId?: number | null) => {
     try {
       setIsLoading(true);
       const data = await api.getLocationsTree();
       setTree(data);
+      const activeFocus = nextFocusId ?? selectedLocationId;
+      expandTreeDefaults(data, activeFocus);
 
-      const initExpanded: Record<number, boolean> = {};
-      data.forEach((n) => {
-        initExpanded[n.id] = true;
-      });
-      setExpandedNodes((prev) => ({ ...initExpanded, ...prev }));
-
-      if (!selectedLocationId && data.length > 0) {
+      if (nextFocusId) {
+        setSelectedLocationId(nextFocusId);
+      } else if (!selectedLocationId && data.length > 0) {
         setSelectedLocationId(data[0].id);
       }
     } catch (err) {
@@ -126,9 +173,11 @@ export const LocationsPage: React.FC = () => {
 
   const loadDetail = async (id: number) => {
     try {
-      const detail = await api.getLocation(id);
+      const [detail, items] = await Promise.all([
+        api.getLocation(id),
+        api.getLocationItems(id, includeSub),
+      ]);
       setSelectedDetail(detail);
-      const items = await api.getLocationItems(id, includeSub);
       setLocationItems(items);
     } catch (err) {
       console.error(err);
@@ -144,13 +193,13 @@ export const LocationsPage: React.FC = () => {
       .then((data) => {
         if (!active) return;
         setTree(data);
-        const initExpanded: Record<number, boolean> = {};
-        data.forEach((n) => {
-          initExpanded[n.id] = true;
-        });
-        setExpandedNodes((prev) => ({ ...initExpanded, ...prev }));
-        if (data.length > 0) {
-          setSelectedLocationId((prev) => prev ?? data[0].id);
+        const preferredId =
+          requestedSelectedId && !Number.isNaN(requestedSelectedId)
+            ? requestedSelectedId
+            : data[0]?.id ?? null;
+        expandTreeDefaults(data, preferredId);
+        if (preferredId) {
+          setSelectedLocationId((prev) => prev ?? preferredId);
         }
       })
       .catch((err) => {
@@ -162,7 +211,7 @@ export const LocationsPage: React.FC = () => {
     return () => {
       active = false;
     };
-  }, []);
+  }, [expandTreeDefaults, requestedSelectedId]);
 
   useEffect(() => {
     if (!selectedLocationId) return;
@@ -192,11 +241,30 @@ export const LocationsPage: React.FC = () => {
     setExpandedNodes((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  const handleOpenAdd = (parentId: number | null = null) => {
+  const handleRoleSwitch = (nextRole: "room" | "area") => {
+    setLocationRole(nextRole);
+    if (nextRole === "room") {
+      if (!isRoomKind(kind)) setKind("Room");
+      if (!editingLoc) setParentTargetId(null);
+    } else {
+      if (isRoomKind(kind)) setKind("Storage Area");
+      setStorageOnly(false);
+    }
+  };
+
+  const handleOpenAdd = (
+    parentId: number | null = null,
+    preferredRole?: "room" | "area",
+    preferredKind?: string
+  ) => {
+    const role: "room" | "area" = preferredRole || (parentId ? "area" : "room");
     setEditingLoc(null);
+    setLocationRole(role);
     setParentTargetId(parentId);
     setName("");
-    setKind(parentId ? "Cupboard" : "Room");
+    setKind(preferredKind || (role === "room" ? "Room" : "Storage Area"));
+    setStorageOnly(false);
+    setStarterChildren([]);
     setNotes("");
     setErrorMsg(null);
     setDialogOpen(true);
@@ -204,40 +272,109 @@ export const LocationsPage: React.FC = () => {
 
   const handleOpenEdit = (loc: any, e: React.MouseEvent) => {
     e.stopPropagation();
+    const role: "room" | "area" = isRoomKind(loc.kind) ? "room" : "area";
     setEditingLoc(loc);
+    setLocationRole(role);
+    setParentTargetId(loc.parent_id ?? null);
     setName(loc.name);
     setKind(loc.kind);
+    setStorageOnly(Boolean(loc.storage_only));
+    setStarterChildren([]);
     setNotes(loc.notes || "");
     setErrorMsg(null);
     setDialogOpen(true);
   };
 
-  const handleSaveLocation = async () => {
+  const handleAddStarterChild = (childKind = "Shelf") => {
+    setStarterChildren((prev) => [
+      ...prev,
+      { key: `sub-${Date.now()}-${prev.length + 1}`, name: "", kind: childKind },
+    ]);
+  };
+
+  const handleSaveLocation = async (keepAdding = false) => {
     if (!name.trim()) {
       setErrorMsg("Location name is required");
       return;
     }
+    const cleanChildren = starterChildren
+      .map((c) => ({ name: c.name.trim(), kind: c.kind || "Shelf" }))
+      .filter((c) => c.name.length > 0);
 
+    setIsSaving(true);
+    setErrorMsg(null);
     try {
       if (editingLoc) {
-        await api.updateLocation(editingLoc.id, {
+        const updated = await api.updateLocation(editingLoc.id, {
           name: name.trim(),
           kind: kind.trim() || "Room",
+          parent_id: parentTargetId,
+          storage_only: locationRole === "room" ? storageOnly : false,
           notes: notes.trim() || null,
         });
+        setDialogOpen(false);
+        await loadTree(updated.id);
+        await loadDetail(updated.id);
       } else {
         const created = await api.createLocation({
           name: name.trim(),
           kind: kind.trim() || "Room",
+          storage_only: locationRole === "room" ? storageOnly && cleanChildren.length === 0 : false,
           notes: notes.trim() || null,
           parent_id: parentTargetId,
+          children: locationRole === "room" && !storageOnly ? cleanChildren : [],
         });
-        setSelectedLocationId(created.id);
+
+        if (keepAdding && parentTargetId) {
+          setName("");
+          setNotes("");
+          setErrorMsg(null);
+          await loadTree(parentTargetId);
+          await loadDetail(parentTargetId);
+        } else {
+          setDialogOpen(false);
+          await loadTree(created.id);
+          await loadDetail(created.id);
+        }
       }
-      setDialogOpen(false);
-      await loadTree();
     } catch (err: any) {
-      setErrorMsg(err.error?.message || "Failed to save location");
+      setErrorMsg(err?.error?.message || "Failed to save location");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleOpenBatchChildren = (loc: any) => {
+    setBatchParent(loc);
+    setBatchRows([
+      { key: `b-${Date.now()}-1`, name: "", kind: "Shelf" },
+      { key: `b-${Date.now()}-2`, name: "", kind: "Storage Area" },
+    ]);
+    setBatchError(null);
+  };
+
+  const handleSaveBatchChildren = async () => {
+    if (!batchParent) return;
+    const cleaned = batchRows
+      .map((r) => ({ name: r.name.trim(), kind: r.kind || "Shelf" }))
+      .filter((r) => r.name.length > 0);
+    if (cleaned.length === 0) {
+      setBatchError("Enter at least one shelf or storage area name.");
+      return;
+    }
+
+    setBatchSaving(true);
+    setBatchError(null);
+    try {
+      await api.addLocationChildren(batchParent.id, cleaned);
+      const targetId = batchParent.id;
+      setBatchParent(null);
+      await loadTree(targetId);
+      await loadDetail(targetId);
+    } catch (err: any) {
+      setBatchError(err?.error?.message || "Failed to add shelves / storage areas");
+    } finally {
+      setBatchSaving(false);
     }
   };
 
@@ -282,10 +419,36 @@ export const LocationsPage: React.FC = () => {
     }
   };
 
+  const groupedLocationItems = useMemo(() => {
+    const groups = new Map<string, { label: string; locationId: number | null; items: any[] }>();
+    for (const it of locationItems) {
+      const locId = it.location_id ?? null;
+      const isDirect = selectedDetail && locId === selectedDetail.id;
+      const label = isDirect
+        ? `Directly in ${selectedDetail.name}`
+        : it.location_path || it.location_name || "Sub-location";
+      const key = `${locId ?? "direct"}:${label}`;
+      if (!groups.has(key)) {
+        groups.set(key, { label, locationId: locId, items: [] });
+      }
+      groups.get(key)!.items.push(it);
+    }
+    return Array.from(groups.values());
+  }, [locationItems, selectedDetail]);
+
   const renderTreeNode = (node: any, depth = 0) => {
     const isExpanded = Boolean(expandedNodes[node.id]);
     const isSelected = selectedLocationId === node.id;
     const hasChildren = node.children && node.children.length > 0;
+    const nodeIsRoom = typeof node.is_room === "boolean" ? node.is_room : isRoomKind(node.kind);
+    const totalCount =
+      typeof node.total_items_count === "number" ? node.total_items_count : node.items_count || 0;
+    const subCount =
+      typeof node.children_count === "number"
+        ? node.children_count
+        : Array.isArray(node.children)
+          ? node.children.length
+          : 0;
 
     return (
       <React.Fragment key={node.id}>
@@ -293,7 +456,7 @@ export const LocationsPage: React.FC = () => {
           disablePadding
           sx={{
             display: "block",
-            mb: 0.5,
+            mb: nodeIsRoom && depth === 0 ? 0.75 : 0.4,
           }}
         >
           <ListItemButton
@@ -301,11 +464,16 @@ export const LocationsPage: React.FC = () => {
             onClick={() => setSelectedLocationId(node.id)}
             sx={{
               pl: 1 + depth * 2,
-              borderRadius: 1,
+              py: nodeIsRoom && depth === 0 ? 0.9 : 0.65,
+              borderRadius: 1.5,
+              bgcolor:
+                nodeIsRoom && depth === 0 && !isSelected
+                  ? (t) => alpha(t.palette.primary.main, t.palette.mode === "dark" ? 0.06 : 0.04)
+                  : undefined,
               "&.Mui-selected": {
                 bgcolor: (t) =>
                   t.palette.mode === "dark"
-                    ? alpha(t.palette.primary.main, 0.16)
+                    ? alpha(t.palette.primary.main, 0.18)
                     : alpha(t.palette.primary.main, 0.12),
                 color: "primary.main",
                 "& .MuiListItemIcon-root": {
@@ -320,35 +488,64 @@ export const LocationsPage: React.FC = () => {
               },
             }}
           >
-            <ListItemIcon sx={{ minWidth: 28 }} onClick={(e) => hasChildren && toggleExpand(node.id, e)}>
+            <ListItemIcon
+              sx={{ minWidth: 32, display: "flex", alignItems: "center", gap: 0.25 }}
+              onClick={(e) => hasChildren && toggleExpand(node.id, e)}
+            >
               {hasChildren ? (
                 isExpanded ? <ExpandMoreIcon fontSize="small" /> : <ChevronRightIcon fontSize="small" />
               ) : (
-                <PlaceOutlinedIcon fontSize="small" sx={{ color: "text.secondary" }} />
+                <LocationIcon kind={node.kind} fontSize="small" />
               )}
             </ListItemIcon>
             <ListItemText
               primary={
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <Typography variant="body2" sx={{ fontWeight: isSelected ? 700 : 500 }} noWrap>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, minWidth: 0, flexWrap: "wrap" }}>
+                  <Typography
+                    variant="body2"
+                    sx={{ fontWeight: nodeIsRoom || isSelected ? 700 : 500 }}
+                    noWrap
+                  >
                     {node.name}
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
                     ({node.kind})
                   </Typography>
-                  {node.items_count > 0 && (
-                    <Chip label={node.items_count} size="small" sx={{ height: 18, fontSize: "0.7rem" }} />
+                  {nodeIsRoom && node.storage_only && subCount === 0 && (
+                    <Chip
+                      label="Storage-only"
+                      size="small"
+                      variant="outlined"
+                      color="secondary"
+                      sx={{ height: 18, fontSize: "0.65rem" }}
+                    />
+                  )}
+                  {nodeIsRoom && subCount > 0 && (
+                    <Chip
+                      label={`${subCount} ${subCount === 1 ? "area" : "areas"}`}
+                      size="small"
+                      variant="outlined"
+                      sx={{ height: 18, fontSize: "0.65rem" }}
+                    />
+                  )}
+                  {totalCount > 0 && (
+                    <Chip
+                      label={totalCount}
+                      size="small"
+                      color={nodeIsRoom ? "primary" : "default"}
+                      sx={{ height: 18, fontSize: "0.7rem" }}
+                    />
                   )}
                 </Box>
               }
             />
-            <Box sx={{ display: "flex", opacity: isSelected ? 1 : 0.6, "&:hover": { opacity: 1 } }}>
-              <Tooltip title="Add sub-location">
+            <Box sx={{ display: "flex", opacity: isSelected ? 1 : 0.65, "&:hover": { opacity: 1 } }}>
+              <Tooltip title={nodeIsRoom ? "Add Shelf / Storage Area" : "Add sub-location"}>
                 <IconButton
                   size="small"
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleOpenAdd(node.id);
+                    handleOpenAdd(node.id, "area", "Storage Area");
                   }}
                 >
                   <AddIcon fontSize="small" />
@@ -382,7 +579,7 @@ export const LocationsPage: React.FC = () => {
 
         {hasChildren && (
           <Collapse in={isExpanded} timeout="auto" unmountOnExit>
-            <List disablePadding>
+            <List disablePadding sx={{ borderLeft: "1px dashed", borderColor: "divider", ml: 1.5 + depth * 2 }}>
               {node.children.map((child: any) => renderTreeNode(child, depth + 1))}
             </List>
           </Collapse>
@@ -391,11 +588,23 @@ export const LocationsPage: React.FC = () => {
     );
   };
 
+  const selectedIsRoom = selectedDetail
+    ? typeof selectedDetail.is_room === "boolean"
+      ? selectedDetail.is_room
+      : isRoomKind(selectedDetail.kind)
+    : false;
+  const selectedChildren = Array.isArray(selectedDetail?.children) ? selectedDetail.children : [];
+  const selectedTotalCount = selectedDetail
+    ? typeof selectedDetail.total_items_count === "number"
+      ? selectedDetail.total_items_count
+      : locationItems.length
+    : 0;
+
   return (
     <Box>
       <PageHeader
-        title="Storage Locations"
-        subtitle="Rooms, cupboards, shelves, and boxes"
+        title="Rooms & Storage Locations"
+        subtitle="Use Rooms to group shelves and storage areas, or as standalone storage-only places"
         icon={<PlaceOutlinedIcon />}
         action={
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
@@ -408,11 +617,19 @@ export const LocationsPage: React.FC = () => {
               AI Setup Tree
             </Button>
             <Button
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => handleOpenAdd(null)}
+              variant="outlined"
+              startIcon={<ShelvesIcon />}
+              onClick={() => handleOpenAdd(selectedIsRoom ? selectedDetail?.id : selectedDetail?.room_id ?? null, "area", "Storage Area")}
+              disabled={tree.length === 0}
             >
-              New Location
+              Add Shelf / Area
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<MeetingRoomOutlinedIcon />}
+              onClick={() => handleOpenAdd(null, "room", "Room")}
+            >
+              New Room / Place
             </Button>
           </Box>
         }
@@ -434,10 +651,10 @@ export const LocationsPage: React.FC = () => {
 
       {tree.length === 0 && !isLoading ? (
         <EmptyState
-          title="No Storage Locations"
-          description="Add your first room, cupboard, or shelf to organize where household items live."
-          actionLabel="Add First Location"
-          onAction={() => handleOpenAdd(null)}
+          title="No Rooms or Storage Locations"
+          description="Create a Room to group shelves and storage areas, or mark it as a standalone storage-only place."
+          actionLabel="Add First Room"
+          onAction={() => handleOpenAdd(null, "room", "Room")}
         />
       ) : (
         <Grid container spacing={3}>
@@ -447,10 +664,10 @@ export const LocationsPage: React.FC = () => {
               <CardContent sx={{ p: 2 }}>
                 <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1.5 }}>
                   <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                    Location Tree
+                    Rooms & Hierarchy
                   </Typography>
-                  <Button size="small" onClick={() => handleOpenAdd(null)}>
-                    + Add Top-Level
+                  <Button size="small" onClick={() => handleOpenAdd(null, "room", "Room")}>
+                    + Add Room / Place
                   </Button>
                 </Box>
                 <Divider sx={{ mb: 1.5 }} />
@@ -467,17 +684,55 @@ export const LocationsPage: React.FC = () => {
               <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
                 <Card>
                   <CardContent>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1.5 }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 1.5, flexWrap: "wrap", mb: 1.5 }}>
                       <Box>
-                        <LocationBreadcrumb breadcrumbs={selectedDetail.breadcrumbs} />
-                        <Typography variant="h5" sx={{ fontWeight: 700, mt: 1 }}>
-                          {selectedDetail.name}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          Kind: {selectedDetail.kind}
+                        <LocationBreadcrumb
+                          breadcrumbs={selectedDetail.breadcrumbs}
+                          onSelect={(id) => setSelectedLocationId(id)}
+                        />
+                        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1, flexWrap: "wrap" }}>
+                          <LocationIcon kind={selectedDetail.kind} fontSize="medium" />
+                          <Typography variant="h5" sx={{ fontWeight: 700 }}>
+                            {selectedDetail.name}
+                          </Typography>
+                          {selectedIsRoom ? (
+                            selectedDetail.storage_only && selectedChildren.length === 0 ? (
+                              <Chip
+                                size="small"
+                                color="secondary"
+                                label="Separate Storage-Only Place"
+                              />
+                            ) : (
+                              <Chip
+                                size="small"
+                                color="primary"
+                                variant="outlined"
+                                label={`Higher Grouping Room (${selectedChildren.length} ${selectedChildren.length === 1 ? "sub-area" : "sub-areas"})`}
+                              />
+                            )
+                          ) : (
+                            <Chip size="small" variant="outlined" label={selectedDetail.kind} />
+                          )}
+                        </Box>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                          Type: {selectedDetail.kind} • {selectedTotalCount} total{" "}
+                          {selectedTotalCount === 1 ? "item" : "items"}
+                          {selectedChildren.length > 0 && selectedDetail.items_count > 0
+                            ? ` (${selectedDetail.items_count} directly here)`
+                            : ""}
                         </Typography>
                       </Box>
                       <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                        {selectedIsRoom && (
+                          <Button
+                            variant="contained"
+                            size="small"
+                            startIcon={<AddIcon />}
+                            onClick={() => handleOpenBatchChildren(selectedDetail)}
+                          >
+                            Add Shelves / Areas
+                          </Button>
+                        )}
                         <Button
                           variant="outlined"
                           size="small"
@@ -497,6 +752,25 @@ export const LocationsPage: React.FC = () => {
                       </Box>
                     </Box>
 
+                    {selectedIsRoom && selectedDetail.storage_only && selectedChildren.length === 0 && (
+                      <Alert
+                        severity="info"
+                        sx={{ my: 1.5 }}
+                        action={
+                          <Button
+                            size="small"
+                            color="inherit"
+                            onClick={() => handleOpenBatchChildren(selectedDetail)}
+                          >
+                            Add Shelves Instead
+                          </Button>
+                        }
+                      >
+                        This Room acts as a standalone storage-only place — assign items directly to{" "}
+                        <strong>{selectedDetail.name}</strong> without sub-shelves.
+                      </Alert>
+                    )}
+
                     {selectedDetail.notes && (
                       <Typography variant="body2" sx={{ my: 1.5, p: 1.5, bgcolor: "action.hover", borderRadius: 1.5 }}>
                         {selectedDetail.notes}
@@ -512,39 +786,210 @@ export const LocationsPage: React.FC = () => {
                   </CardContent>
                 </Card>
 
+                {/* Shelves & Storage Areas Card */}
+                {(selectedIsRoom || selectedChildren.length > 0) &&
+                  !(selectedDetail.storage_only && selectedChildren.length === 0) && (
+                    <Card>
+                      <CardContent>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: 1,
+                            flexWrap: "wrap",
+                            mb: 1.5,
+                          }}
+                        >
+                          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                            Shelves & Storage Areas ({selectedChildren.length})
+                          </Typography>
+                          <Button
+                            size="small"
+                            startIcon={<AddIcon />}
+                            onClick={() => handleOpenBatchChildren(selectedDetail)}
+                          >
+                            Add Shelves / Areas
+                          </Button>
+                        </Box>
+
+                        {selectedChildren.length === 0 ? (
+                          <Typography variant="body2" color="text.secondary">
+                            No shelves or storage areas inside {selectedDetail.name} yet. Add one above, or store items
+                            directly in this room.
+                          </Typography>
+                        ) : (
+                          <Grid container spacing={1.5}>
+                            {selectedChildren.map((child: any) => {
+                              const childTotal =
+                                typeof child.total_items_count === "number"
+                                  ? child.total_items_count
+                                  : child.items_count || 0;
+                              return (
+                                <Grid key={child.id} size={{ xs: 12, sm: 6 }}>
+                                  <Paper
+                                    variant="outlined"
+                                    onClick={() => setSelectedLocationId(child.id)}
+                                    sx={{
+                                      p: 1.5,
+                                      cursor: "pointer",
+                                      display: "flex",
+                                      alignItems: "center",
+                                      justifyContent: "space-between",
+                                      gap: 1,
+                                      transition: (t) =>
+                                        t.transitions.create(["border-color", "background-color"], {
+                                          duration: t.transitions.duration.shortest,
+                                        }),
+                                      "&:hover": {
+                                        borderColor: "primary.main",
+                                        bgcolor: "action.hover",
+                                      },
+                                    }}
+                                  >
+                                    <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+                                      <LocationIcon kind={child.kind} fontSize="small" />
+                                      <Box sx={{ minWidth: 0 }}>
+                                        <Typography variant="subtitle2" sx={{ fontWeight: 700 }} noWrap>
+                                          {child.name}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary" noWrap>
+                                          {child.kind}
+                                          {child.children_count > 0
+                                            ? ` • ${child.children_count} nested`
+                                            : ""}
+                                        </Typography>
+                                      </Box>
+                                    </Box>
+                                    <Chip
+                                      size="small"
+                                      label={`${childTotal} ${childTotal === 1 ? "item" : "items"}`}
+                                      variant="outlined"
+                                    />
+                                  </Paper>
+                                </Grid>
+                              );
+                            })}
+                          </Grid>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
+
                 {/* Items in this location */}
                 <Card>
                   <CardContent>
-                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2, flexWrap: "wrap", gap: 1 }}>
                       <Box>
                         <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                           Stored Items ({locationItems.length})
                         </Typography>
-                        <FormControlLabel
-                          control={
-                            <Switch
-                              checked={includeSub}
-                              onChange={(e) => setIncludeSub(e.target.checked)}
-                              size="small"
-                            />
-                          }
-                          label={<Typography variant="caption">Include Sub-locations</Typography>}
-                        />
+                        {selectedChildren.length > 0 && (
+                          <FormControlLabel
+                            control={
+                              <Switch
+                                checked={includeSub}
+                                onChange={(e) => setIncludeSub(e.target.checked)}
+                                size="small"
+                              />
+                            }
+                            label={
+                              <Typography variant="caption">
+                                Include Shelves & Storage Areas
+                              </Typography>
+                            }
+                          />
+                        )}
                       </Box>
-                      <Button
-                        variant="contained"
-                        size="small"
-                        startIcon={<AddIcon />}
-                        onClick={() => navigate(`/items?action=new&location_id=${selectedDetail.id}`)}
-                      >
-                        Add Item Here
-                      </Button>
+                      <Box sx={{ display: "flex", gap: 1 }}>
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          endIcon={<OpenInNewIcon fontSize="small" />}
+                          onClick={() => navigate(`/items?location_id=${selectedDetail.id}`)}
+                        >
+                          View in Items
+                        </Button>
+                        <Button
+                          variant="contained"
+                          size="small"
+                          startIcon={<AddIcon />}
+                          onClick={() => navigate(`/items?action=new&location_id=${selectedDetail.id}`)}
+                        >
+                          Add Item Here
+                        </Button>
+                      </Box>
                     </Box>
 
                     {locationItems.length === 0 ? (
                       <Typography variant="body2" color="text.secondary">
-                        No items stored here.
+                        No items stored here yet.
                       </Typography>
+                    ) : includeSub && selectedChildren.length > 0 ? (
+                      <Stack spacing={2}>
+                        {groupedLocationItems.map((group) => (
+                          <Box key={group.label}>
+                            <Box
+                              sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                px: 1,
+                                py: 0.5,
+                                mb: 0.5,
+                                borderRadius: 1,
+                                bgcolor: "action.hover",
+                                cursor:
+                                  group.locationId && group.locationId !== selectedDetail.id
+                                    ? "pointer"
+                                    : "default",
+                              }}
+                              onClick={() => {
+                                if (group.locationId && group.locationId !== selectedDetail.id) {
+                                  setSelectedLocationId(group.locationId);
+                                }
+                              }}
+                            >
+                              <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                                {group.label}
+                              </Typography>
+                              <Chip label={group.items.length} size="small" sx={{ height: 18, fontSize: "0.7rem" }} />
+                            </Box>
+                            <List disablePadding>
+                              {group.items.map((it) => (
+                                <ListItem
+                                  key={it.id}
+                                  divider
+                                  sx={{
+                                    px: 1,
+                                    cursor: "pointer",
+                                    "&:hover": { bgcolor: "action.hover" },
+                                  }}
+                                  onClick={() => navigate(`/items?selected=${it.id}`)}
+                                >
+                                  <ListItemIcon sx={{ minWidth: 36 }}>
+                                    <Inventory2OutlinedIcon fontSize="small" color="primary" />
+                                  </ListItemIcon>
+                                  <ListItemText
+                                    primary={it.name}
+                                    secondary={`${it.category_name || "Uncategorized"}${
+                                      getItemQuantity(it) > 1 ? ` • Qty: ${getItemQuantity(it)}` : ""
+                                    }`}
+                                  />
+                                  {it.taken_out && (
+                                    <Chip
+                                      label={formatTakenOutStatusLabel(it)}
+                                      size="small"
+                                      color="secondary"
+                                      variant="outlined"
+                                    />
+                                  )}
+                                </ListItem>
+                              ))}
+                            </List>
+                          </Box>
+                        ))}
+                      </Stack>
                     ) : (
                       <List disablePadding>
                         {locationItems.map((it) => (
@@ -563,9 +1008,9 @@ export const LocationsPage: React.FC = () => {
                             </ListItemIcon>
                             <ListItemText
                               primary={it.name}
-                              secondary={`${it.category_name || "Uncategorized"}${it.location_path ? ` • ${it.location_path}` : ""}${
-                                getItemQuantity(it) > 1 ? ` • Qty: ${getItemQuantity(it)}` : ""
-                              }`}
+                              secondary={`${it.category_name || "Uncategorized"}${
+                                it.location_path ? ` • ${it.location_path}` : ""
+                              }${getItemQuantity(it) > 1 ? ` • Qty: ${getItemQuantity(it)}` : ""}`}
                             />
                             {it.taken_out && (
                               <Chip
@@ -585,7 +1030,7 @@ export const LocationsPage: React.FC = () => {
             ) : (
               <Card sx={{ p: 4, textAlign: "center" }}>
                 <Typography variant="body1" color="text.secondary">
-                  Select a location from the tree to view its contents, photos, and print options.
+                  Select a room or storage area from the tree to inspect its shelves, items, and print labels.
                 </Typography>
               </Card>
             )}
@@ -595,8 +1040,14 @@ export const LocationsPage: React.FC = () => {
 
       {/* Add / Edit Dialog */}
       <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="sm" fullWidth fullScreen={isMobile}>
-        <DialogTitle>{editingLoc ? "Edit Location" : "New Location"}</DialogTitle>
-        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2.5, pt: "24px !important" }}>
+        <DialogTitle>
+          {editingLoc
+            ? "Edit Location"
+            : locationRole === "room"
+              ? "New Room / Storage Place"
+              : "New Shelf / Storage Area"}
+        </DialogTitle>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2.25, pt: "16px !important" }}>
           <AlertDialog
             open={Boolean(errorMsg)}
             onClose={() => setErrorMsg(null)}
@@ -605,15 +1056,42 @@ export const LocationsPage: React.FC = () => {
             severity="error"
           />
 
+          <Box>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.75 }}>
+              Hierarchy Tier
+            </Typography>
+            <ToggleButtonGroup
+              exclusive
+              fullWidth
+              size="small"
+              value={locationRole}
+              onChange={(_, val) => {
+                if (val) handleRoleSwitch(val);
+              }}
+            >
+              <ToggleButton value="room">
+                <MeetingRoomOutlinedIcon fontSize="small" sx={{ mr: 0.75 }} />
+                Room / Separate Place
+              </ToggleButton>
+              <ToggleButton value="area">
+                <ShelvesIcon fontSize="small" sx={{ mr: 0.75 }} />
+                Shelf / Storage Area
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+
           <TextField
-            label="Location Name"
-            placeholder="e.g. Master Bedroom, Top Shelf, Tool Box A"
+            label={locationRole === "room" ? "Room / Place Name" : "Shelf / Storage Area Name"}
+            placeholder={
+              locationRole === "room"
+                ? "e.g. Kitchen, Garage, Spare Store Room"
+                : "e.g. Top Shelf, Corner Storage Area, Tool Drawer"
+            }
             value={name}
             onChange={(e) => setName(e.target.value)}
             fullWidth
             required
             autoFocus
-            sx={{ mt: 1 }}
           />
 
           <FormControl fullWidth>
@@ -624,13 +1102,135 @@ export const LocationsPage: React.FC = () => {
               label="Kind / Type"
               onChange={(e) => setKind(e.target.value)}
             >
-              {SUGGESTED_KINDS.map((k) => (
+              {(locationRole === "room" ? ROOM_GROUP_KINDS : STORAGE_AREA_KINDS).map((k) => (
                 <MenuItem key={k} value={k}>
                   {k}
                 </MenuItem>
               ))}
             </Select>
           </FormControl>
+
+          <LocationPicker
+            value={parentTargetId}
+            onChange={(val) => setParentTargetId(val)}
+            excludeId={editingLoc?.id}
+            roomsOnly={locationRole === "room"}
+            label={
+              locationRole === "room"
+                ? "Parent Grouping Space (Optional)"
+                : "Inside Room / Parent Location"
+            }
+            emptyLabel={
+              locationRole === "room"
+                ? "Top Level (Primary Room / Place)"
+                : "None (Standalone Container)"
+            }
+            helperText={
+              locationRole === "room"
+                ? "Rooms stay at the top grouping tier above shelves and storage areas."
+                : "Assign this shelf or storage area inside a Room so items roll up under it."
+            }
+          />
+
+          {locationRole === "room" && (
+            <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 1.5 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={storageOnly}
+                    onChange={(e) => {
+                      const next = e.target.checked;
+                      setStorageOnly(next);
+                      if (next) setStarterChildren([]);
+                    }}
+                    disabled={Boolean(editingLoc?.children_count > 0)}
+                  />
+                }
+                label={
+                  <Box>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      Separate storage-only place (no sub-shelves needed)
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Store items directly inside this room without subdividing it into shelves.
+                    </Typography>
+                  </Box>
+                }
+              />
+
+              {!editingLoc && !storageOnly && (
+                <Box sx={{ mt: 1.5, pt: 1.5, borderTop: "1px solid", borderColor: "divider" }}>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 1,
+                      flexWrap: "wrap",
+                      mb: starterChildren.length > 0 ? 1 : 0,
+                    }}
+                  >
+                    <Typography variant="caption" sx={{ fontWeight: 700 }}>
+                      Starter Shelves / Storage Areas (Optional)
+                    </Typography>
+                    <Box sx={{ display: "flex", gap: 0.75 }}>
+                      <Button size="small" onClick={() => handleAddStarterChild("Shelf")}>
+                        + Shelf
+                      </Button>
+                      <Button size="small" onClick={() => handleAddStarterChild("Storage Area")}>
+                        + Storage Area
+                      </Button>
+                    </Box>
+                  </Box>
+
+                  {starterChildren.length > 0 && (
+                    <Stack spacing={1}>
+                      {starterChildren.map((row, idx) => (
+                        <Box key={row.key} sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                          <TextField
+                            size="small"
+                            placeholder={`Shelf / Area ${idx + 1} name`}
+                            value={row.name}
+                            onChange={(e) =>
+                              setStarterChildren((prev) =>
+                                prev.map((r) => (r.key === row.key ? { ...r, name: e.target.value } : r))
+                              )
+                            }
+                            sx={{ flex: 1 }}
+                          />
+                          <Select
+                            size="small"
+                            value={row.kind}
+                            onChange={(e) =>
+                              setStarterChildren((prev) =>
+                                prev.map((r) => (r.key === row.key ? { ...r, kind: e.target.value } : r))
+                              )
+                            }
+                            sx={{ minWidth: 130 }}
+                          >
+                            {STORAGE_AREA_KINDS.map((k) => (
+                              <MenuItem key={k} value={k}>
+                                {k}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            onClick={() =>
+                              setStarterChildren((prev) => prev.filter((r) => r.key !== row.key))
+                            }
+                          >
+                            <DeleteOutlinedIcon fontSize="small" />
+                          </IconButton>
+                        </Box>
+                      ))}
+                    </Stack>
+                  )}
+                </Box>
+              )}
+            </Paper>
+          )}
 
           <TextField
             label="Notes (Optional)"
@@ -643,9 +1243,118 @@ export const LocationsPage: React.FC = () => {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleSaveLocation}>
-            Save
+          <Button onClick={() => setDialogOpen(false)} disabled={isSaving}>
+            Cancel
+          </Button>
+          {!editingLoc && locationRole === "area" && parentTargetId && (
+            <Button
+              variant="outlined"
+              onClick={() => void handleSaveLocation(true)}
+              disabled={isSaving}
+            >
+              Save & Add Another
+            </Button>
+          )}
+          <Button variant="contained" onClick={() => void handleSaveLocation(false)} disabled={isSaving}>
+            {isSaving ? "Saving..." : "Save"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Batch Add Shelves / Storage Areas Modal */}
+      <Dialog
+        open={Boolean(batchParent)}
+        onClose={() => !batchSaving && setBatchParent(null)}
+        maxWidth="sm"
+        fullWidth
+        fullScreen={isMobile}
+      >
+        <DialogTitle>Add Shelves & Storage Areas in {batchParent?.name}</DialogTitle>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: "16px !important" }}>
+          {batchError && (
+            <Alert severity="error" onClose={() => setBatchError(null)}>
+              {batchError}
+            </Alert>
+          )}
+          <Typography variant="body2" color="text.secondary">
+            Add one or multiple shelves, storage areas, cupboards, or racks grouped under{" "}
+            <strong>{batchParent?.name}</strong>.
+          </Typography>
+          <Stack spacing={1.25}>
+            {batchRows.map((row, idx) => (
+              <Box key={row.key} sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+                <TextField
+                  size="small"
+                  autoFocus={idx === 0}
+                  placeholder={`e.g. Shelf ${idx + 1} or North Storage Area`}
+                  value={row.name}
+                  onChange={(e) =>
+                    setBatchRows((prev) =>
+                      prev.map((r) => (r.key === row.key ? { ...r, name: e.target.value } : r))
+                    )
+                  }
+                  sx={{ flex: 1 }}
+                />
+                <Select
+                  size="small"
+                  value={row.kind}
+                  onChange={(e) =>
+                    setBatchRows((prev) =>
+                      prev.map((r) => (r.key === row.key ? { ...r, kind: e.target.value } : r))
+                    )
+                  }
+                  sx={{ minWidth: 135 }}
+                >
+                  {STORAGE_AREA_KINDS.map((k) => (
+                    <MenuItem key={k} value={k}>
+                      {k}
+                    </MenuItem>
+                  ))}
+                </Select>
+                <IconButton
+                  size="small"
+                  color="error"
+                  onClick={() => setBatchRows((prev) => prev.filter((r) => r.key !== row.key))}
+                  disabled={batchRows.length <= 1}
+                >
+                  <DeleteOutlinedIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            ))}
+          </Stack>
+          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+            <Button
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={() =>
+                setBatchRows((prev) => [
+                  ...prev,
+                  { key: `b-${Date.now()}-${prev.length + 1}`, name: "", kind: "Shelf" },
+                ])
+              }
+            >
+              Add Shelf Row
+            </Button>
+            <Button
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={() =>
+                setBatchRows((prev) => [
+                  ...prev,
+                  { key: `b-${Date.now()}-${prev.length + 1}`, name: "", kind: "Storage Area" },
+                ])
+              }
+            >
+              Add Storage Area Row
+            </Button>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBatchParent(null)} disabled={batchSaving}>
+            Cancel
+          </Button>
+          <Button variant="contained" onClick={() => void handleSaveBatchChildren()} disabled={batchSaving}>
+            {batchSaving ? "Adding..." : "Save Shelves / Areas"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -668,7 +1377,18 @@ export const LocationsPage: React.FC = () => {
             value={targetParentId}
             onChange={(newParent) => setTargetParentId(newParent)}
             excludeId={movingLoc?.id}
-            label="New Parent Location"
+            roomsOnly={isRoomKind(movingLoc?.kind)}
+            label={isRoomKind(movingLoc?.kind) ? "New Parent Grouping Space" : "New Parent Room / Location"}
+            emptyLabel={
+              isRoomKind(movingLoc?.kind)
+                ? "Top Level (Primary Room / Place)"
+                : "None / Top Level"
+            }
+            helperText={
+              isRoomKind(movingLoc?.kind)
+                ? "Rooms are higher grouping spaces and cannot be nested under shelves or boxes."
+                : undefined
+            }
           />
         </DialogContent>
         <DialogActions>

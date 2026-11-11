@@ -62,6 +62,7 @@ class Location(Base):
     parent_id = Column(Integer, ForeignKey("locations.id", ondelete="RESTRICT"), nullable=True)
     name = Column(String, nullable=False)
     kind = Column(String, nullable=False, default="Room")
+    storage_only = Column(Integer, nullable=False, default=0)
     notes = Column(Text, nullable=True)
     sort_order = Column(Integer, nullable=False, default=0)
     created_at = Column(String, nullable=False, default=utc_now_iso)

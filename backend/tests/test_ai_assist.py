@@ -283,3 +283,36 @@ def test_ai_location_hierarchy_generate_and_commit_handles_order_and_cycles(clie
     assert com.json()["created_count"] == 4
     top_shelf = db_session.query(Location).filter(Location.name == "Top Shelf").first()
     assert top_shelf is not None and top_shelf.parent.name == "Pantry Cupboard"
+
+
+def test_ai_location_hierarchy_promotes_rooms_and_preserves_storage_only(client, db_session, monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    calls = []
+    fake_payload = {
+        "summary": "Separate store room plus garage with storage area.",
+        "nodes": [
+            {"temp_id": "g1", "parent_temp_id": "", "name": "Garage", "kind": "Garage", "storage_only": False, "notes": ""},
+            {"temp_id": "sa1", "parent_temp_id": "g1", "name": "Left Storage Area", "kind": "Storage Area", "storage_only": False, "notes": ""},
+            {"temp_id": "bad_room", "parent_temp_id": "sa1", "name": "Attic Room", "kind": "Room", "storage_only": True, "notes": ""},
+        ],
+    }
+    monkeypatch.setattr(
+        ai_inventory_service,
+        "_create_genai_client",
+        lambda _k: _FakeGenaiClient(fake_payload, calls),
+    )
+
+    gen = client.post(
+        "/api/ai/locations/generate",
+        data={"prompt": "Garage with storage area, plus separate storage-only attic room", "create": "true"},
+    )
+    assert gen.status_code == 200
+    data = gen.json()
+    assert data["created"] is True
+    by_name = {loc["name"]: loc for loc in data["created_locations"]}
+    assert by_name["Garage"]["is_room"] is True
+    assert by_name["Left Storage Area"]["kind"] == "Storage Area"
+    assert by_name["Left Storage Area"]["parent_id"] == by_name["Garage"]["id"]
+    # AI mistakenly tried nesting Room under Storage Area -> promoted to top level & storage_only preserved
+    assert by_name["Attic Room"]["parent_id"] is None
+    assert by_name["Attic Room"]["storage_only"] is True

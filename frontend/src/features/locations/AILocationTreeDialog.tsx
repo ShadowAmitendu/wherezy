@@ -35,37 +35,23 @@ import {
 import { AiCapturePanel } from "../../components/shared/AiCapturePanel";
 import { useAiMediaRecorder } from "../../components/shared/useAiMediaRecorder";
 import { LocationPicker } from "./LocationPicker";
-
-const SUGGESTED_KINDS = [
-  "Room",
-  "Cupboard",
-  "Shelf",
-  "Drawer",
-  "Box",
-  "Bag",
-  "Bin",
-  "Rack",
-  "Garage",
-  "Shed",
-  "Attic",
-  "Basement",
-];
+import { isRoomKind, SUGGESTED_LOCATION_KINDS } from "./locationUtils";
 
 const LOCATION_EXAMPLES = [
   {
-    label: "Apartment setup",
+    label: "Rooms & shelves",
     prompt:
-      "Kitchen with Upper Cupboard (Top Shelf, Mug Rack) and Pantry Cabinet; Bedroom with Wardrobe and Bedside Drawer; Hallway Closet",
+      "Kitchen with Upper Cupboard (Top Shelf, Mug Rack) and Pantry Storage Area; Bedroom with Wardrobe and Bedside Drawer; Store Room for spare luggage only",
   },
   {
     label: "Garage workshop",
     prompt:
-      "Garage with Tool Workbench (Top Drawer, Power Tool Shelf), Overhead Rack with Seasonal Bin A and Camping Box",
+      "Garage with Tool Workbench (Top Drawer, Power Tool Shelf), Camping Storage Area with Seasonal Bin A and Tent Bag",
   },
   {
-    label: "Storage cupboard",
+    label: "Separate storage room",
     prompt:
-      "Linen Cupboard containing Shelf 1 Bedding, Shelf 2 Towels, and Bottom Basket for Toiletries",
+      "Utility Storage Room (standalone storage space); Basement with Holiday Storage Area, Wall Rack Shelf 1, Wall Rack Shelf 2",
   },
 ];
 
@@ -249,8 +235,8 @@ export const AILocationTreeDialog: React.FC<AILocationTreeDialogProps> = ({
   const handleAddNode = (parentTempId: string | null) => {
     const parentNode = reviewNodes.find((n) => n.temp_id === parentTempId);
     const defaultKind = parentNode
-      ? parentNode.kind === "Room"
-        ? "Cupboard"
+      ? isRoomKind(parentNode.kind)
+        ? "Storage Area"
         : parentNode.kind === "Cupboard"
           ? "Shelf"
           : "Box"
@@ -262,6 +248,7 @@ export const AILocationTreeDialog: React.FC<AILocationTreeDialogProps> = ({
         parent_temp_id: parentTempId,
         name: "",
         kind: defaultKind,
+        storage_only: false,
         notes: null,
       },
     ]);
@@ -348,8 +335,8 @@ export const AILocationTreeDialog: React.FC<AILocationTreeDialogProps> = ({
           <Fade in>
             <Stack spacing={2}>
               <Typography variant="body2" color="text.secondary">
-                Describe your rooms, cupboards, shelves, or storage bins via voice or text. AI
-                will build and nest your complete location tree automatically.
+                Describe your rooms, storage areas, cupboards, shelves, or standalone storage rooms via
+                voice or text. AI treats Rooms as higher grouping places above shelves and storage areas.
               </Typography>
 
               <LocationPicker
@@ -456,15 +443,29 @@ export const AILocationTreeDialog: React.FC<AILocationTreeDialogProps> = ({
                           <Select
                             size="small"
                             value={
-                              SUGGESTED_KINDS.includes(node.kind) ? node.kind : SUGGESTED_KINDS[0]
+                              SUGGESTED_LOCATION_KINDS.includes(node.kind as any)
+                                ? node.kind
+                                : SUGGESTED_LOCATION_KINDS[0]
                             }
-                            onChange={(e) =>
-                              handleUpdateNode(node.temp_id, { kind: e.target.value })
-                            }
-                            sx={{ minWidth: 120 }}
+                            onChange={(e) => {
+                              const nextKind = e.target.value;
+                              const nextIsRoom = isRoomKind(nextKind);
+                              const parentNode = reviewNodes.find(
+                                (p) => p.temp_id === node.parent_temp_id
+                              );
+                              handleUpdateNode(node.temp_id, {
+                                kind: nextKind,
+                                storage_only: nextIsRoom ? Boolean(node.storage_only) : false,
+                                parent_temp_id:
+                                  nextIsRoom && parentNode && !isRoomKind(parentNode.kind)
+                                    ? null
+                                    : node.parent_temp_id,
+                              });
+                            }}
+                            sx={{ minWidth: 130 }}
                             disabled={isWorking}
                           >
-                            {SUGGESTED_KINDS.map((k) => (
+                            {SUGGESTED_LOCATION_KINDS.map((k) => (
                               <MenuItem key={k} value={k}>
                                 {k}
                               </MenuItem>
@@ -486,13 +487,31 @@ export const AILocationTreeDialog: React.FC<AILocationTreeDialogProps> = ({
                               <em>{rootParentId ? "Selected Anchor" : "Top Level"}</em>
                             </MenuItem>
                             {reviewNodes
-                              .filter((cand) => !blockedParents.has(cand.temp_id))
+                              .filter(
+                                (cand) =>
+                                  !blockedParents.has(cand.temp_id) &&
+                                  (!isRoomKind(node.kind) || isRoomKind(cand.kind))
+                              )
                               .map((cand) => (
                                 <MenuItem key={cand.temp_id} value={cand.temp_id}>
                                   Inside: {cand.name || cand.temp_id}
                                 </MenuItem>
                               ))}
                           </Select>
+                          {isRoomKind(node.kind) &&
+                            !reviewNodes.some((c) => c.parent_temp_id === node.temp_id) && (
+                              <Chip
+                                size="small"
+                                label={node.storage_only ? "Storage-only place" : "Room group"}
+                                color={node.storage_only ? "secondary" : "primary"}
+                                variant={node.storage_only ? "filled" : "outlined"}
+                                onClick={() =>
+                                  handleUpdateNode(node.temp_id, {
+                                    storage_only: !node.storage_only,
+                                  })
+                                }
+                              />
+                            )}
                           <TextField
                             size="small"
                             label="Notes"

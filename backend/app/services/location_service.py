@@ -1,7 +1,92 @@
-from typing import List, Optional, Set
+from dataclasses import dataclass
+from typing import Dict, List, Optional, Sequence, Set, Tuple
+from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from backend.app.models import Location
 from backend.app.schemas import LocationBreadcrumb
+
+ROOM_GROUP_KINDS: Tuple[str, ...] = (
+    "Room",
+    "Storage Room",
+    "Garage",
+    "Shed",
+    "Attic",
+    "Basement",
+)
+STORAGE_AREA_KINDS: Tuple[str, ...] = (
+    "Storage Area",
+    "Shelf",
+    "Cupboard",
+    "Closet",
+    "Rack",
+    "Drawer",
+    "Box",
+    "Bin",
+    "Bag",
+)
+ALLOWED_LOCATION_KINDS: Tuple[str, ...] = ROOM_GROUP_KINDS + STORAGE_AREA_KINDS
+LOCATION_KIND_BY_LOWER: Dict[str, str] = {k.lower(): k for k in ALLOWED_LOCATION_KINDS}
+ROOM_KIND_SET_LOWER: Set[str] = {k.lower() for k in ROOM_GROUP_KINDS}
+
+
+@dataclass(frozen=True)
+class LocationNodeMetrics:
+    direct_items_count: int
+    total_items_count: int
+    children_count: int
+    room_id: Optional[int]
+    room_name: Optional[str]
+
+
+def is_room_kind(kind: Optional[str]) -> bool:
+    """Return True when kind represents a room or top-level grouping space."""
+    return (kind or "").strip().lower() in ROOM_KIND_SET_LOWER
+
+
+def normalize_location_kind(raw_kind: Optional[str], default: str = "Room") -> str:
+    """Normalize a known kind casing or preserve a custom non-empty kind cleanly."""
+    cleaned = (raw_kind or "").strip()
+    if not cleaned:
+        return default
+    return LOCATION_KIND_BY_LOWER.get(cleaned.lower(), cleaned)
+
+
+def validate_location_hierarchy(
+    db: Session,
+    kind: Optional[str],
+    parent_id: Optional[int],
+) -> Optional[Location]:
+    """Ensure parent exists and prevent Rooms from being nested inside shelves or containers."""
+    if parent_id is None:
+        return None
+
+    parent = (
+        db.query(Location)
+        .filter(Location.id == parent_id, Location.deleted_at.is_(None))
+        .first()
+    )
+    if not parent:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": {"code": "PARENT_NOT_FOUND", "message": "Parent location not found"}},
+        )
+
+    if is_room_kind(kind) and not is_room_kind(parent.kind):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={
+                "error": {
+                    "code": "INVALID_HIERARCHY",
+                    "message": (
+                        f"A {normalize_location_kind(kind)} is a higher grouping element and cannot be placed "
+                        f"inside '{parent.name}' ({parent.kind}). Place shelves or storage areas inside a Room instead."
+                    ),
+                }
+            },
+        )
+
+    return parent
+
 
 def get_descendant_location_ids(db: Session, location_id: int) -> Set[int]:
     """Return all descendant location IDs including location_id itself."""
@@ -37,6 +122,67 @@ def get_location_breadcrumbs(db: Session, location_id: int) -> List[LocationBrea
         curr_id = loc.parent_id
     crumbs.reverse()
     return crumbs
+
+
+def get_root_room(db: Session, location_id: Optional[int]) -> Optional[LocationBreadcrumb]:
+    """Return the outermost Room-tier ancestor (or self) for a location, if any."""
+    if not location_id:
+        return None
+    crumbs = get_location_breadcrumbs(db, location_id)
+    for crumb in crumbs:
+        if is_room_kind(crumb.kind):
+            return crumb
+    return None
+
+
+def compute_location_tree_metrics(
+    nodes: Sequence[Location],
+    direct_counts_map: Dict[int, int],
+) -> Dict[int, LocationNodeMetrics]:
+    """Compute rolled-up item totals, child counts, and enclosing Room for active locations."""
+    children_by_parent: Dict[Optional[int], List[Location]] = {}
+    for node in nodes:
+        children_by_parent.setdefault(node.parent_id, []).append(node)
+
+    metrics: Dict[int, LocationNodeMetrics] = {}
+    visiting: Set[int] = set()
+
+    def walk(node: Location, active_room: Optional[Tuple[int, str]]) -> int:
+        if node.id in metrics:
+            return metrics[node.id].total_items_count
+        if node.id in visiting:
+            return direct_counts_map.get(node.id, 0)
+
+        visiting.add(node.id)
+        next_room = active_room
+        if next_room is None and is_room_kind(node.kind):
+            next_room = (node.id, node.name)
+
+        children = children_by_parent.get(node.id, [])
+        direct_cnt = int(direct_counts_map.get(node.id, 0) or 0)
+        total_cnt = direct_cnt
+        for child in children:
+            total_cnt += walk(child, next_room)
+
+        metrics[node.id] = LocationNodeMetrics(
+            direct_items_count=direct_cnt,
+            total_items_count=total_cnt,
+            children_count=len(children),
+            room_id=next_room[0] if next_room else None,
+            room_name=next_room[1] if next_room else None,
+        )
+        visiting.remove(node.id)
+        return total_cnt
+
+    for root in children_by_parent.get(None, []):
+        walk(root, None)
+
+    for node in nodes:
+        if node.id not in metrics:
+            walk(node, None)
+
+    return metrics
+
 
 def get_location_path_str(db: Session, location_id: int) -> str:
     crumbs = get_location_breadcrumbs(db, location_id)
