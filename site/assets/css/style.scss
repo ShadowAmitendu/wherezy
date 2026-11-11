@@ -52,13 +52,35 @@ aside#sidebar nav.collection-nav a.is-active {
   color: #222;
 }
 
+#main-content table {
+  display: block;
+  width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin: 14px 0 20px;
+}
+
 #main-content th,
 #main-content td {
   text-align: left;
   padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+  vertical-align: top;
 }
 
 #main-content th {
   font-weight: 700;
   background-color: #f7fafc;
+}
+
+#main-content blockquote {
+  border-left: 4px solid #2879d0;
+  background-color: #f8fbff;
+  padding: 10px 14px;
+  margin: 14px 0;
+  color: #334155;
+}
+
+#main-content h2 {
+  margin-top: 28px;
 }

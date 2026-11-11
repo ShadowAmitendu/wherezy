@@ -1,8 +1,8 @@
 ---
 layout: default
 title: Category Templates
-nav_order: 5
-summary: 27 ready-to-use starter templates including Indian household and festival categories.
+nav_order: 7
+summary: 27 ready-to-use starter templates including household, tools, documents, and seasonal/festival categories.
 ---
 
 # Built-In Category Templates

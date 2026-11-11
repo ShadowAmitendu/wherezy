@@ -1,54 +1,77 @@
 ---
 layout: default
-title: Instructions
-nav_order: 4
-summary: Quickstart setup, Local LLM (Ollama/LM Studio), Gemini API, and LAN mobile scanning.
+title: Getting Started & Setup
+nav_order: 1
+summary: Install Wherezy, choose your network/HTTPS mode, change the starter PIN, and organize your home.
 ---
 
-# Setup & Usage Instructions
+# Getting Started & First-Run Setup
 
 [&larr; Back to Overview]({{ '/' | relative_url }})
 
-## 1. Launch Wherezy
-
-- **Desktop Installer / App**: Run `Wherezy-Setup-2.2.2.exe` (Windows) or open `Wherezy.app` (macOS) to launch the controller window. By default it binds to `127.0.0.1` over HTTP (`http://127.0.0.1:8000`) to avoid firewall or cert prompts; use the first-run notice or **Host** / **Enable HTTPS (TLS)** toggle whenever you want LAN phone access.
-- **Terminal / Server CLI**:
-  ```bash
-  Wherezy.exe --headless --host 0.0.0.0 --port 8000 --https --open
-  # Override port and database directory:
-  Wherezy.exe --port 8080 --data-dir ./wherezy-data
-  ```
-- **Default Credentials**: Pick the **Admin** profile, enter the starter PIN (`0000`), and change your PIN immediately in **Settings &rsaquo; Profiles & Security**.
+Follow this step-by-step guide to go from download to a working household inventory on your PC and phones.
 
 ---
 
-## 2. Configure Private AI (Local LLM or Gemini API)
+## Step 1: Choose How to Run Wherezy
 
-### Option A: Local LLM (100% Offline via Ollama or LM Studio)
+| Method | Best For | What You Need |
+| :--- | :--- | :--- |
+| **[Windows Installer]({{ '/downloads/' | relative_url }})** (`Wherezy-Setup-2.2.2.exe`) | Windows 10/11 desktop & laptop users | Nothing pre-installed; zero admin rights needed |
+| **[macOS App Bundle]({{ '/downloads/' | relative_url }})** (`Wherezy-2.2.2-macOS.dmg`) | macOS Apple Silicon / desktop users | Drag `Wherezy.app` into Applications |
+| **[Linux Bundle / Docker / pipx]({{ '/downloads/' | relative_url }})** | Ubuntu desktops, home servers, NAS boxes | Tarball, Docker Compose, or Python 3.12+ |
 
-1. Install [Ollama](https://ollama.com) (`ollama pull qwen2.5:7b` or a vision model such as `qwen2.5vl:7b`) or start LM Studio's Local Server.
-2. In Wherezy, open **Settings &rsaquo; AI Assistant Provider** and choose **Local LLM (Ollama / LM Studio / Custom)**.
-3. Select the **Ollama** (`http://127.0.0.1:11434/v1`) or **LM Studio** (`http://127.0.0.1:1234/v1`) preset chip, click **Fetch Models**, optionally enter a Whisper STT model (`whisper-1`), and click **Test Connection** &rarr; **Save AI Settings**.
-
-### Option B: Google Gemini API Key
-
-1. Open **Settings &rsaquo; AI Assistant Provider**, choose **Cloud API Key (Gemini)**, paste your API key, and click **Test Connection** &rarr; **Save AI Settings** (keys are Fernet-encrypted at rest).
-2. Or provide `GEMINI_API_KEY` via environment variable before launching:
-   ```bash
-   GEMINI_API_KEY="AIza..." ./wherezy --headless --open
-   ```
+> **Source Checkout (Developers):** Clone the repo, install Python dependencies (`pip install -r backend/requirements.txt`), build the React UI (`cd frontend && npm install && npm run build`), and start via `python run.py --open` or `.\.venv\Scripts\python.exe -m backend.app.desktop.app`. See [BUILDING.md](https://github.com/ShadowAmitendu/wherezy/blob/main/BUILDING.md) for packaging instructions.
 
 ---
 
-## 3. Phone Access, HTTPS & Scanning Over Wi-Fi
+## Step 2: Pick Your Network & Security Mode on First Launch
 
-1. To connect phones or tablets over Home Wi-Fi, choose **LAN + HTTPS (Camera Ready)** in the first-run notice (or set Host to `0.0.0.0` and turn on **Enable HTTPS (TLS)** in Controller settings).
-2. Open the **LAN / Phone** link (`https://<your-lan-ip>:8000`) on your phone and accept the one-time self-signed certificate prompt — live **Camera Barcode/QR Scanning** and **Voice AI Recording** now work directly in Safari and Chrome!
-3. If using plain HTTP over LAN instead (`http://<your-lan-ip>:8000`), use **Scan &rsaquo; Take Photo of Code** to decode QR or Code 128 barcodes from a camera snapshot, or scan printed item QR labels directly with your phone camera.
+When the **Wherezy Server Controller** opens for the first time, it starts safely bound to `127.0.0.1:8000` over HTTP so **Windows Firewall does not interrupt you** and local browsers load immediately without self-signed certificate prompts.
+
+A one-time **Network & Firewall Notice** lets you choose:
+
+- **Keep `127.0.0.1` Only (HTTP):** Use Wherezy only on the computer running it (fastest, zero firewall or cert prompts).
+- **LAN + HTTPS (Camera Ready):** Binds to `0.0.0.0` so phones/tablets on your home Wi-Fi can connect over encrypted `https://` — unlocks live mobile camera barcode/QR scanning and voice capture.
+- **LAN Only (HTTP):** Binds to `0.0.0.0` over plain `http://` (phones can still scan via the **Take Photo of Code** fallback or printed QR deep links).
+
+You can change **Host** (`127.0.0.1` vs `0.0.0.0`), **Port**, and the **Enable HTTPS (TLS)** toggle switch anytime inside **Server & Startup Settings**.
 
 ---
 
-## 4. Backups & Upgrades
+## Step 3: Sign In and Change the Starter Admin PIN
 
-- **Full Backup**: Go to **Settings &rsaquo; Database & Storage** and click **Download Backup (.zip)** to export `inventory.db`, `photos/`, and `files/`.
-- **Safe Upgrade**: Run a newer installer (e.g. `Wherezy-Setup-2.2.2.exe`) over an older version — user data lives outside the install directory (`%LOCALAPPDATA%\Wherezy\data` on Windows, `~/Library/Application Support/Wherezy/data` on macOS) and Wherezy automatically writes a pre-migration `.bak` copy of `inventory.db` whenever a schema update runs.
+Click **Open Web UI** in the Desktop Controller (or click the **This Computer** link) to open the web interface:
+
+1. Select the **Admin** profile and enter the default starter PIN: **`0000`**.
+2. Open **Account Profile** (`/account`) or **Settings &rsaquo; Profiles & Security** (`/settings`) and set a strong PIN or password right away.
+3. Add profiles for family members (`member` or `viewer`) under **Users** (`/users`) so each person has their own name, avatar, theme, and role permissions. See [Profiles, Roles & HTTPS]({{ '/security-and-profiles/' | relative_url }}).
+
+---
+
+## Step 4: Set Up Your Home Structure
+
+1. **Build Your Rooms & Storage Tree (`/locations`):**
+   - Start with rooms (e.g., *Kitchen*, *Garage*, *Medicine Cabinet*, *Store Room*).
+   - Nest racks, shelves, cupboards, drawers, or labeled boxes underneath them.
+2. **Choose Categories (`/categories`):**
+   - Import any of the **[27 built-in starter templates]({{ '/categories/' | relative_url }})** (like *Medicines*, *Documents*, *Tools*, *Cables & Chargers*, or *Festival Supplies*), or create a custom category with tailored fields.
+3. **Add or Snap Your First Items (`/items` or `/inbox`):**
+   - Add an item directly with location, expiry date, tags, and photos — or drop quick snapshots into the **Quick Capture Inbox** (`/inbox`) to organize later.
+
+---
+
+## Step 5: Connect Phones Over Home Wi-Fi
+
+1. Make sure your controller host is `0.0.0.0` (and enable **Enable HTTPS (TLS)** if you want live camera barcode scanning).
+2. Copy the **LAN / Phone** URL shown in the Desktop Controller (`https://<your-pc-ip>:8000` or `http://<your-pc-ip>:8000`) and open it on your phone's browser on the same Wi-Fi network.
+3. If HTTPS is enabled with Wherezy's automatic self-signed certificate, accept the browser's one-time *"Proceed"* prompt.
+
+---
+
+## Next Steps
+
+- Learn every workflow in the **[User Guide & Workflows]({{ '/features/' | relative_url }})**
+- Print QR/barcode stickers in **[Labels, Barcodes & Scanning]({{ '/labels-and-scanning/' | relative_url }})**
+- Configure offline **Ollama / LM Studio** or **Gemini AI** in **[Private AI Workflows]({{ '/ai-workflows/' | relative_url }})**
+- Set up automatic backups & inspect data locations in **[CLI, Env & Docker Reference]({{ '/configuration/' | relative_url }})**

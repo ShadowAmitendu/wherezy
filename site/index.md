@@ -8,11 +8,39 @@ permalink: /
 
 **Know where everything lives at home — in seconds.**
 
-Wherezy is a lightweight, 100% local and LAN-first household inventory web application packaged with an installable **TTK Bootstrap Desktop Server Controller** (`Wherezy-Setup-2.2.2.exe` / `Wherezy.app`), built-in optional **HTTPS/TLS** (with automatic local SAN certificates for Wi-Fi camera scanning), Python CLI/package (`pipx`), and Docker support. Organize rooms, shelves, and bins, track borrowed tools and expiry dates, print QR and Code 128 barcode labels, and optionally use a **Local LLM** (Ollama / LM Studio) or **Google Gemini API**.
+Wherezy is an open-source, self-hosted household inventory system built for speed, privacy, and everyday practicality inside your own home network. Run it via the one-click **Windows/macOS Desktop App**, **Docker**, or **Python CLI** — with **zero telemetry**, bundled offline fonts, local SQLite storage, printable QR/Code 128 labels, phone scanning, multi-member PIN profiles, and optional AI assistance powered by a local LLM or Gemini.
 
 ---
 
-## Page Collection
+## Why Wherezy?
+
+- **100% Local & Private**: Your database, item photos, PDF receipts, and encrypted AI keys stay on your own computer or NAS — no cloud account or subscription needed.
+- **Built Around Real Household Storage**: Model rooms, cupboards, racks, shelves, boxes, and seasonal bins with custom per-category fields and **27 starter category templates**.
+- **Works Across Desktop & Phones**: Manage everything from a PC browser, print sticker label sheets or paper clipboard audits, and scan items from phones over Wi-Fi (with built-in optional **HTTPS/TLS**).
+- **Safe for Non-Technical Families**: Per-user Windows installer (no admin prompt), visual system tray controller, multi-user profile switcher, 10-second Undo snackbars, activity rollback, and one-click `.zip` backups.
+
+---
+
+## Quick Start in 60 Seconds
+
+- **Windows Desktop**: Download [Wherezy-Setup-2.2.2.exe](https://github.com/ShadowAmitendu/wherezy/releases/latest/download/Wherezy-Setup-2.2.2.exe), run the per-user installer, sign in as **Admin** with starter PIN `0000`, and change your PIN.
+- **macOS Desktop**: Open [Wherezy-2.2.2-macOS.dmg](https://github.com/ShadowAmitendu/wherezy/releases/latest/download/Wherezy-2.2.2-macOS.dmg), drag **Wherezy.app** into **Applications**, and launch from the Menu Bar.
+- **Docker / Home Server**: Run `docker compose up -d --build` (persists state in the `/data` volume on port `8000`).
+- **From Source**: Check [Getting Started & Setup]({{ '/instructions/' | relative_url }}) or the repository [README](https://github.com/ShadowAmitendu/wherezy).
+
+---
+
+## How Wherezy Works
+
+1. **Create Your Spaces**: Add rooms and nested storage containers (`Garage > Rack B > Shelf 2 > Electrical Bin`).
+2. **Pick Categories**: Start from 27 templates (**Medicines**, **Tools**, **Documents**, **Festival Supplies**, **Cables**, etc.) or design custom fields.
+3. **Add or Quick-Capture Items**: Enter items manually, bulk-import CSV/JSON/XLSX, snap photos into the Quick Capture Inbox, or extract details with AI.
+4. **Print Labels & Audit Sheets**: Print `I<id>` / `L<id>` QR + Code 128 barcode sticker sheets or shelf checklists.
+5. **Find, Scan & Track**: Filter by expiry/taken-out status, scan codes from your phone, lend tools to contacts, and restore safely anytime.
+
+---
+
+## Documentation Guide
 
 {% assign doc_pages = site.docs | sort: "nav_order" %}
 {% for doc in doc_pages %}
@@ -31,11 +59,10 @@ Wherezy is a lightweight, 100% local and LAN-first household inventory web appli
 | Python Wheel (`pipx`) | [wherezy-2.2.2-py3-none-any.whl](https://github.com/ShadowAmitendu/wherezy/releases/latest/download/wherezy-2.2.2-py3-none-any.whl) | `pipx install ...` -> `wherezy` or `wherezy-desktop` |
 | Checksums | [SHA256SUMS.txt](https://github.com/ShadowAmitendu/wherezy/releases/latest/download/SHA256SUMS.txt) | Verify download integrity |
 
-See the [Downloads]({{ '/downloads/' | relative_url }}) page for full install commands and Docker instructions.
+See [Downloads & Upgrades]({{ '/downloads/' | relative_url }}) for installation details, SmartScreen/macOS quarantine tips, and upgrade steps.
 
 ---
 
-## Theme Configuration
+## License & Source Code
 
-This showcase site uses GitHub Pages Jekyll with `theme: {{ site.theme }}` configured in `site/_config.yml`.
-To switch to any official [GitHub Pages theme](https://pages.github.com/themes/) (`jekyll-theme-minimal`, `jekyll-theme-cayman`, `jekyll-theme-slate`, `jekyll-theme-tactile`, `minima`, etc.), update the `theme:` field in `site/_config.yml`.
+Wherezy is released under the **MIT License**. Browse the source code, inspect [CLI, Env & Docker Reference]({{ '/configuration/' | relative_url }}), or report issues on [GitHub](https://github.com/ShadowAmitendu/wherezy).

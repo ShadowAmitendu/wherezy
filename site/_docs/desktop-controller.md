@@ -1,8 +1,8 @@
 ---
 layout: default
 title: Desktop & Tray Controller
-nav_order: 2
-summary: Small native controller window, Windows taskbar/tray, macOS menu bar, and Start with OS.
+nav_order: 6
+summary: Native TTK Bootstrap window, tray/menu bar integration, HTTPS toggle, autostart, and port recovery.
 ---
 
 # Desktop & Tray Controller

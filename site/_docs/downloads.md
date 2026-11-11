@@ -1,8 +1,8 @@
 ---
 layout: default
-title: Downloads
-nav_order: 3
-summary: Standalone executables for Windows, Linux, and macOS, plus Python wheel and Docker.
+title: Downloads & Upgrades
+nav_order: 9
+summary: Installers for Windows/macOS, Linux bundle, Python wheel, Docker, upgrades, and checksums.
 ---
 
 # Download Wherezy Packages
