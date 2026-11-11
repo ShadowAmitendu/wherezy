@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -24,6 +24,7 @@ import {
 } from "@mui/material";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { PageHeader } from "../../components/shared/PageHeader";
+import { PhotoCaptureButtons } from "../../components/shared/PhotoCaptureButtons";
 import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 import MoveToInboxIcon from "@mui/icons-material/MoveToInbox";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
@@ -48,8 +49,6 @@ export const InboxPage: React.FC = () => {
   const [sortNotes, setSortNotes] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const loadData = async () => {
     setLoading(true);
     try {
@@ -70,13 +69,8 @@ export const InboxPage: React.FC = () => {
     loadData();
   }, []);
 
-  const handleCaptureClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFilesSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-    const files = Array.from(e.target.files);
+  const handleFilesSelected = async (files: File[]) => {
+    if (files.length === 0) return;
     setUploading(true);
     try {
       await api.quickCapture(files, undefined, defaultLocationId);
@@ -85,7 +79,6 @@ export const InboxPage: React.FC = () => {
       console.error(err);
     } finally {
       setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -130,31 +123,21 @@ export const InboxPage: React.FC = () => {
 
   return (
     <Box sx={{ width: "100%" }}>
-      {/* Hidden native camera capture input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        multiple
-        style={{ display: "none" }}
-        onChange={handleFilesSelected}
-      />
-
       <PageHeader
         title="Quick Capture Inbox"
         subtitle="Snap photos instantly. Assign names, categories, and storage locations when you are ready."
         icon={<MoveToInboxIcon />}
         action={
-          <Button
-            variant="contained"
+          <PhotoCaptureButtons
+            onFilesSelected={handleFilesSelected}
+            loading={uploading}
             size="large"
-            startIcon={uploading ? <CircularProgress size={20} color="inherit" /> : <PhotoCameraIcon />}
-            onClick={handleCaptureClick}
-            disabled={uploading}
-          >
-            {uploading ? "Uploading..." : "Snap / Upload Photo"}
-          </Button>
+            cameraLabel="Snap Photo"
+            uploadLabel="Upload Photo"
+            loadingLabel="Uploading..."
+            cameraVariant="contained"
+            uploadVariant="outlined"
+          />
         }
       />
 
@@ -181,11 +164,18 @@ export const InboxPage: React.FC = () => {
           <CheckIcon color="success" sx={{ fontSize: 56, mb: 1 }} />
           <Typography variant="h6">Inbox is Clear</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
-            Tap &quot;Snap / Upload Photo&quot; above to capture items straight into this inbox.
+            Snap a photo with your camera or upload images from your device to capture items straight into this inbox.
           </Typography>
-          <Button variant="outlined" startIcon={<PhotoCameraIcon />} onClick={handleCaptureClick}>
-            Capture First Item
-          </Button>
+          <PhotoCaptureButtons
+            onFilesSelected={handleFilesSelected}
+            loading={uploading}
+            cameraLabel="Snap Photo"
+            uploadLabel="Upload Photo"
+            loadingLabel="Uploading..."
+            cameraVariant="outlined"
+            uploadVariant="outlined"
+            sx={{ justifyContent: "center" }}
+          />
         </Card>
       ) : (
         <Grid container spacing={2.5}>

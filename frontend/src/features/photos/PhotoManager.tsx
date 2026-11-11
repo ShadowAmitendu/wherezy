@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Typography,
-  Button,
   IconButton,
   Card,
   CardMedia,
@@ -10,17 +9,15 @@ import {
   Chip,
   Dialog,
   DialogContent,
-  CircularProgress,
   Tooltip,
   Grid,
 } from "@mui/material";
 import { AlertDialog } from "../../components/shared/AlertDialog";
-import AddPhotoAlternateOutlinedIcon from "@mui/icons-material/AddPhotoAlternateOutlined";
+import { PhotoCaptureButtons } from "../../components/shared/PhotoCaptureButtons";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import ZoomInOutlinedIcon from "@mui/icons-material/ZoomInOutlined";
-import PhotoCameraOutlinedIcon from "@mui/icons-material/PhotoCameraOutlined";
 import { api, ApiException } from "../../api/client";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 
@@ -62,9 +59,6 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
   // Delete state
   const [deleteTarget, setDeleteTarget] = useState<Photo | null>(null);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-
   const loadPhotos = async () => {
     if (!ownerId) return;
     try {
@@ -87,29 +81,28 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
     loadPhotos();
   }, [ownerType, ownerId]);
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
+  const handleFilesSelected = async (files: File[]) => {
+    if (files.length === 0) return;
 
     setIsUploading(true);
     setErrorMsg(null);
-
-    for (let i = 0; i < files.length; i++) {
-      try {
-        await api.uploadPhoto(ownerType, ownerId, files[i]);
-      } catch (err: any) {
-        if (err instanceof ApiException) {
-          setErrorMsg(err.error.message);
-        } else {
-          setErrorMsg("Failed to upload photo");
+    try {
+      for (const file of files) {
+        try {
+          await api.uploadPhoto(ownerType, ownerId, file);
+        } catch (err: any) {
+          if (err instanceof ApiException) {
+            setErrorMsg(err.error.message);
+          } else {
+            setErrorMsg("Failed to upload photo");
+          }
+          break;
         }
-        break;
       }
+      await loadPhotos();
+    } finally {
+      setIsUploading(false);
     }
-
-    if (e.target) e.target.value = "";
-    setIsUploading(false);
-    await loadPhotos();
   };
 
   const handleSetCover = async (photoId: number) => {
@@ -134,46 +127,15 @@ export const PhotoManager: React.FC<PhotoManagerProps> = ({
 
   return (
     <Box sx={{ mt: 1 }}>
-      {/* Upload Buttons */}
+      {/* Upload / Camera Buttons */}
       {!readOnly && (
-        <Box sx={{ display: "flex", gap: 1.5, mb: 2, flexWrap: "wrap", alignItems: "center" }}>
-          <input
-            type="file"
-            accept="image/*"
-            multiple
-            style={{ display: "none" }}
-            ref={fileInputRef}
-            onChange={handleFileSelect}
-          />
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            style={{ display: "none" }}
-            ref={cameraInputRef}
-            onChange={handleFileSelect}
-          />
-
-          <Button
-            variant="outlined"
-            startIcon={<AddPhotoAlternateOutlinedIcon />}
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading}
-          >
-            Upload Photo
-          </Button>
-
-          <Button
-            variant="outlined"
-            startIcon={<PhotoCameraOutlinedIcon />}
-            onClick={() => cameraInputRef.current?.click()}
-            disabled={isUploading}
-          >
-            Take Photo
-          </Button>
-
-          {isUploading && <CircularProgress size={24} />}
-        </Box>
+        <PhotoCaptureButtons
+          onFilesSelected={handleFilesSelected}
+          loading={isUploading}
+          cameraLabel="Take Photo"
+          uploadLabel="Upload Photo"
+          sx={{ mb: 2 }}
+        />
       )}
 
       {/* Error Dialog */}
