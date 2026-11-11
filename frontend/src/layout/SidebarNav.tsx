@@ -23,8 +23,8 @@ export interface SidebarNavProps {
 }
 
 /**
- * Compact categorized Material Design navigation list with static category
- * subheaders, keeping icon X-alignment aligned with the AppBar menu button.
+ * Categorized Material Design navigation list using compact link proportions
+ * when expanded and normal spacing/icon sizing in icon-only (mini) mode.
  */
 export const SidebarNav: React.FC<SidebarNavProps> = ({
   categories = NAV_CATEGORIES,
@@ -42,10 +42,10 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
     .filter((category) => category.items.length > 0);
 
   return (
-    <Box component="nav" aria-label="Main navigation" sx={{ py: 0.75 }}>
+    <Box component="nav" aria-label="Main navigation" sx={{ py: isMini ? 1 : 0.75 }}>
       {visibleCategories.map((category, index) => (
         <React.Fragment key={category.id}>
-          {index > 0 && <Divider sx={{ my: 0.75, mx: 2 }} />}
+          {index > 0 && <Divider sx={{ my: isMini ? 1 : 0.75, mx: 2 }} />}
           <List
             disablePadding
             subheader={
@@ -83,8 +83,8 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                       selected={isSelected}
                       onClick={() => onSelectPath(item.path)}
                       sx={{
-                        minHeight: { xs: 40, sm: 36 },
-                        py: 0.5,
+                        minHeight: isMini ? { xs: 46, sm: 44 } : { xs: 40, sm: 36 },
+                        py: isMini ? 1 : 0.5,
                         justifyContent: "initial",
                         px: 2.5,
                         mx: 1,
@@ -103,13 +103,15 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                     >
                       <ListItemIcon
                         sx={{
-                          minWidth: 24,
+                          minWidth: isMini ? 0 : 24,
                           mr: isMini ? 0 : 1.75,
                           justifyContent: "center",
                           color: isSelected ? "inherit" : "text.secondary",
-                          "& svg": {
-                            fontSize: isMini ? 22 : 20,
-                          },
+                          ...(!isMini && {
+                            "& svg": {
+                              fontSize: 20,
+                            },
+                          }),
                         }}
                       >
                         {badgeCount > 0 ? (
