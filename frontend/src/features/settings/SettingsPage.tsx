@@ -170,7 +170,7 @@ export const SettingsPage: React.FC = () => {
     <Box sx={{ width: "100%" }}>
       <PageHeader
         title="Settings & Administration"
-        subtitle="Household security, network addresses, backup/restore, and export options"
+        subtitle="Security, backups, and data export"
         icon={<SettingsOutlinedIcon />}
       />
 

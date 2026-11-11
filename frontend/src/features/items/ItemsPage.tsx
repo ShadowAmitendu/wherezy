@@ -331,7 +331,7 @@ export const ItemsPage: React.FC = () => {
     <Box>
       <PageHeader
         title="Items"
-        subtitle="Browse, search, and manage items in your home inventory"
+        subtitle="Browse, search, and manage items"
         icon={<Inventory2OutlinedIcon />}
         action={
           <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>

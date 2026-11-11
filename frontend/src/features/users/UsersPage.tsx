@@ -283,7 +283,7 @@ export const UsersPage: React.FC = () => {
     <Box>
       <PageHeader
         title="Users & Roles"
-        subtitle="Manage household members, access control, and customizable permission roles"
+        subtitle="Household members and access roles"
         icon={<PeopleOutlinedIcon />}
         action={
           <Button

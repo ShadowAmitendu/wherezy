@@ -58,7 +58,7 @@ export const ExpiryPage: React.FC = () => {
     <Box>
       <PageHeader
         title="Expiry Tracking"
-        subtitle="Keep track of expiration dates on medicines, consumables, warranties, and documents"
+        subtitle="Track upcoming and expired items"
         icon={<EventNoteOutlinedIcon />}
         action={
           <ToggleButtonGroup

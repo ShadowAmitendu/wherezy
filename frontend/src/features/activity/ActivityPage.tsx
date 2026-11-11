@@ -107,7 +107,7 @@ export const ActivityPage: React.FC = () => {
     <Box sx={{ width: "100%" }}>
       <PageHeader
         title="Activity History"
-        subtitle="Household audit trail of item creations, movements, loans, and updates"
+        subtitle="Audit log of household changes"
         icon={<HistoryOutlinedIcon />}
         action={
           <Button variant="outlined" startIcon={<RefreshIcon />} onClick={loadActivity} disabled={loading}>

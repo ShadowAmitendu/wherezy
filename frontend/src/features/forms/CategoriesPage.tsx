@@ -182,7 +182,7 @@ export const CategoriesPage: React.FC = () => {
     <Box>
       <PageHeader
         title="Categories"
-        subtitle="Organize items and configure custom fields for each category"
+        subtitle="Organize items and custom fields"
         icon={<CategoryOutlinedIcon />}
         action={
           <>

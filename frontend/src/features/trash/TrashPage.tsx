@@ -97,7 +97,7 @@ export const TrashPage: React.FC = () => {
       {/* Page Header */}
       <PageHeader
         title="Trash & Recycle Bin"
-        subtitle="Deleted items, locations, and categories can be restored here within 30 days"
+        subtitle="Restore items deleted within 30 days"
         icon={<DeleteOutlinedIcon />}
         action={
           <Box sx={{ display: "flex", gap: 1 }}>

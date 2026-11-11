@@ -179,7 +179,7 @@ export const HealthPage: React.FC = () => {
       {/* Page Title */}
       <PageHeader
         title="Data Health"
-        subtitle="Review and tidy up items missing details, duplicates, or long-expired stock"
+        subtitle="Find missing details and duplicates"
         icon={<HealingOutlinedIcon />}
         action={
           <Button

@@ -213,7 +213,7 @@ export const MovesPage: React.FC = () => {
       {/* Page Header */}
       <PageHeader
         title="Moving House Mode"
-        subtitle="Organize packing into numbered boxes, track progress, and unpack room by room"
+        subtitle="Pack numbered boxes and unpack rooms"
         icon={<LocalShippingOutlinedIcon />}
         action={
           activeMove ? (

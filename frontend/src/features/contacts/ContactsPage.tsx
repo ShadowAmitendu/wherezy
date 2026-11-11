@@ -195,7 +195,7 @@ export const ContactsPage: React.FC = () => {
       {/* Page Header */}
       <PageHeader
         title="Contacts & Lending"
-        subtitle="Keep track of friends, neighbors, and contacts who borrow household tools and items"
+        subtitle="Track contacts who borrow items"
         icon={<PeopleOutlinedIcon />}
         action={
           <Button variant="contained" startIcon={<PersonAddOutlinedIcon />} onClick={handleOpenAdd}>

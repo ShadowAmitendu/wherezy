@@ -53,7 +53,7 @@ export const CategoryDetailPage: React.FC = () => {
         <>
           <PageHeader
             title={category.name}
-            subtitle={`Configure custom fields and form layout for ${category.name}`}
+            subtitle={`Custom fields for ${category.name}`}
             icon={renderMuiIcon(category.icon)}
             action={
               <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>

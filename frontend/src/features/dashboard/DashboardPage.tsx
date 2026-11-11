@@ -69,7 +69,7 @@ export const DashboardPage: React.FC = () => {
     <Box>
       <PageHeader
         title="Dashboard"
-        subtitle="Household inventory summary, items out of place, and upcoming expiries"
+        subtitle="Summary, loans, and upcoming expiries"
         icon={<DashboardOutlinedIcon />}
         action={
           <Button

@@ -132,7 +132,7 @@ export const AccountProfilePage: React.FC = () => {
     <Box sx={{ width: "100%" }}>
       <PageHeader
         title="Account & Profile"
-        subtitle="Manage your personal credentials, appearance, and household preferences"
+        subtitle="Credentials, theme, and preferences"
         icon={<AccountCircleOutlinedIcon />}
       />
 

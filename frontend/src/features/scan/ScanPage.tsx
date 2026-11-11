@@ -123,7 +123,7 @@ export const ScanPage: React.FC = () => {
     <Box sx={{ width: "100%" }}>
       <PageHeader
         title="Scan QR or Barcode"
-        subtitle="Quickly locate items and storage shelves by scanning labels"
+        subtitle="Scan QR or barcode labels"
         icon={<QrCodeScannerIcon />}
       />
 

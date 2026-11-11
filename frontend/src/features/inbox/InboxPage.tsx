@@ -125,7 +125,7 @@ export const InboxPage: React.FC = () => {
     <Box sx={{ width: "100%" }}>
       <PageHeader
         title="Quick Capture Inbox"
-        subtitle="Snap photos instantly. Assign names, categories, and storage locations when you are ready."
+        subtitle="Snap photos now, organize later"
         icon={<MoveToInboxIcon />}
         action={
           <PhotoCaptureButtons

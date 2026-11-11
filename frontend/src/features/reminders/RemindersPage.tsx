@@ -100,7 +100,7 @@ export const RemindersPage: React.FC = () => {
     <Box sx={{ width: "100%" }}>
       <PageHeader
         title="Reminder Centre"
-        subtitle="Automatic tracking for expiry dates, warranties, service intervals, and borrowed loans."
+        subtitle="Expiries, warranties, and due loans"
         icon={<NotificationsActiveOutlinedIcon />}
       />
 

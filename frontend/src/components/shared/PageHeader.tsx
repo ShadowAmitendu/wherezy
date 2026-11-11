@@ -16,15 +16,15 @@ export const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, icon, a
         flexDirection: { xs: "column", sm: "row" },
         justifyContent: "space-between",
         alignItems: { xs: "flex-start", sm: "center" },
-        gap: 2,
-        mb: 3,
+        gap: { xs: 1.5, sm: 2 },
+        mb: { xs: 2.5, sm: 3 },
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
         {icon && (
           <Box
             sx={{
-              display: "flex",
+              display: { xs: "none", sm: "flex" },
               alignItems: "center",
               justifyContent: "center",
               width: 44,
@@ -48,7 +48,11 @@ export const PageHeader: React.FC<PageHeaderProps> = ({ title, subtitle, icon, a
             {title}
           </Typography>
           {subtitle && (
-            <Typography variant="body2" color="text.secondary">
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ fontSize: { xs: "0.8125rem", sm: "0.875rem" } }}
+            >
               {subtitle}
             </Typography>
           )}
