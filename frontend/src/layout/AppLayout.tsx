@@ -635,7 +635,9 @@ export const AppLayout: React.FC = () => {
             transition: (t) =>
               t.transitions.create("width", {
                 easing: t.transitions.easing.sharp,
-                duration: t.transitions.duration.enteringScreen,
+                duration: desktopOpen
+                  ? t.transitions.duration.enteringScreen
+                  : t.transitions.duration.leavingScreen,
               }),
             [`& .MuiDrawer-paper`]: {
               width: currentDesktopWidth,
@@ -647,7 +649,9 @@ export const AppLayout: React.FC = () => {
               transition: (t) =>
                 t.transitions.create("width", {
                   easing: t.transitions.easing.sharp,
-                  duration: t.transitions.duration.enteringScreen,
+                  duration: desktopOpen
+                    ? t.transitions.duration.enteringScreen
+                    : t.transitions.duration.leavingScreen,
                 }),
             },
           }}
@@ -698,7 +702,9 @@ export const AppLayout: React.FC = () => {
           transition: (t) =>
             t.transitions.create(["width", "margin"], {
               easing: t.transitions.easing.sharp,
-              duration: t.transitions.duration.enteringScreen,
+              duration: desktopOpen
+                ? t.transitions.duration.enteringScreen
+                : t.transitions.duration.leavingScreen,
             }),
           mt: { xs: 7, sm: 8 },
           mb: { xs: 8, sm: 0 },

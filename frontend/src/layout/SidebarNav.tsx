@@ -10,6 +10,7 @@ import {
   ListSubheader,
   Badge,
   Tooltip,
+  type Theme,
 } from "@mui/material";
 import { NAV_CATEGORIES, NavCategory } from "./navConfig";
 
@@ -24,7 +25,8 @@ export interface SidebarNavProps {
 
 /**
  * Categorized Material Design navigation list using compact link proportions
- * when expanded and normal spacing/icon sizing in icon-only (mini) mode.
+ * when expanded and normal spacing/icon sizing in icon-only (mini) mode,
+ * animating all sizing, padding, and label transitions cleanly across toggles.
  */
 export const SidebarNav: React.FC<SidebarNavProps> = ({
   categories = NAV_CATEGORIES,
@@ -34,6 +36,16 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   badges = {},
   onSelectPath,
 }) => {
+  const navTransition =
+    (props: string | string[]) =>
+    (theme: Theme): string =>
+      theme.transitions.create(props, {
+        easing: theme.transitions.easing.sharp,
+        duration: isMini
+          ? theme.transitions.duration.leavingScreen
+          : theme.transitions.duration.enteringScreen,
+      });
+
   const visibleCategories = categories
     .map((category) => ({
       ...category,
@@ -42,33 +54,52 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
     .filter((category) => category.items.length > 0);
 
   return (
-    <Box component="nav" aria-label="Main navigation" sx={{ py: isMini ? 1 : 0.75 }}>
+    <Box
+      component="nav"
+      aria-label="Main navigation"
+      sx={{
+        py: isMini ? 1 : 0.75,
+        transition: navTransition(["padding-top", "padding-bottom"]),
+      }}
+    >
       {visibleCategories.map((category, index) => (
         <React.Fragment key={category.id}>
-          {index > 0 && <Divider sx={{ my: isMini ? 1 : 0.75, mx: 2 }} />}
+          {index > 0 && (
+            <Divider
+              sx={{
+                my: isMini ? 1 : 0.75,
+                mx: 2,
+                transition: navTransition(["margin-top", "margin-bottom"]),
+              }}
+            />
+          )}
           <List
             disablePadding
             subheader={
-              !isMini ? (
-                <ListSubheader
-                  disableSticky
-                  sx={{
-                    // px: 3.5 (28px) aligns subheader text cleanly with ListItemIcon below (mx: 1 + px: 2.5)
-                    px: 3.5,
-                    pt: 0.25,
-                    pb: 0.25,
-                    lineHeight: "24px",
-                    fontSize: "0.68rem",
-                    fontWeight: 700,
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
-                    bgcolor: "transparent",
-                    color: "text.secondary",
-                  }}
-                >
-                  {category.title}
-                </ListSubheader>
-              ) : undefined
+              <ListSubheader
+                disableSticky
+                aria-hidden={isMini}
+                sx={{
+                  // px: 3.5 (28px) aligns subheader text cleanly with ListItemIcon below (mx: 1 + px: 2.5)
+                  px: 3.5,
+                  pt: isMini ? 0 : 0.25,
+                  pb: isMini ? 0 : 0.25,
+                  maxHeight: isMini ? 0 : 28,
+                  opacity: isMini ? 0 : 1,
+                  overflow: "hidden",
+                  pointerEvents: isMini ? "none" : "auto",
+                  lineHeight: "24px",
+                  fontSize: "0.68rem",
+                  fontWeight: 700,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  bgcolor: "transparent",
+                  color: "text.secondary",
+                  transition: navTransition(["max-height", "padding-top", "padding-bottom", "opacity"]),
+                }}
+              >
+                {category.title}
+              </ListSubheader>
             }
           >
                 {category.items.map((item) => {
@@ -89,6 +120,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                         px: 2.5,
                         mx: 1,
                         borderRadius: 1,
+                        transition: navTransition(["min-height", "padding-top", "padding-bottom", "background-color"]),
                         "&.Mui-selected": {
                           bgcolor: "primary.main",
                           color: "primary.contrastText",
@@ -103,15 +135,15 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                     >
                       <ListItemIcon
                         sx={{
-                          minWidth: isMini ? 0 : 24,
+                          minWidth: 24,
                           mr: isMini ? 0 : 1.75,
                           justifyContent: "center",
                           color: isSelected ? "inherit" : "text.secondary",
-                          ...(!isMini && {
-                            "& svg": {
-                              fontSize: 20,
-                            },
-                          }),
+                          transition: navTransition("margin-right"),
+                          "& svg": {
+                            fontSize: isMini ? 24 : 20,
+                            transition: navTransition("font-size"),
+                          },
                         }}
                       >
                         {badgeCount > 0 ? (
@@ -122,31 +154,38 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                           item.icon
                         )}
                       </ListItemIcon>
-                      {!isMini && (
-                        <ListItemText
-                          primary={item.label}
-                          sx={{
-                            my: 0,
-                            "& .MuiListItemText-primary": {
-                              fontSize: "0.875rem",
-                              fontWeight: isSelected ? 600 : 500,
-                              whiteSpace: "nowrap",
-                            },
-                          }}
-                        />
-                      )}
+                      <ListItemText
+                        primary={item.label}
+                        aria-hidden={isMini}
+                        sx={{
+                          my: 0,
+                          minWidth: 0,
+                          maxWidth: isMini ? 0 : 180,
+                          opacity: isMini ? 0 : 1,
+                          overflow: "hidden",
+                          transition: navTransition(["opacity", "max-width"]),
+                          "& .MuiListItemText-primary": {
+                            fontSize: "0.875rem",
+                            fontWeight: isSelected ? 600 : 500,
+                            whiteSpace: "nowrap",
+                          },
+                        }}
+                      />
                     </ListItemButton>
                   );
 
                   return (
                     <ListItem key={item.path} disablePadding sx={{ mb: 0.25, display: "block" }}>
-                      {isMini ? (
-                        <Tooltip title={item.label} placement="right" arrow>
-                          {buttonContent}
-                        </Tooltip>
-                      ) : (
-                        buttonContent
-                      )}
+                      <Tooltip
+                        title={item.label}
+                        placement="right"
+                        arrow
+                        disableHoverListener={!isMini}
+                        disableFocusListener={!isMini}
+                        disableTouchListener={!isMini}
+                      >
+                        {buttonContent}
+                      </Tooltip>
                     </ListItem>
                   );
                 })}
