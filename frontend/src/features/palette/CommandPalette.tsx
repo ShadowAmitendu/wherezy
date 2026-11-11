@@ -14,10 +14,12 @@ import {
   Box,
   Chip,
   CircularProgress,
+  IconButton,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
+import CloseIcon from "@mui/icons-material/Close";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
 import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
@@ -92,35 +94,47 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, onClose })
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth fullScreen={isMobile}>
       <DialogContent sx={{ p: 2 }}>
-        <TextField
-          autoFocus
-          fullWidth
-          placeholder="Search items, locations, categories, tags, contacts, actions..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          variant="outlined"
-          size="medium"
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon color="action" />
-                </InputAdornment>
-              ),
-              endAdornment: loading ? (
-                <InputAdornment position="end">
-                  <CircularProgress size={20} />
-                </InputAdornment>
-              ) : (
-                <Chip label="ESC" size="small" variant="outlined" sx={{ height: 20, fontSize: "0.65rem" }} />
-              ),
-            },
-          }}
-          sx={{ mb: 1.5 }}
-        />
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1.5 }}>
+          <TextField
+            autoFocus
+            fullWidth
+            placeholder={isMobile ? "Search inventory..." : "Search items, locations, categories, tags, contacts, actions..."}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            variant="outlined"
+            size="medium"
+            slotProps={{
+              input: {
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon color="action" />
+                  </InputAdornment>
+                ),
+                endAdornment: loading ? (
+                  <InputAdornment position="end">
+                    <CircularProgress size={20} />
+                  </InputAdornment>
+                ) : !isMobile ? (
+                  <Chip
+                    label="ESC"
+                    size="small"
+                    variant="outlined"
+                    onClick={onClose}
+                    sx={{ height: 20, fontSize: "0.65rem", cursor: "pointer" }}
+                  />
+                ) : undefined,
+              },
+            }}
+          />
+          {isMobile && (
+            <IconButton onClick={onClose} aria-label="Close search" size="medium" sx={{ flexShrink: 0 }}>
+              <CloseIcon />
+            </IconButton>
+          )}
+        </Box>
 
         {results.length > 0 ? (
-          <List disablePadding sx={{ maxHeight: 380, overflowY: "auto" }}>
+          <List disablePadding sx={{ maxHeight: isMobile ? "calc(100vh - 110px)" : 380, overflowY: "auto" }}>
             {results.map((r, i) => (
               <ListItem key={i} disablePadding sx={{ mb: 0.5 }}>
                 <ListItemButton
@@ -156,7 +170,13 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ open, onClose })
         ) : (
           <Box sx={{ p: 2, textAlign: "center" }}>
             <Typography variant="caption" color="text.secondary">
-              Tip: Press <kbd style={{ padding: "2px 6px", background: "rgba(128,128,128,0.2)", borderRadius: 4 }}>Ctrl</kbd> + <kbd style={{ padding: "2px 6px", background: "rgba(128,128,128,0.2)", borderRadius: 4 }}>K</kbd> anywhere to quickly search.
+              {isMobile ? (
+                "Type to search items, locations, categories, or contacts."
+              ) : (
+                <>
+                  Tip: Press <kbd style={{ padding: "2px 6px", background: "rgba(128,128,128,0.2)", borderRadius: 4 }}>Ctrl</kbd> + <kbd style={{ padding: "2px 6px", background: "rgba(128,128,128,0.2)", borderRadius: 4 }}>K</kbd> anywhere to quickly search.
+                </>
+              )}
             </Typography>
           </Box>
         )}
