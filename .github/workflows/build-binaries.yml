@@ -46,20 +46,22 @@ jobs:
         run: .\scripts\build_windows.ps1 -Clean
 
       - name: Smoke test frozen Windows bundle (including spaces & non-ASCII path)
-        shell: pwsh
+        shell: bash
+        env:
+          PYTHONUTF8: "1"
         run: |
           python - <<'PY'
           import os, shutil, socket, subprocess, tempfile, time, urllib.request
           from pathlib import Path
 
-          bundle_src = Path("dist/Wherezy")
-          assert (bundle_src / "Wherezy.exe").is_file(), "Missing dist/Wherezy/Wherezy.exe"
+          bundle_src = Path("dist/Wherezy").resolve()
+          assert (bundle_src / "Wherezy.exe").is_file(), f"Missing {bundle_src / 'Wherezy.exe'}"
 
-          root_tmp = Path(tempfile.mkdtemp(prefix="wherezy_win_ci_"))
-          install_sim = root_tmp / "Wherezy Test 用户"
+          root_tmp = Path(tempfile.mkdtemp(prefix="wherezy_win_ci_")).resolve()
+          install_sim = root_tmp / "Wherezy Test \u7528\u6237"
           shutil.copytree(bundle_src, install_sim)
-          exe_path = install_sim / "Wherezy.exe"
-          data_dir = root_tmp / "data dir"
+          exe_path = (install_sim / "Wherezy.exe").resolve()
+          data_dir = (root_tmp / "data dir").resolve()
 
           with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
               s.bind(("127.0.0.1", 0))
@@ -140,10 +142,10 @@ jobs:
           import shutil, socket, subprocess, tempfile, time, urllib.request
           from pathlib import Path
 
-          app_bin = Path("dist/Wherezy.app/Contents/MacOS/Wherezy")
+          app_bin = Path("dist/Wherezy.app/Contents/MacOS/Wherezy").resolve()
           assert app_bin.is_file(), f"Missing binary: {app_bin}"
-          root_tmp = Path(tempfile.mkdtemp(prefix="wherezy_mac_ci_"))
-          data_dir = root_tmp / "data dir"
+          root_tmp = Path(tempfile.mkdtemp(prefix="wherezy_mac_ci_")).resolve()
+          data_dir = (root_tmp / "data dir").resolve()
 
           with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
               s.bind(("127.0.0.1", 0))
@@ -216,10 +218,10 @@ jobs:
           import shutil, socket, subprocess, tempfile, time, urllib.request
           from pathlib import Path
 
-          app_bin = Path("dist/Wherezy/wherezy")
+          app_bin = Path("dist/Wherezy/wherezy").resolve()
           assert app_bin.is_file(), f"Missing binary: {app_bin}"
-          root_tmp = Path(tempfile.mkdtemp(prefix="wherezy_lin_ci_"))
-          data_dir = root_tmp / "data"
+          root_tmp = Path(tempfile.mkdtemp(prefix="wherezy_lin_ci_")).resolve()
+          data_dir = (root_tmp / "data").resolve()
 
           with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
               s.bind(("127.0.0.1", 0))
@@ -241,6 +243,11 @@ jobs:
                       time.sleep(0.5)
               else:
                   raise SystemExit("Timed out waiting for /api/health")
+
+              with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=5) as r:
+                  assert r.status == 200
+                  assert b'<div id="root">' in r.read()
+              assert (data_dir / "inventory.db").is_file()
           finally:
               proc.terminate()
               proc.wait(timeout=10)
