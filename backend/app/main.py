@@ -3,7 +3,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-from backend.app.core.config import FRONTEND_DIST, HOST, PORT, is_frozen
+from backend.app.core.config import APP_VERSION, FRONTEND_DIST, HOST, PORT, is_frozen
 from backend.app.core.migrations import run_migrations
 from backend.app.routers import (
     health, auth, settings, categories, categories_ai, ai_assist, fields,
@@ -21,7 +21,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Wherezy API",
-    version="2.2.1",
+    version=APP_VERSION,
     description="LAN-only Wherezy Household Inventory API v2 with Profiles, Activity, Tags, Reminders, Audits, Inbox, and Moving",
     lifespan=lifespan
 )

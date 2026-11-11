@@ -12,7 +12,12 @@ import webbrowser
 from pathlib import Path
 from typing import Sequence
 
-APP_VERSION = "2.2.1"
+_REPO_CANDIDATE = Path(__file__).resolve().parent.parent.parent
+if (_REPO_CANDIDATE / "backend" / "app").is_dir() and str(_REPO_CANDIDATE) not in sys.path:
+    sys.path.insert(0, str(_REPO_CANDIDATE))
+
+from backend.app.core.logging_setup import configure_logging_and_stdio
+from backend.app.core.version import APP_VERSION
 
 
 class _NullStream:
@@ -43,39 +48,8 @@ def _has_flag(argv: Sequence[str], flags: Sequence[str]) -> bool:
 
 
 def _configure_stdio(raw_args: Sequence[str] | None = None) -> None:
-    """Ensure valid UTF-8 stdio streams even inside Windows GUI (`console=False`) binaries."""
-    args_list = list(raw_args) if raw_args is not None else sys.argv[1:]
-    wants_console_output = _has_flag(
-        args_list,
-        ("-h", "--help", "--version", "--headless", "--cli", "--host", "--port", "--data-dir"),
-    )
-
-    if sys.platform == "win32" and wants_console_output:
-        if sys.stdout is None or sys.stderr is None:
-            try:
-                import ctypes
-
-                if ctypes.windll.kernel32.AttachConsole(-1):
-                    if sys.stdout is None:
-                        sys.stdout = open("CONOUT$", "w", encoding="utf-8", errors="replace", buffering=1)
-                    if sys.stderr is None:
-                        sys.stderr = open("CONOUT$", "w", encoding="utf-8", errors="replace", buffering=1)
-            except Exception:
-                pass
-
-    if sys.stdout is None:
-        sys.stdout = _NullStream()
-    if sys.stderr is None:
-        sys.stderr = _NullStream()
-
-    for stream_name in ("stdout", "stderr"):
-        stream = getattr(sys, stream_name, None)
-        reconfigure = getattr(stream, "reconfigure", None)
-        if callable(reconfigure):
-            try:
-                reconfigure(encoding="utf-8", errors="replace")
-            except Exception:
-                pass
+    """Ensure valid UTF-8 stdio streams and rotating file logs in GUI/frozen launches."""
+    configure_logging_and_stdio(raw_args, fallback_stream_factory=_NullStream)
 
 
 def should_launch_gui(
@@ -90,13 +64,31 @@ def should_launch_gui(
     env = environ if environ is not None else os.environ
     plat = platform or sys.platform
 
-    if _has_flag(args_list, ("-h", "--help", "--version")):
+    if _has_flag(
+        args_list,
+        ("-h", "--help", "--version", "--quit", "--enable-autostart", "--disable-autostart"),
+    ):
         return False
     if _has_flag(args_list, ("--gui", "--tray", "--minimized")):
         return True
     if _has_flag(args_list, ("--headless", "--cli")):
         return False
-    if _has_flag(args_list, ("--host", "--port", "--data-dir", "--reload", "--no-reload")):
+    if _has_flag(
+        args_list,
+        (
+            "--host",
+            "--port",
+            "--data-dir",
+            "--reload",
+            "--no-reload",
+            "--https",
+            "--ssl",
+            "--no-https",
+            "--http",
+            "--ssl-certfile",
+            "--ssl-keyfile",
+        ),
+    ):
         return False
     if default_reload:
         return False
@@ -137,10 +129,22 @@ def apply_cli_env(args: argparse.Namespace) -> None:
         os.environ["PORT"] = port_str
         os.environ["WHEREZY_PORT"] = port_str
 
+    certfile = (getattr(args, "ssl_certfile", None) or "").strip()
+    keyfile = (getattr(args, "ssl_keyfile", None) or "").strip()
+    if certfile:
+        os.environ["WHEREZY_SSL_CERTFILE"] = certfile
+    if keyfile:
+        os.environ["WHEREZY_SSL_KEYFILE"] = keyfile
+    use_https = bool(getattr(args, "https", False) or certfile or keyfile)
+    os.environ["WHEREZY_HTTPS"] = "1" if use_https else "0"
+
 
 def build_parser(default_reload: bool = False) -> argparse.ArgumentParser:
     default_host = os.getenv("WHEREZY_HOST") or os.getenv("HOST") or "0.0.0.0"
     default_port = int(os.getenv("WHEREZY_PORT") or os.getenv("PORT") or "8000")
+    default_https = os.getenv("WHEREZY_HTTPS", "").strip().lower() in {"1", "true", "yes"}
+    default_certfile = os.getenv("WHEREZY_SSL_CERTFILE") or ""
+    default_keyfile = os.getenv("WHEREZY_SSL_KEYFILE") or ""
 
     parser = argparse.ArgumentParser(
         prog="wherezy",
@@ -176,6 +180,31 @@ def build_parser(default_reload: bool = False) -> argparse.ArgumentParser:
         help="Disable Uvicorn auto-reload.",
     )
     parser.add_argument(
+        "--https",
+        "--ssl",
+        dest="https",
+        action="store_true",
+        default=default_https,
+        help="Serve traffic over HTTPS using a local self-signed or custom TLS cert.",
+    )
+    parser.add_argument(
+        "--no-https",
+        "--http",
+        dest="https",
+        action="store_false",
+        help="Disable HTTPS and serve plain HTTP.",
+    )
+    parser.add_argument(
+        "--ssl-certfile",
+        default=default_certfile,
+        help="Path to a PEM TLS certificate file (used with --ssl-keyfile).",
+    )
+    parser.add_argument(
+        "--ssl-keyfile",
+        default=default_keyfile,
+        help="Path to a PEM TLS private key file (used with --ssl-certfile).",
+    )
+    parser.add_argument(
         "--open",
         action="store_true",
         help="Open the web UI in the default browser after startup.",
@@ -203,11 +232,50 @@ def build_parser(default_reload: bool = False) -> argparse.ArgumentParser:
         help="Run headless server directly in terminal without desktop GUI.",
     )
     parser.add_argument(
+        "--quit",
+        action="store_true",
+        help="Ask a running Wherezy desktop instance to quit gracefully and exit.",
+    )
+    parser.add_argument(
+        "--enable-autostart",
+        action="store_true",
+        help="Enable Start with OS/login autostart for the current user and exit.",
+    )
+    parser.add_argument(
+        "--disable-autostart",
+        action="store_true",
+        help="Disable Start with OS/login autostart for the current user and exit.",
+    )
+    parser.add_argument(
         "--version",
         action="version",
         version=f"wherezy {APP_VERSION}",
     )
     return parser
+
+
+def launch_desktop_from_args(args: argparse.Namespace, raw_args: Sequence[str]) -> int:
+    """Invoke the desktop GUI controller using explicit CLI overrides only."""
+    from backend.app.desktop.app import run_desktop_app
+
+    cli_cert = (args.ssl_certfile or "").strip() if _has_flag(raw_args, ("--ssl-certfile",)) else None
+    cli_key = (args.ssl_keyfile or "").strip() if _has_flag(raw_args, ("--ssl-keyfile",)) else None
+    cli_https: bool | None = None
+    if _has_flag(raw_args, ("--https", "--ssl", "--no-https", "--http")):
+        cli_https = bool(args.https)
+    elif cli_cert or cli_key:
+        cli_https = True
+
+    return run_desktop_app(
+        host=args.host if _has_flag(raw_args, ("--host",)) else None,
+        port=args.port if _has_flag(raw_args, ("--port",)) else None,
+        data_dir=args.data_dir,
+        use_https=cli_https,
+        ssl_certfile=cli_cert,
+        ssl_keyfile=cli_key,
+        minimized=bool(args.minimized),
+        open_browser=bool(args.open),
+    )
 
 
 def _ensure_source_import_path() -> None:
@@ -226,18 +294,28 @@ def main(argv: Sequence[str] | None = None, *, default_reload: bool = False) -> 
     parser = build_parser(default_reload=default_reload)
     args = parser.parse_args(raw_args)
 
+    if getattr(args, "quit", False):
+        from backend.app.desktop.app import request_running_instance_quit
+
+        request_running_instance_quit(timeout=5.0)
+        return 0
+
+    if getattr(args, "enable_autostart", False):
+        from backend.app.desktop.autostart import set_autostart_enabled
+
+        set_autostart_enabled(True)
+        return 0
+
+    if getattr(args, "disable_autostart", False):
+        from backend.app.desktop.autostart import set_autostart_enabled
+
+        set_autostart_enabled(False)
+        return 0
+
     explicit_gui = bool(args.gui or args.tray or args.minimized)
     if should_launch_gui(raw_args, default_reload=default_reload):
         try:
-            from backend.app.desktop.app import run_desktop_app
-
-            return run_desktop_app(
-                host=args.host if _has_flag(raw_args, ("--host",)) else None,
-                port=args.port if _has_flag(raw_args, ("--port",)) else None,
-                data_dir=args.data_dir,
-                minimized=bool(args.minimized),
-                open_browser=bool(args.open),
-            )
+            return launch_desktop_from_args(args, raw_args)
         except Exception as exc:
             if explicit_gui:
                 raise
@@ -246,12 +324,28 @@ def main(argv: Sequence[str] | None = None, *, default_reload: bool = False) -> 
     apply_cli_env(args)
 
     from backend.app.core import config as app_config
+    from backend.app.core.tls import get_cert_sha256_fingerprint, resolve_tls_files
+
+    cert_arg = (args.ssl_certfile or "").strip()
+    key_arg = (args.ssl_keyfile or "").strip()
+    use_https = bool(args.https or cert_arg or key_arg)
+    try:
+        cert_path, key_path = resolve_tls_files(
+            https_enabled=use_https,
+            certfile=cert_arg,
+            keyfile=key_arg,
+            bind_host=args.host,
+        )
+    except Exception as exc:
+        print(f"Error configuring HTTPS/TLS certificates: {exc}", file=sys.stderr)
+        return 1
 
     frozen = app_config.is_frozen()
     use_reload = bool(args.reload) and not frozen
     local_ip = get_local_ip()
     browser_host = "localhost" if args.host in ("0.0.0.0", "::", "") else args.host
-    local_url = f"http://{browser_host}:{args.port}"
+    scheme = "https" if cert_path else "http"
+    local_url = f"{scheme}://{browser_host}:{args.port}"
 
     print("")
     print("=" * 60)
@@ -259,13 +353,16 @@ def main(argv: Sequence[str] | None = None, *, default_reload: bool = False) -> 
     print("=" * 60)
     print(f"   Local access : {local_url}")
     if args.host in ("0.0.0.0", "::"):
-        print(f"   LAN access   : http://{local_ip}:{args.port}")
+        print(f"   LAN access   : {scheme}://{local_ip}:{args.port}")
     print(f"   Data dir     : {app_config.DATA_DIR}")
+    if cert_path:
+        print(f"   TLS cert     : {cert_path}")
+        print(f"   TLS SHA-256  : {get_cert_sha256_fingerprint(Path(cert_path))}")
     if (app_config.FRONTEND_DIST / "index.html").is_file():
         print(f"   Web UI       : bundled ({app_config.FRONTEND_DIST})")
     else:
         print("   Web UI       : not built (API-only mode)")
-    print(f"   API docs     : http://localhost:{args.port}/docs")
+    print(f"   API docs     : {scheme}://localhost:{args.port}/docs")
     print("=" * 60)
     print("   Press Ctrl+C to stop the server.\n")
 
@@ -273,6 +370,11 @@ def main(argv: Sequence[str] | None = None, *, default_reload: bool = False) -> 
         threading.Timer(1.5, lambda: webbrowser.open(local_url)).start()
 
     import uvicorn
+
+    ssl_kwargs: dict[str, str] = {}
+    if cert_path and key_path:
+        ssl_kwargs["ssl_certfile"] = cert_path
+        ssl_kwargs["ssl_keyfile"] = key_path
 
     if use_reload:
         repo_root = app_config.resolve_repo_root()
@@ -284,6 +386,7 @@ def main(argv: Sequence[str] | None = None, *, default_reload: bool = False) -> 
             reload=True,
             reload_dirs=reload_dirs,
             log_level="info",
+            **ssl_kwargs,
         )
     else:
         from backend.app.main import app
@@ -294,6 +397,7 @@ def main(argv: Sequence[str] | None = None, *, default_reload: bool = False) -> 
             port=args.port,
             reload=False,
             log_level="info",
+            **ssl_kwargs,
         )
     return 0
 

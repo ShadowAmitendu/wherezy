@@ -4,11 +4,11 @@ title: Overview
 permalink: /
 ---
 
-# Wherezy v2.2.1
+# Wherezy v2.2.2
 
 **Know where everything lives at home — in seconds.**
 
-Wherezy is a lightweight, 100% local and LAN-first household inventory web application packaged with a standalone **TTK Bootstrap Desktop Server Controller** (`wherezy` / `wherezy.exe`), Python CLI/package (`pipx`), and Docker support. Organize rooms, shelves, and bins, track borrowed tools and expiry dates, print QR and Code 128 barcode labels, and optionally use a **Local LLM** (Ollama / LM Studio) or **Google Gemini API**.
+Wherezy is a lightweight, 100% local and LAN-first household inventory web application packaged with an installable **TTK Bootstrap Desktop Server Controller** (`Wherezy-Setup-2.2.2.exe` / `Wherezy.app`), built-in optional **HTTPS/TLS** (with automatic local SAN certificates for Wi-Fi camera scanning), Python CLI/package (`pipx`), and Docker support. Organize rooms, shelves, and bins, track borrowed tools and expiry dates, print QR and Code 128 barcode labels, and optionally use a **Local LLM** (Ollama / LM Studio) or **Google Gemini API**.
 
 ---
 
@@ -21,14 +21,14 @@ Wherezy is a lightweight, 100% local and LAN-first household inventory web appli
 
 ---
 
-## Quick Downloads (`v2.2.1`)
+## Quick Downloads (`v2.2.2`)
 
-| Platform / Format | Package | Launch |
+| Platform / Format | Package | Install / Launch |
 | :--- | :--- | :--- |
-| Windows (`x86_64`) | [wherezy-windows-x86_64.exe](https://github.com/ShadowAmitendu/wherezy/releases/latest/download/wherezy-windows-x86_64.exe) | Double-click for GUI & System Tray, or `wherezy --headless` |
-| Linux (`x86_64`) | [wherezy-linux-x86_64](https://github.com/ShadowAmitendu/wherezy/releases/latest/download/wherezy-linux-x86_64) | `./wherezy-linux-x86_64 --open` |
-| macOS (`arm64`) | [wherezy-macos-arm64](https://github.com/ShadowAmitendu/wherezy/releases/latest/download/wherezy-macos-arm64) | Double-click for Menu Bar Controller, or `./wherezy-macos-arm64 --headless` |
-| Python Wheel (`pipx`) | [wherezy-2.2.1-py3-none-any.whl](https://github.com/ShadowAmitendu/wherezy/releases/latest/download/wherezy-2.2.1-py3-none-any.whl) | `pipx install ...` -> `wherezy` or `wherezy-desktop` |
+| Windows (`x86_64` Installer) | [Wherezy-Setup-2.2.2.exe](https://github.com/ShadowAmitendu/wherezy/releases/latest/download/Wherezy-Setup-2.2.2.exe) | Per-user installer (no admin needed), Start Menu, Tray & optional autostart |
+| macOS (`.dmg`) | [Wherezy-2.2.2-macOS.dmg](https://github.com/ShadowAmitendu/wherezy/releases/latest/download/Wherezy-2.2.2-macOS.dmg) | Drag `Wherezy.app` to Applications; includes Menu Bar Controller |
+| Linux (`x86_64`) | [wherezy-2.2.2-linux-x86_64.tar.gz](https://github.com/ShadowAmitendu/wherezy/releases/latest/download/wherezy-2.2.2-linux-x86_64.tar.gz) | Extract & run `./Wherezy/wherezy --open` |
+| Python Wheel (`pipx`) | [wherezy-2.2.2-py3-none-any.whl](https://github.com/ShadowAmitendu/wherezy/releases/latest/download/wherezy-2.2.2-py3-none-any.whl) | `pipx install ...` -> `wherezy` or `wherezy-desktop` |
 | Checksums | [SHA256SUMS.txt](https://github.com/ShadowAmitendu/wherezy/releases/latest/download/SHA256SUMS.txt) | Verify download integrity |
 
 See the [Downloads]({{ '/downloads/' | relative_url }}) page for full install commands and Docker instructions.

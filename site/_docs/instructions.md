@@ -11,12 +11,12 @@ summary: Quickstart setup, Local LLM (Ollama/LM Studio), Gemini API, and LAN mob
 
 ## 1. Launch Wherezy
 
-- **Desktop GUI**: Double-click `wherezy.exe` / `wherezy` to open the controller window. Click **Start Server**, optionally enable **Start with OS**, and click **Open Web UI**.
+- **Desktop Installer / App**: Run `Wherezy-Setup-2.2.2.exe` (Windows) or open `Wherezy.app` (macOS) to launch the controller window. By default it binds to `127.0.0.1` over HTTP (`http://127.0.0.1:8000`) to avoid firewall or cert prompts; use the first-run notice or **Host** / **Enable HTTPS (TLS)** toggle whenever you want LAN phone access.
 - **Terminal / Server CLI**:
   ```bash
-  ./wherezy --headless --host 0.0.0.0 --port 8000 --open
+  Wherezy.exe --headless --host 0.0.0.0 --port 8000 --https --open
   # Override port and database directory:
-  ./wherezy --port 8080 --data-dir ./wherezy-data
+  Wherezy.exe --port 8080 --data-dir ./wherezy-data
   ```
 - **Default Credentials**: Pick the **Admin** profile, enter the starter PIN (`0000`), and change your PIN immediately in **Settings &rsaquo; Profiles & Security**.
 
@@ -40,14 +40,15 @@ summary: Quickstart setup, Local LLM (Ollama/LM Studio), Gemini API, and LAN mob
 
 ---
 
-## 3. Phone Access & Scanning Over Wi-Fi
+## 3. Phone Access, HTTPS & Scanning Over Wi-Fi
 
-1. Use the **LAN / Phone** link shown in the Desktop Controller (`http://<your-lan-ip>:8000`) from any phone or tablet on the same Wi-Fi network.
-2. Over plain HTTP LAN connections, use **Scan &rsaquo; Take Photo of Code** to decode QR or Code 128 barcodes from a camera photo — or scan printed item QR labels directly with your phone camera to jump to `/#/i/<id>`.
+1. To connect phones or tablets over Home Wi-Fi, choose **LAN + HTTPS (Camera Ready)** in the first-run notice (or set Host to `0.0.0.0` and turn on **Enable HTTPS (TLS)** in Controller settings).
+2. Open the **LAN / Phone** link (`https://<your-lan-ip>:8000`) on your phone and accept the one-time self-signed certificate prompt — live **Camera Barcode/QR Scanning** and **Voice AI Recording** now work directly in Safari and Chrome!
+3. If using plain HTTP over LAN instead (`http://<your-lan-ip>:8000`), use **Scan &rsaquo; Take Photo of Code** to decode QR or Code 128 barcodes from a camera snapshot, or scan printed item QR labels directly with your phone camera.
 
 ---
 
 ## 4. Backups & Upgrades
 
 - **Full Backup**: Go to **Settings &rsaquo; Database & Storage** and click **Download Backup (.zip)** to export `inventory.db`, `photos/`, and `files/`.
-- **Safe Upgrade**: Keep your `data/` folder intact and drop in the newer binary; schema migrations apply automatically at startup.
+- **Safe Upgrade**: Run a newer installer (e.g. `Wherezy-Setup-2.2.2.exe`) over an older version — user data lives outside the install directory (`%LOCALAPPDATA%\Wherezy\data` on Windows, `~/Library/Application Support/Wherezy/data` on macOS) and Wherezy automatically writes a pre-migration `.bak` copy of `inventory.db` whenever a schema update runs.

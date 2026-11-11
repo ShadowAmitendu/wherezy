@@ -16,6 +16,25 @@ from backend.app.routers.profiles import _profile_to_out
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
+
+def _is_https_request(request: Request) -> bool:
+    if request.url.scheme == "https":
+        return True
+    forwarded = request.headers.get("x-forwarded-proto", "")
+    return forwarded.split(",")[0].strip().lower() == "https"
+
+
+def _set_session_cookie(request: Request, response: Response, token: str) -> None:
+    response.set_cookie(
+        key=SESSION_COOKIE_NAME,
+        value=token,
+        httponly=True,
+        samesite="lax",
+        secure=_is_https_request(request),
+        max_age=86400 * 30,
+    )
+
+
 def get_current_user_authenticated(request: Request, db: Session = Depends(get_db)) -> bool:
     prof = get_current_profile(request, db)
     return prof is not None
@@ -31,7 +50,7 @@ def get_auth_status(request: Request, db: Session = Depends(get_db)):
     )
 
 @router.post("/setup", response_model=SuccessResponse)
-def setup_pin(payload: AuthSetupRequest, response: Response, db: Session = Depends(get_db)):
+def setup_pin(payload: AuthSetupRequest, request: Request, response: Response, db: Session = Depends(get_db)):
     admin_prof = db.query(Profile).filter(Profile.role == "admin", Profile.is_active == 1).first()
     if admin_prof and admin_prof.pin_hash:
         raise HTTPException(
@@ -52,13 +71,7 @@ def setup_pin(payload: AuthSetupRequest, response: Response, db: Session = Depen
         "role": admin_prof.role if admin_prof else "admin",
         "username": admin_prof.username if admin_prof else "admin"
     })
-    response.set_cookie(
-        key=SESSION_COOKIE_NAME,
-        value=token,
-        httponly=True,
-        samesite="lax",
-        max_age=86400 * 30
-    )
+    _set_session_cookie(request, response, token)
     return SuccessResponse(ok=True, message="Setup completed")
 
 @router.post("/login")
@@ -120,13 +133,7 @@ def login(payload: AuthLoginRequest, request: Request, response: Response, db: S
         "role": prof.role,
         "username": prof.username,
     })
-    response.set_cookie(
-        key=SESSION_COOKIE_NAME,
-        value=token,
-        httponly=True,
-        samesite="lax",
-        max_age=86400 * 30
-    )
+    _set_session_cookie(request, response, token)
     return {
         "ok": True,
         "message": "Logged in successfully",
@@ -173,13 +180,7 @@ def update_password(
         "role": prof.role,
         "username": prof.username,
     })
-    response.set_cookie(
-        key=SESSION_COOKIE_NAME,
-        value=token,
-        httponly=True,
-        samesite="lax",
-        max_age=86400 * 30
-    )
+    _set_session_cookie(request, response, token)
     return {
         "ok": True,
         "message": "Password updated successfully",
@@ -187,8 +188,13 @@ def update_password(
     }
 
 @router.post("/logout", response_model=SuccessResponse)
-def logout(response: Response):
-    response.delete_cookie(key=SESSION_COOKIE_NAME, httponly=True, samesite="lax")
+def logout(request: Request, response: Response):
+    response.delete_cookie(
+        key=SESSION_COOKIE_NAME,
+        httponly=True,
+        samesite="lax",
+        secure=_is_https_request(request),
+    )
     return SuccessResponse(ok=True, message="Logged out")
 
 @router.post("/change-pin", response_model=SuccessResponse)

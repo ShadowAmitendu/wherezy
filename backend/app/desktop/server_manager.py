@@ -27,6 +27,38 @@ def get_local_ip() -> str:
         return "127.0.0.1"
 
 
+def is_port_available(host: str, port: int) -> bool:
+    """Return True if TCP `port` can be bound on `host` cleanly right now."""
+    check_hosts = ["127.0.0.1"] if host in {"0.0.0.0", "::", ""} else [host]
+    if host in {"0.0.0.0", ""}:
+        check_hosts.insert(0, "0.0.0.0")
+    for check_host in check_hosts:
+        family = socket.AF_INET6 if ":" in check_host else socket.AF_INET
+        try:
+            with socket.socket(family, socket.SOCK_STREAM) as sock:
+                if os.name != "nt":
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                sock.bind((check_host, int(port)))
+        except OSError:
+            return False
+    return True
+
+
+def find_free_port(host: str = "127.0.0.1", preferred_start: int | None = None) -> int:
+    """Pick an unused TCP port, trying sequentially after `preferred_start` first."""
+    if preferred_start is not None:
+        start = max(1024, min(65500, int(preferred_start)))
+        for candidate in range(start, min(65536, start + 25)):
+            if is_port_available(host, candidate):
+                return candidate
+
+    bind_host = "127.0.0.1" if host in {"0.0.0.0", "::", ""} else host
+    family = socket.AF_INET6 if ":" in bind_host else socket.AF_INET
+    with socket.socket(family, socket.SOCK_STREAM) as sock:
+        sock.bind((bind_host, 0))
+        return int(sock.getsockname()[1])
+
+
 @dataclass(frozen=True)
 class ServerSnapshot:
     """Immutable view of current desktop server state for UI/tray rendering."""
@@ -38,6 +70,9 @@ class ServerSnapshot:
     local_url: str
     lan_url: str
     error_message: str | None = None
+    port_in_use: bool = False
+    use_https: bool = False
+    cert_fingerprint: str | None = None
 
 
 class _MemoryLogHandler(logging.Handler):
@@ -64,10 +99,15 @@ class WherezyServerManager:
     def __init__(self) -> None:
         self._lock = threading.RLock()
         self._status: str = "stopped"
-        self._host: str = "0.0.0.0"
+        self._host: str = "127.0.0.1"
         self._port: int = 8000
         self._data_dir: str = ""
         self._error_message: str | None = None
+        self._port_in_use: bool = False
+        self._use_https: bool = False
+        self._ssl_certfile: str = ""
+        self._ssl_keyfile: str = ""
+        self._cert_fingerprint: str | None = None
 
         self._server = None
         self._thread: threading.Thread | None = None
@@ -121,15 +161,17 @@ class WherezyServerManager:
     def log_event(self, message: str) -> None:
         ts = datetime.now().strftime("%H:%M:%S")
         self._append_log(f"[{ts}] INFO wherezy.desktop: {message}")
+        logging.getLogger("wherezy.desktop").info("%s", message)
 
     def snapshot(self) -> ServerSnapshot:
         with self._lock:
             port = self._port
             host = self._host
+            scheme = "https" if self._use_https else "http"
             display_local_host = "127.0.0.1" if host in {"0.0.0.0", "::", ""} else host
-            local_url = f"http://{display_local_host}:{port}"
+            local_url = f"{scheme}://{display_local_host}:{port}"
             if host in {"0.0.0.0", "::", ""}:
-                lan_url = f"http://{get_local_ip()}:{port}"
+                lan_url = f"{scheme}://{get_local_ip()}:{port}"
             else:
                 lan_url = local_url
             return ServerSnapshot(
@@ -140,6 +182,9 @@ class WherezyServerManager:
                 local_url=local_url,
                 lan_url=lan_url,
                 error_message=self._error_message,
+                port_in_use=self._port_in_use,
+                use_https=self._use_https,
+                cert_fingerprint=self._cert_fingerprint,
             )
 
     def _emit_state(self) -> None:
@@ -164,11 +209,20 @@ class WherezyServerManager:
         host: str,
         port: int,
         data_dir: str,
+        use_https: bool = False,
+        ssl_certfile: str = "",
+        ssl_keyfile: str = "",
         wait_timeout: float = 8.0,
     ) -> ServerSnapshot:
         """Start the embedded FastAPI + Uvicorn server and wait for startup readiness."""
         resolved_data = str(Path(data_dir).expanduser().resolve())
         Path(resolved_data).mkdir(parents=True, exist_ok=True)
+        effective_https = bool(use_https)
+        cert_input = (ssl_certfile or "").strip()
+        key_input = (ssl_keyfile or "").strip()
+        resolved_cert: str | None = None
+        resolved_key: str | None = None
+        cert_fingerprint: str | None = None
 
         with self._lock:
             if self._status in {"running", "paused", "starting"}:
@@ -181,13 +235,54 @@ class WherezyServerManager:
                 self._error_message = (
                     "Data folder changed after initial load; relaunch Wherezy to switch databases."
                 )
+                self._port_in_use = False
                 self._emit_state()
                 return self.snapshot()
 
-            self._host = host.strip() or "0.0.0.0"
+            self._host = host.strip() or "127.0.0.1"
             self._port = int(port)
             self._data_dir = resolved_data
+            self._use_https = effective_https
+            self._ssl_certfile = cert_input
+            self._ssl_keyfile = key_input
+            self._cert_fingerprint = None
             self._error_message = None
+            self._port_in_use = False
+
+            if effective_https:
+                try:
+                    from backend.app.core.tls import (
+                        get_cert_sha256_fingerprint,
+                        resolve_tls_files,
+                    )
+
+                    resolved_cert, resolved_key = resolve_tls_files(
+                        https_enabled=True,
+                        certfile=cert_input,
+                        keyfile=key_input,
+                        bind_host=self._host,
+                    )
+                    if resolved_cert:
+                        cert_fingerprint = get_cert_sha256_fingerprint(Path(resolved_cert))
+                    self._cert_fingerprint = cert_fingerprint
+                except Exception as exc:
+                    self._status = "error"
+                    self._error_message = f"TLS certificate error: {exc}"
+                    self.log_event(self._error_message)
+                    self._emit_state()
+                    return self.snapshot()
+
+            if not is_port_available(self._host, self._port):
+                self._status = "error"
+                self._port_in_use = True
+                self._error_message = (
+                    f"Port {self._port} is already in use by another application. "
+                    "Click 'Pick a Free Port & Start' or choose another port."
+                )
+                self.log_event(self._error_message)
+                self._emit_state()
+                return self.snapshot()
+
             self._status = "starting"
             set_server_paused(False)
             self._wire_logging()
@@ -196,9 +291,15 @@ class WherezyServerManager:
         os.environ["DATA_DIR"] = resolved_data
         os.environ["WHEREZY_HOST"] = self._host
         os.environ["WHEREZY_PORT"] = str(self._port)
+        os.environ["WHEREZY_HTTPS"] = "1" if effective_https else "0"
 
         self._emit_state()
-        self.log_event(f"Starting server on {self._host}:{self._port} (data: {resolved_data})")
+        scheme = "https" if effective_https else "http"
+        self.log_event(
+            f"Starting {scheme.upper()} server on {self._host}:{self._port} (data: {resolved_data})"
+        )
+        if cert_fingerprint:
+            self.log_event(f"TLS SHA-256 fingerprint: {cert_fingerprint}")
 
         import uvicorn
         from backend.app.main import app as fastapi_app
@@ -206,14 +307,18 @@ class WherezyServerManager:
         with self._lock:
             self._bound_data_dir = resolved_data
 
-        config = uvicorn.Config(
-            fastapi_app,
-            host=self._host,
-            port=self._port,
-            log_config=None,
-            access_log=True,
-            lifespan="on",
-        )
+        uvicorn_kwargs: dict[str, object] = {
+            "host": self._host,
+            "port": self._port,
+            "log_config": None,
+            "access_log": True,
+            "lifespan": "on",
+        }
+        if resolved_cert and resolved_key:
+            uvicorn_kwargs["ssl_certfile"] = resolved_cert
+            uvicorn_kwargs["ssl_keyfile"] = resolved_key
+
+        config = uvicorn.Config(fastapi_app, **uvicorn_kwargs)
         server = uvicorn.Server(config)
         # Uvicorn installs signal handlers by default when running on main thread;
         # avoid overriding signals from our background server thread.
@@ -221,16 +326,19 @@ class WherezyServerManager:
 
         def _serve() -> None:
             caught_error: str | None = None
+            caught_port_in_use = False
             try:
                 server.run()
             except SystemExit as exc:
                 code = exc.code if isinstance(exc.code, int) else 1
                 if code != 0:
+                    caught_port_in_use = True
                     caught_error = (
-                        f"Server could not bind to {self._host}:{self._port} "
-                        "(port may already be in use)."
+                        f"Port {self._port} is already in use on {self._host}. "
+                        "Click 'Pick a Free Port & Start' or choose another port."
                     )
             except OSError as exc:
+                caught_port_in_use = getattr(exc, "errno", None) in {48, 98, 10048, 10013}
                 caught_error = f"Network error on {self._host}:{self._port}: {exc}"
             except BaseException as exc:
                 caught_error = f"Server stopped unexpectedly: {exc}"
@@ -243,14 +351,17 @@ class WherezyServerManager:
                     if caught_error:
                         self._status = "error"
                         self._error_message = caught_error
+                        self._port_in_use = caught_port_in_use
                     elif not was_requested_stop and self._status in {"starting", "running", "paused"}:
                         self._status = "error"
                         self._error_message = (
                             f"Server exited unexpectedly on {self._host}:{self._port}."
                         )
+                        self._port_in_use = False
                     else:
                         self._status = "stopped"
                         self._error_message = None
+                        self._port_in_use = False
                 if caught_error:
                     self.log_event(caught_error)
                 else:
@@ -269,9 +380,10 @@ class WherezyServerManager:
                 with self._lock:
                     if self._status == "starting":
                         self._status = "running"
-                self.log_event(f"Server listening on http://127.0.0.1:{self._port}")
+                snap = self.snapshot()
+                self.log_event(f"Server listening on {snap.local_url}")
                 self._emit_state()
-                return self.snapshot()
+                return snap
             if not thread.is_alive():
                 thread.join(timeout=0.5)
                 break
@@ -324,8 +436,10 @@ class WherezyServerManager:
             if thread is None or not thread.is_alive():
                 self._server = None
                 self._thread = None
+                self._port_in_use = False
                 if self._status != "error":
                     self._status = "stopped"
+                    self._error_message = None
         self._dispose_db_engine()
         self._emit_state()
         return self.snapshot()
@@ -346,8 +460,19 @@ class WherezyServerManager:
         host: str,
         port: int,
         data_dir: str,
+        use_https: bool = False,
+        ssl_certfile: str = "",
+        ssl_keyfile: str = "",
         wait_timeout: float = 8.0,
     ) -> ServerSnapshot:
-        """Stop cleanly and start again with the latest host/port/data settings."""
+        """Stop cleanly and start again with the latest host/port/TLS/data settings."""
         self.stop(timeout=5.0)
-        return self.start(host=host, port=port, data_dir=data_dir, wait_timeout=wait_timeout)
+        return self.start(
+            host=host,
+            port=port,
+            data_dir=data_dir,
+            use_https=use_https,
+            ssl_certfile=ssl_certfile,
+            ssl_keyfile=ssl_keyfile,
+            wait_timeout=wait_timeout,
+        )

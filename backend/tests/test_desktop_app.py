@@ -377,3 +377,145 @@ def test_desktop_gui_window_and_tray_smoke(tmp_path, monkeypatch):
     finally:
         desktop.quit_app()
         set_server_paused(False)
+
+
+def test_single_instance_ipc_quit_and_cli_flags(tmp_path, monkeypatch):
+    import threading
+    from pathlib import Path
+    from backend.app.desktop.app import _SingleInstanceServer, request_running_instance_quit
+
+    local_app = tmp_path / "LocalApp"
+    monkeypatch.setenv("LOCALAPPDATA", str(local_app))
+    monkeypatch.setattr(sys, "platform", "win32")
+
+    assert should_launch_gui(["--quit"], platform="win32", environ={}) is False
+    assert should_launch_gui(["--enable-autostart"], platform="win32", environ={}) is False
+    assert should_launch_gui(["--disable-autostart"], platform="win32", environ={}) is False
+
+    # When no instance is running, --quit exits cleanly with 0
+    assert cli_main(["--quit"]) == 0
+
+    show_event = threading.Event()
+    quit_event = threading.Event()
+    srv = _SingleInstanceServer(
+        on_show_requested=show_event.set,
+        on_quit_requested=quit_event.set,
+    )
+    srv.start()
+    try:
+        assert srv.try_notify_existing("show") is True
+        assert show_event.wait(timeout=1.5)
+
+        def _cleanup_on_quit():
+            assert quit_event.wait(timeout=2.0)
+            srv.close()
+
+        cleaner = threading.Thread(target=_cleanup_on_quit, daemon=True)
+        cleaner.start()
+        assert request_running_instance_quit(timeout=3.0) is True
+        cleaner.join(timeout=2.0)
+        assert not (local_app / "Wherezy" / "desktop-instance.json").exists()
+    finally:
+        srv.close()
+
+    # Legacy APPDATA desktop.json custom data_dir is honored without moving files silently
+    legacy_app = tmp_path / "RoamingApp"
+    monkeypatch.setenv("APPDATA", str(legacy_app))
+    custom_dir = tmp_path / "Custom Dev Data 用户"
+    legacy_cfg_dir = legacy_app / "Wherezy"
+    legacy_cfg_dir.mkdir(parents=True, exist_ok=True)
+    (legacy_cfg_dir / "desktop.json").write_text(
+        f'{{"host": "0.0.0.0", "port": 8123, "data_dir": {custom_dir.as_posix()!r}}}'.replace("'", '"'),
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("WHEREZY_DESKTOP_CONFIG", raising=False)
+    loaded = load_desktop_config()
+    assert loaded.host == "0.0.0.0"
+    assert loaded.port == 8123
+    assert Path(loaded.data_dir) == custom_dir
+
+    # --enable-autostart / --disable-autostart CLI flags delegate cleanly to autostart.py
+    called: list[bool] = []
+    monkeypatch.setattr("backend.app.desktop.autostart.set_autostart_enabled", lambda flag: called.append(flag) or flag)
+    assert cli_main(["--enable-autostart"]) == 0
+    assert cli_main(["--disable-autostart"]) == 0
+    assert called == [True, False]
+
+
+def test_port_in_use_recovery_and_lan_notice(tmp_path, monkeypatch):
+    import os
+    import time
+    import tkinter as tk
+    from backend.app.desktop.app import WherezyDesktopApp
+
+    if sys.platform.startswith("linux") and not (
+        os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
+    ):
+        pytest.skip("GUI Tk test requires an active display on Linux")
+
+    cfg_path = tmp_path / "gui_port_test.json"
+    monkeypatch.setenv("WHEREZY_DESKTOP_CONFIG", str(cfg_path))
+    save_desktop_config(
+        DesktopConfig(
+            host="127.0.0.1",
+            port=_pick_free_port(),
+            data_dir=str(app_config.DATA_DIR),
+            auto_start_server=False,
+            lan_notice_shown=False,
+        )
+    )
+
+    # Occupy a port before trying to start the controller on it
+    occupied = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    occupied.bind(("127.0.0.1", 0))
+    occupied.listen(1)
+    busy_port = int(occupied.getsockname()[1])
+
+    desktop = None
+    try:
+        save_desktop_config(
+            DesktopConfig(
+                host="127.0.0.1",
+                port=busy_port,
+                data_dir=str(app_config.DATA_DIR),
+                auto_start_server=False,
+                lan_notice_shown=False,
+            )
+        )
+        try:
+            desktop = WherezyDesktopApp(
+                enable_tray=False,
+                enable_ipc=False,
+            )
+        except tk.TclError as exc:
+            pytest.skip(f"Tk display unavailable: {exc}")
+
+        # First-run LAN notice is visible initially and clears cleanly once resolved
+        assert desktop.lan_notice_frame.winfo_manager()
+        desktop._resolve_lan_notice(enable_lan=False)
+        assert not desktop.lan_notice_frame.winfo_manager()
+        assert load_desktop_config(cfg_path).lan_notice_shown is True
+        assert load_desktop_config(cfg_path).host == "127.0.0.1"
+
+        # Starting on occupied port reports port_in_use and shows recovery button cleanly
+        failed = desktop.handle_start_or_resume()
+        assert failed.status == "error"
+        assert failed.port_in_use is True
+        for _ in range(10):
+            desktop.root.update()
+            if desktop.port_error_frame.winfo_manager():
+                break
+            time.sleep(0.02)
+        assert desktop.port_error_frame.winfo_manager()
+
+        # One-click recovery finds a free port and starts server cleanly
+        recovered = desktop.pick_free_port_and_start()
+        assert recovered.status == "running"
+        assert recovered.port != busy_port
+        assert load_desktop_config(cfg_path).port == recovered.port
+    finally:
+        if desktop is not None:
+            desktop.quit_app()
+        occupied.close()
+        set_server_paused(False)
+

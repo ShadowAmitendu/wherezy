@@ -17,7 +17,7 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = ROOT_DIR / "frontend"
 FRONTEND_DIST = FRONTEND_DIR / "dist"
-SPEC_FILE = ROOT_DIR / "packaging" / "wherezy.spec"
+SPEC_FILE = ROOT_DIR / "wherezy.spec"
 DIST_DIR = ROOT_DIR / "dist"
 BUILD_WORK_DIR = ROOT_DIR / "build" / "pyinstaller"
 
@@ -113,18 +113,26 @@ def main() -> int:
 
     _run(cmd, cwd=ROOT_DIR)
 
-    exe_name = "wherezy.exe" if os.name == "nt" else "wherezy"
-    output_bin = DIST_DIR / exe_name
+    if sys.platform == "win32":
+        output_bin = DIST_DIR / "Wherezy" / "Wherezy.exe"
+    elif sys.platform == "darwin":
+        app_bin = DIST_DIR / "Wherezy.app" / "Contents" / "MacOS" / "Wherezy"
+        output_bin = app_bin if app_bin.is_file() else (DIST_DIR / "Wherezy" / "Wherezy")
+    else:
+        output_bin = DIST_DIR / "Wherezy" / "wherezy"
+
     if not output_bin.is_file():
         raise SystemExit(f"Expected binary not produced at {output_bin}")
 
-    size_mb = output_bin.stat().st_size / (1024 * 1024)
+    bundle_dir = output_bin.parent.parent if sys.platform == "darwin" and "Wherezy.app" in output_bin.parts else output_bin.parent
+    total_bytes = sum(p.stat().st_size for p in bundle_dir.rglob("*") if p.is_file())
+    size_mb = total_bytes / (1024 * 1024)
     print("")
     print("=" * 60)
-    print(f"Build succeeded: {output_bin} ({size_mb:.1f} MB)")
-    print("Run on any matching OS machine:")
+    print(f"Build succeeded: {output_bin} (bundle total {size_mb:.1f} MB)")
+    print("Run from the bundle directory or package into an installer:")
     print(f"  {output_bin} --open")
-    print(f"  {output_bin} --port 8080 --data-dir ./wherezy-data")
+    print(f"  {output_bin} --headless --port 8080 --data-dir ./wherezy-data")
     print("=" * 60)
     return 0
 

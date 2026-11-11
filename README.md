@@ -58,34 +58,42 @@ A lightweight, local-network (LAN-first) household inventory management web appl
    - Configure **Local LLM / OpenAI-compatible** servers (Ollama, LM Studio, `llama.cpp`, vLLM) with optional Whisper STT, **or** **Google Gemini API** (Fernet-encrypted keys at rest).
    - Generate category schemas from voice or prompts, auto-fill item forms from photos/voice, sort Quick Capture Inbox items, extract multi-item bulk batches, and build nested location trees.
 
-10. **Desktop Tray & Menu Bar Controller**:
-    - Standalone binaries and desktop installations open a native **Wherezy Server Controller** window with **Windows Taskbar + System Tray (Background Apps)** and **macOS Menu Bar** icons showing live color-coded server status dots (*Running*, *Paused*, *Stopped*).
-    - One-click **Start**, **Pause** (returns HTTP `503` without unbinding the port), **Stop**, **Restart**, **Start with OS** (launches minimized on login), live log console, and `--headless` / `--cli` flag for servers and scripts.
+10. **Desktop Installer, Tray & Menu Bar Controller**:
+    - Install cleanly with zero admin elevation on Windows (`Wherezy-Setup-2.2.2.exe`) or macOS (`Wherezy-2.2.2-macOS.dmg`). No Python or Node.js required on the user's machine.
+    - Opens the native **Wherezy Server Controller** (`ttkbootstrap`) with **Windows Taskbar + System Tray** and **macOS Menu Bar** icons showing live color-coded server status dots (*Running*, *Paused*, *Stopped*).
+    - Safe `127.0.0.1` local-only default with a first-run Network & Firewall notice (**Keep 127.0.0.1 Only**, **LAN + HTTPS (Camera Ready)**, or **LAN Only (HTTP)**), one-click **Start / Pause / Stop / Restart**, **Pick a Free Port & Start** conflict recovery, optional **Enable HTTPS (TLS)** toggle, **Start with OS**, and rotating log viewer (`%LOCALAPPDATA%\Wherezy\logs\`).
 
 11. **GitHub Pages Jekyll Showcase (`site/`)**:
     - Pure minimal Markdown documentation & download site powered by GitHub Pages Jekyll (`theme: jekyll-theme-architect` in `site/_config.yml`) with a `_docs` page collection linked in the sidebar and automated CI builds in `.github/workflows/pages.yml`.
 
 ---
 
-## Deploy Anywhere (Standalone Binary, `pipx`, or Docker)
+## Deploy Anywhere (Installer, App Bundle, `pipx`, or Docker)
 
-Wherezy can be packaged and deployed onto any target machine without installing Node.js or manually configuring Python source trees:
+See [BUILDING.md](BUILDING.md) for full packaging instructions, CI workflows, code signing notes, and the Windows VM QA checklist.
 
-### Option 1: Standalone Single-File Binary (`wherezy` / `wherezy.exe`)
-1. Build the standalone binary on your target OS (Windows, Linux, or macOS):
-   ```bash
-   python scripts/build_binary.py --install-pyinstaller
+### Option 1: Installable Desktop App (Windows Installer & macOS DMG)
+1. **Download prebuilt installers** from [GitHub Releases](https://github.com/ShadowAmitendu/wherezy/releases/latest) (`Wherezy-Setup-2.2.2.exe` for Windows, `Wherezy-2.2.2-macOS.dmg` for macOS, `wherezy-2.2.2-linux-x86_64.tar.gz` for Linux), or build locally:
+   ```powershell
+   # Windows (creates dist/Wherezy/Wherezy.exe + dist/installer/Wherezy-Setup-2.2.2.exe):
+   powershell -ExecutionPolicy Bypass -File .\scripts\build_windows.ps1 -Clean
    ```
-   - Produces `dist/wherezy.exe` on Windows or `dist/wherezy` on Linux/macOS with the React UI, SQLite migrations, starter templates, and Desktop Tray/Menu Bar GUI controller embedded inside.
-2. Double-click `wherezy.exe` / `wherezy` to open the **Desktop Server Controller** (minimizes cleanly to your Windows System Tray / Background Apps or macOS Menu Bar, and supports **Start / Pause / Stop / Restart** plus **Start with OS**), or run headless CLI mode:
    ```bash
-   # Launch GUI controller explicitly (or start minimized to tray/menu bar):
-   ./wherezy --gui --minimized
-
-   # Run headless server for scripts, SSH, or NAS hosts:
-   ./wherezy --headless --port 8080 --data-dir /srv/wherezy-data
+   # macOS (creates dist/Wherezy.app + dist/installer/Wherezy-2.2.2-macOS.dmg):
+   CLEAN=1 bash scripts/build_macos.sh
    ```
-   In GUI mode, data defaults cleanly to your per-user app data folder (`%APPDATA%\Wherezy\data` on Windows, `~/Library/Application Support/Wherezy/data` on macOS, `~/.local/share/wherezy/data` on Linux) or portable `./data` next to the binary if present; in CLI mode (`--host` / `--port` / `--data-dir` / `--headless`), `./data` or `--data-dir` is used.
+2. Launch Wherezy from the Start Menu, Applications folder, or Desktop shortcut, or run headless / CLI options:
+   ```bash
+   # Launch GUI controller minimized to tray/menu bar over HTTPS:
+   Wherezy.exe --gui --minimized --https
+
+   # Ask a running desktop instance to exit cleanly (used during upgrades/uninstalls):
+   Wherezy.exe --quit
+
+   # Run headless HTTPS server for scripts, SSH, or NAS hosts:
+   Wherezy.exe --headless --host 0.0.0.0 --port 8080 --https --data-dir /srv/wherezy-data
+   ```
+   User config, data, logs, and local TLS certs stay outside the install directory (`%LOCALAPPDATA%\Wherezy\` on Windows, `~/Library/Application Support/Wherezy/` on macOS, `~/.config/wherezy/` & `~/.local/share/wherezy/` on Linux), surviving upgrades and optional keep-data uninstalls cleanly. Existing custom `data_dir` setups remain honored, and `schema_meta` migrations automatically create a pre-migration backup of `inventory.db`.
 
 ### Option 2: Python CLI Package (`pip` / `pipx`)
 ```bash
@@ -147,14 +155,12 @@ Open your browser to:
 
 ---
 
-## Mobile Camera Scanning & HTTPS Note
+## Mobile Camera Scanning & Built-in Optional HTTPS
 
-Modern mobile browsers (Safari on iOS, Chrome on Android) require a **Secure Context** (`https://` or `localhost`) to grant permission to live video cameras.
+Modern mobile browsers (Safari on iOS, Chrome on Android) require a **Secure Context** (`https://` or `localhost`) to grant permission to live video cameras and audio recording.
 
-If you access Wherezy over LAN plain HTTP (`http://192.168.x.x:8000`):
-1. **Photo Capture Fallback**: Tap **"Take Photo of Code"** on the Scan screen. Your phone camera will open, take a picture, and decode the QR/barcode instantly.
-2. **Direct QR Link**: Scanning the QR code with your phone's native camera app opens `http://<ip>:8000/#/i/<id>`, taking you directly to the item!
-3. **Optional HTTPS**: You can run Wherezy behind a reverse proxy (such as Caddy, Nginx, or Traefik) with a local TLS certificate if you want live streaming camera access over Wi-Fi.
+1. **Built-in Optional HTTPS / TLS**: Toggle **Enable HTTPS (TLS)** in the Desktop Controller settings (or select **LAN + HTTPS (Camera Ready)** in the first-run notice, or pass `--https` to CLI/headless mode). Wherezy automatically generates and maintains an 800-day local SAN certificate covering `localhost` and your active LAN IPv4 under `%LOCALAPPDATA%\Wherezy\certs\` (or use custom PEM files via `--ssl-certfile` / `--ssl-keyfile`).
+2. **Photo Capture Fallback (Plain HTTP)**: Over plain `http://<ip>:8000`, tap **"Take Photo of Code"** on the Scan screen to decode QR/barcodes from a snapped photo, or scan printed item QR labels with your phone's native camera app to jump directly to `/#/i/<id>`.
 
 ---
 

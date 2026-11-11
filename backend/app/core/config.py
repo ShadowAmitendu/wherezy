@@ -2,7 +2,7 @@ import os
 import sys
 from pathlib import Path
 
-APP_VERSION = "2.2.1"
+from backend.app.core.version import APP_VERSION
 
 
 def is_frozen() -> bool:
@@ -39,11 +39,55 @@ def resolve_bundle_dir() -> Path:
     return resolve_app_package_dir()
 
 
+def resource_path(relative_path: str | Path) -> Path:
+    """Resolve a bundled read-only resource path across PyInstaller, wheel, and source runs."""
+    rel = Path(relative_path)
+    if rel.is_absolute():
+        return rel
+
+    bundle_dir = resolve_bundle_dir()
+    primary = bundle_dir / rel
+    if primary.exists():
+        return primary
+
+    app_pkg = resolve_app_package_dir()
+    # Wheel fallback: map frontend/dist/* -> backend/app/static_dist/* and backend/app/* -> pkg/*
+    rel_parts = rel.parts
+    if rel_parts[:2] == ("frontend", "dist"):
+        wheel_candidate = app_pkg.joinpath("static_dist", *rel_parts[2:])
+        if wheel_candidate.exists():
+            return wheel_candidate
+    if rel_parts[:2] == ("backend", "app"):
+        pkg_candidate = app_pkg.joinpath(*rel_parts[2:])
+        if pkg_candidate.exists():
+            return pkg_candidate
+
+    return primary
+
+
+def get_user_data_base_dir(platform: str | None = None) -> Path:
+    """Return the per-user writable OS base directory for Wherezy app data."""
+    plat = platform or sys.platform
+    if plat == "win32":
+        local_appdata = os.getenv("LOCALAPPDATA")
+        base = Path(local_appdata).expanduser() if local_appdata else Path.home() / "AppData" / "Local"
+        return base / "Wherezy"
+    if plat == "darwin":
+        return Path.home() / "Library" / "Application Support" / "Wherezy"
+    xdg_data = os.getenv("XDG_DATA_HOME")
+    base = Path(xdg_data).expanduser() if xdg_data else Path.home() / ".local" / "share"
+    return base / "wherezy"
+
+
 def resolve_frontend_dist(
     bundle_dir: Path | None = None,
     app_pkg_dir: Path | None = None,
 ) -> Path:
     """Locate the built frontend `dist` directory (PyInstaller bundle, source checkout, or wheel static_dist)."""
+    if bundle_dir is None and app_pkg_dir is None:
+        resolved = resource_path("frontend/dist")
+        if (resolved / "index.html").is_file():
+            return resolved
     b_dir = bundle_dir or resolve_bundle_dir()
     pkg_dir = app_pkg_dir or resolve_app_package_dir()
     candidates = [
@@ -58,12 +102,12 @@ def resolve_frontend_dist(
 
 
 def resolve_default_data_dir() -> Path:
-    """Resolve persistent writable data directory outside ephemeral bundle temp dirs."""
+    """Resolve persistent writable data directory outside the install directory."""
     env_data = os.getenv("WHEREZY_DATA_DIR") or os.getenv("DATA_DIR")
     if env_data:
         return Path(env_data).expanduser().resolve()
     if is_frozen():
-        return Path(sys.executable).resolve().parent / "data"
+        return get_user_data_base_dir() / "data"
     repo_root = resolve_repo_root()
     if repo_root is not None:
         return repo_root / "data"
@@ -84,8 +128,16 @@ def ensure_data_dirs(data_dir: Path) -> None:
 APP_PACKAGE_DIR = resolve_app_package_dir()
 BUNDLE_DIR = resolve_bundle_dir()
 BASE_DIR = resolve_repo_root(APP_PACKAGE_DIR) or BUNDLE_DIR
-MIGRATIONS_DIR = APP_PACKAGE_DIR / "migrations"
-TEMPLATES_DIR = APP_PACKAGE_DIR / "seed_templates"
+MIGRATIONS_DIR = (
+    resource_path("backend/app/migrations")
+    if is_frozen()
+    else (APP_PACKAGE_DIR / "migrations")
+)
+TEMPLATES_DIR = (
+    resource_path("backend/app/seed_templates")
+    if is_frozen()
+    else (APP_PACKAGE_DIR / "seed_templates")
+)
 FRONTEND_DIST = resolve_frontend_dist(BUNDLE_DIR, APP_PACKAGE_DIR)
 
 DATA_DIR = resolve_default_data_dir()

@@ -11,6 +11,7 @@ import socket
 import subprocess
 import sys
 import threading
+import time
 import tkinter as tk
 from tkinter import filedialog
 import webbrowser
@@ -20,12 +21,13 @@ import pystray
 import ttkbootstrap as tb
 from ttkbootstrap.dialogs import Messagebox
 
-from backend.app.cli import APP_VERSION
+from backend.app.core.version import APP_VERSION
 from backend.app.desktop.autostart import is_autostart_enabled, set_autostart_enabled
 from backend.app.desktop.config_store import (
     DEFAULT_DESKTOP_THEME,
     DesktopConfig,
     get_app_support_dir,
+    get_legacy_windows_support_dir,
     load_desktop_config,
     resolve_launch_command,
     save_desktop_config,
@@ -36,7 +38,12 @@ from backend.app.desktop.icons import (
     load_base_icon_image,
     resolve_asset_path,
 )
-from backend.app.desktop.server_manager import ServerSnapshot, WherezyServerManager
+from backend.app.desktop.server_manager import (
+    ServerSnapshot,
+    WherezyServerManager,
+    find_free_port,
+    get_local_ip,
+)
 
 
 CURATED_THEMES = (
@@ -85,35 +92,49 @@ def _open_folder_in_os(path: str) -> None:
 class _SingleInstanceServer:
     """Lightweight loopback IPC socket ensuring one GUI/tray instance per user."""
 
-    def __init__(self, on_show_requested) -> None:
+    def __init__(self, on_show_requested, on_quit_requested=None) -> None:
         self._lock_file = get_app_support_dir() / "desktop-instance.json"
         self._on_show_requested = on_show_requested
+        self._on_quit_requested = on_quit_requested
         self._token = secrets.token_hex(16)
         self._sock: socket.socket | None = None
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
 
+    def _candidate_lock_files(self, action: str) -> list[Path]:
+        candidates = [self._lock_file]
+        if action == "quit":
+            legacy_dir = get_legacy_windows_support_dir()
+            if legacy_dir is not None:
+                legacy_lock = legacy_dir / "desktop-instance.json"
+                if legacy_lock not in candidates:
+                    candidates.append(legacy_lock)
+        return candidates
+
     def try_notify_existing(self, action: str = "show") -> bool:
         """If another Wherezy Desktop instance is active, signal it and return True."""
-        if not self._lock_file.exists():
-            return False
-        try:
-            data = json.loads(self._lock_file.read_text(encoding="utf-8"))
-            port = int(data.get("port", 0))
-            token = str(data.get("token", ""))
-            if not port or not token:
-                return False
-            with socket.create_connection(("127.0.0.1", port), timeout=0.45) as conn:
-                conn.settimeout(0.45)
-                payload = json.dumps({"token": token, "action": action}).encode("utf-8")
-                conn.sendall(payload)
-                reply = conn.recv(32).decode("utf-8", errors="ignore").strip()
-                return reply == "OK"
-        except (OSError, ValueError, TypeError):
-            return False
+        for lock_file in self._candidate_lock_files(action):
+            if not lock_file.exists():
+                continue
+            try:
+                data = json.loads(lock_file.read_text(encoding="utf-8"))
+                port = int(data.get("port", 0))
+                token = str(data.get("token", ""))
+                if not port or not token:
+                    continue
+                with socket.create_connection(("127.0.0.1", port), timeout=0.6) as conn:
+                    conn.settimeout(0.6)
+                    payload = json.dumps({"token": token, "action": action}).encode("utf-8")
+                    conn.sendall(payload)
+                    reply = conn.recv(32).decode("utf-8", errors="ignore").strip()
+                    if reply == "OK":
+                        return True
+            except (OSError, ValueError, TypeError):
+                continue
+        return False
 
     def start(self) -> None:
-        """Claim ownership of the instance lock socket and listen for wake pings."""
+        """Claim ownership of the instance lock socket and listen for wake/quit pings."""
         try:
             self._lock_file.parent.mkdir(parents=True, exist_ok=True)
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -150,8 +171,11 @@ class _SingleInstanceServer:
                     msg = json.loads(raw) if raw else {}
                     if msg.get("token") == self._token:
                         conn.sendall(b"OK")
-                        if msg.get("action") == "show":
+                        msg_action = msg.get("action")
+                        if msg_action == "show" and self._on_show_requested is not None:
                             self._on_show_requested()
+                        elif msg_action == "quit" and self._on_quit_requested is not None:
+                            self._on_quit_requested()
                 except Exception:
                     pass
 
@@ -172,6 +196,20 @@ class _SingleInstanceServer:
             pass
 
 
+def request_running_instance_quit(timeout: float = 5.0) -> bool:
+    """Ask an active Wherezy Desktop instance to shut down cleanly via IPC."""
+    client = _SingleInstanceServer(lambda: None)
+    if not client.try_notify_existing(action="quit"):
+        return False
+    deadline = time.monotonic() + max(0.2, timeout)
+    candidates = client._candidate_lock_files("quit")
+    while time.monotonic() < deadline:
+        if not any(path.exists() for path in candidates):
+            return True
+        time.sleep(0.1)
+    return True
+
+
 class WherezyDesktopApp:
     """TTK Bootstrap + Tkinter desktop server controller with tray / menu bar."""
 
@@ -181,6 +219,9 @@ class WherezyDesktopApp:
         initial_host: str | None = None,
         initial_port: int | None = None,
         initial_data_dir: str | None = None,
+        initial_https: bool | None = None,
+        initial_ssl_certfile: str | None = None,
+        initial_ssl_keyfile: str | None = None,
         start_minimized: bool = False,
         open_browser_override: bool = False,
         enable_tray: bool = True,
@@ -195,8 +236,21 @@ class WherezyDesktopApp:
             self.config.port = initial_port
         if initial_data_dir:
             self.config.data_dir = str(Path(initial_data_dir).expanduser())
+        if initial_https is not None:
+            self.config.use_https = bool(initial_https)
+        if initial_ssl_certfile is not None:
+            self.config.ssl_certfile = initial_ssl_certfile
+        if initial_ssl_keyfile is not None:
+            self.config.ssl_keyfile = initial_ssl_keyfile
         self.config = self.config.normalized()
-        if initial_host or initial_port is not None or initial_data_dir:
+        if (
+            initial_host
+            or initial_port is not None
+            or initial_data_dir
+            or initial_https is not None
+            or initial_ssl_certfile is not None
+            or initial_ssl_keyfile is not None
+        ):
             save_desktop_config(self.config)
 
         self.start_minimized = bool(start_minimized)
@@ -216,7 +270,10 @@ class WherezyDesktopApp:
 
         self._ipc: _SingleInstanceServer | None = None
         if self.enable_ipc:
-            self._ipc = _SingleInstanceServer(lambda: self._dispatch(self.show_window))
+            self._ipc = _SingleInstanceServer(
+                on_show_requested=lambda: self._dispatch(self.show_window),
+                on_quit_requested=lambda: self._dispatch(self.quit_app),
+            )
             action = "ping" if self.start_minimized else "show"
             if self._ipc.try_notify_existing(action=action):
                 raise SystemExit(0)
@@ -227,8 +284,8 @@ class WherezyDesktopApp:
             light_theme="bootstrap-light",
             dark_theme=DEFAULT_DESKTOP_THEME,
             iconphoto=None,
-            size=(600, 720),
-            minsize=(540, 620),
+            size=(620, 805),
+            minsize=(540, 660),
         )
         self._available_themes = self._resolve_available_themes()
         selected_theme = (
@@ -245,14 +302,16 @@ class WherezyDesktopApp:
         self.var_host = tk.StringVar(value=self.config.host)
         self.var_port = tk.StringVar(value=str(self.config.port))
         self.var_data_dir = tk.StringVar(value=self.config.data_dir)
+        self.var_use_https = tk.BooleanVar(value=self.config.use_https)
         self.var_auto_start = tk.BooleanVar(value=self.config.auto_start_server)
         self.var_minimize_on_close = tk.BooleanVar(value=self.config.minimize_to_tray_on_close)
         self.var_open_browser = tk.BooleanVar(value=self.config.open_browser_on_start)
         self._autostart_cached = self._safe_query_autostart()
         self.var_start_with_os = tk.BooleanVar(value=self._autostart_cached)
 
-        self.var_local_url = tk.StringVar(value=f"http://127.0.0.1:{self.config.port}")
-        self.var_lan_url = tk.StringVar(value=f"http://127.0.0.1:{self.config.port}")
+        init_scheme = "https" if self.config.use_https else "http"
+        self.var_local_url = tk.StringVar(value=f"{init_scheme}://127.0.0.1:{self.config.port}")
+        self.var_lan_url = tk.StringVar(value=f"{init_scheme}://127.0.0.1:{self.config.port}")
         self.var_feedback = tk.StringVar(value="")
 
         self._build_ui()
@@ -274,7 +333,9 @@ class WherezyDesktopApp:
         if self.start_minimized and self._tray_active:
             self.root.withdraw()
 
-        self._apply_snapshot(self.server_manager.snapshot())
+        self._apply_snapshot(
+            self._stopped_snapshot_for_config(self.config, self.server_manager.snapshot())
+        )
         self.root.after(25, self._drain_ui_queue)
 
         if self.config.auto_start_server or self.open_browser_override:
@@ -365,9 +426,57 @@ class WherezyDesktopApp:
         )
         self.status_pill.pack(side="left")
 
+        # ── First-Run LAN Access Notice ───────────────────────────────────────
+        self.lan_notice_frame = tb.Labelframe(
+            container,
+            text=" Network & Firewall Notice ",
+            padding=10,
+            bootstyle="info",
+        )
+        notice_msg = (
+            "Wherezy defaults to 127.0.0.1 over HTTP (this PC only, no firewall prompt or cert warning). "
+            "Enable LAN access (0.0.0.0) with HTTPS to encrypt Wi-Fi traffic and unlock live phone camera barcode scanning."
+            if self.config.host == "127.0.0.1"
+            else "Wherezy is configured for LAN access (0.0.0.0); your OS firewall may prompt on first run. "
+            "Switch to 127.0.0.1-only for local PC use, or enable HTTPS for encrypted LAN traffic."
+        )
+        tb.Label(
+            self.lan_notice_frame,
+            text=notice_msg,
+            font=("Segoe UI", 8),
+            wraplength=560,
+            justify="left",
+        ).pack(fill="x", pady=(0, 6))
+        notice_btns = tb.Frame(self.lan_notice_frame)
+        notice_btns.pack(fill="x")
+        tb.Button(
+            notice_btns,
+            text="Keep 127.0.0.1 Only",
+            command=lambda: self._resolve_lan_notice(enable_lan=False),
+            bootstyle="secondary-outline",
+            cursor="hand2",
+        ).pack(side="left", padx=(0, 6))
+        tb.Button(
+            notice_btns,
+            text="LAN + HTTPS (Camera Ready)",
+            command=lambda: self._resolve_lan_notice(enable_lan=True, enable_https=True),
+            bootstyle="info",
+            cursor="hand2",
+        ).pack(side="left", padx=(0, 6))
+        tb.Button(
+            notice_btns,
+            text="LAN Only (HTTP)",
+            command=lambda: self._resolve_lan_notice(enable_lan=True, enable_https=False),
+            bootstyle="info-outline",
+            cursor="hand2",
+        ).pack(side="left")
+        if not self.config.lan_notice_shown:
+            self.lan_notice_frame.pack(fill="x", pady=(0, 10))
+
         # ── Server Controls Card ──────────────────────────────────────────────
-        ctrl_card = tb.Labelframe(container, text=" Server Controls ", padding=12)
-        ctrl_card.pack(fill="x", pady=(0, 10))
+        self.ctrl_card = tb.Labelframe(container, text=" Server Controls ", padding=12)
+        self.ctrl_card.pack(fill="x", pady=(0, 10))
+        ctrl_card = self.ctrl_card
 
         btn_row = tb.Frame(ctrl_card)
         btn_row.pack(fill="x")
@@ -498,6 +607,21 @@ class WherezyDesktopApp:
         )
         self.feedback_label.pack(fill="x", pady=(6, 0))
 
+        self.port_error_frame = tb.Frame(ctrl_card)
+        tb.Button(
+            self.port_error_frame,
+            text="Pick a Free Port & Start",
+            command=self.pick_free_port_and_start,
+            bootstyle="warning",
+            cursor="hand2",
+        ).pack(side="left")
+        tb.Label(
+            self.port_error_frame,
+            text="Finds an available port automatically and restarts.",
+            bootstyle="secondary",
+            font=("Segoe UI", 8),
+        ).pack(side="left", padx=(8, 0))
+
         # ── Configuration & OS Startup Card ───────────────────────────────────
         cfg_card = tb.Labelframe(container, text=" Server & Startup Settings ", padding=12)
         cfg_card.pack(fill="x", pady=(0, 10))
@@ -513,7 +637,7 @@ class WherezyDesktopApp:
         host_combo = tb.Combobox(
             grid,
             textvariable=self.var_host,
-            values=("0.0.0.0", "127.0.0.1"),
+            values=("127.0.0.1", "0.0.0.0"),
             bootstyle="primary",
             width=16,
         )
@@ -553,6 +677,14 @@ class WherezyDesktopApp:
         checks = tb.Frame(cfg_card)
         checks.pack(fill="x")
 
+        tb.Checkbutton(
+            checks,
+            text="Enable HTTPS (TLS) — local self-signed cert (for LAN & phone camera)",
+            variable=self.var_use_https,
+            command=self.toggle_https,
+            bootstyle="info-round-toggle",
+            cursor="hand2",
+        ).pack(anchor="w", pady=3)
         tb.Checkbutton(
             checks,
             text="Start with OS (launch minimized to tray / menu bar on login)",
@@ -682,6 +814,36 @@ class WherezyDesktopApp:
             if snap.status == "running":
                 self.open_web_ui(use_lan=False)
 
+    def _launch_with_config(self, cfg: DesktopConfig, *, restart: bool = False) -> ServerSnapshot:
+        fn = self.server_manager.restart if restart else self.server_manager.start
+        return fn(
+            host=cfg.host,
+            port=cfg.port,
+            data_dir=cfg.data_dir,
+            use_https=cfg.use_https,
+            ssl_certfile=cfg.ssl_certfile,
+            ssl_keyfile=cfg.ssl_keyfile,
+        )
+
+    @staticmethod
+    def _stopped_snapshot_for_config(cfg: DesktopConfig, prev: ServerSnapshot) -> ServerSnapshot:
+        scheme = "https" if cfg.use_https else "http"
+        display_local = "127.0.0.1" if cfg.host in {"0.0.0.0", "::", ""} else cfg.host
+        local_url = f"{scheme}://{display_local}:{cfg.port}"
+        lan_url = f"{scheme}://{get_local_ip()}:{cfg.port}" if cfg.host in {"0.0.0.0", "::", ""} else local_url
+        return ServerSnapshot(
+            status=prev.status,
+            host=cfg.host,
+            port=cfg.port,
+            data_dir=cfg.data_dir,
+            local_url=local_url,
+            lan_url=lan_url,
+            error_message=prev.error_message,
+            port_in_use=prev.port_in_use,
+            use_https=cfg.use_https,
+            cert_fingerprint=prev.cert_fingerprint if cfg.use_https else None,
+        )
+
     def _collect_form_config(self) -> DesktopConfig | None:
         raw_port = self.var_port.get().strip()
         try:
@@ -692,7 +854,7 @@ class WherezyDesktopApp:
             self.var_feedback.set("Port must be a number between 1 and 65535.")
             return None
 
-        host = self.var_host.get().strip() or "0.0.0.0"
+        host = self.var_host.get().strip() or "127.0.0.1"
         data_dir = self.var_data_dir.get().strip() or self.config.data_dir
         cfg = DesktopConfig(
             host=host,
@@ -702,6 +864,10 @@ class WherezyDesktopApp:
             open_browser_on_start=bool(self.var_open_browser.get()),
             minimize_to_tray_on_close=bool(self.var_minimize_on_close.get()),
             theme=(self.var_theme.get() or DEFAULT_DESKTOP_THEME).strip() or DEFAULT_DESKTOP_THEME,
+            lan_notice_shown=bool(self.config.lan_notice_shown),
+            use_https=bool(self.var_use_https.get()),
+            ssl_certfile=self.config.ssl_certfile,
+            ssl_keyfile=self.config.ssl_keyfile,
         ).normalized()
         self.config = cfg
         save_desktop_config(cfg)
@@ -716,9 +882,75 @@ class WherezyDesktopApp:
             open_browser_on_start=bool(self.var_open_browser.get()),
             minimize_to_tray_on_close=bool(self.var_minimize_on_close.get()),
             theme=(self.var_theme.get() or self.config.theme).strip() or DEFAULT_DESKTOP_THEME,
+            lan_notice_shown=bool(self.config.lan_notice_shown),
+            use_https=bool(self.var_use_https.get()),
+            ssl_certfile=self.config.ssl_certfile,
+            ssl_keyfile=self.config.ssl_keyfile,
         ).normalized()
         self.config = cfg
         save_desktop_config(cfg)
+
+    def toggle_https(self) -> None:
+        desired = bool(self.var_use_https.get())
+        changed = bool(self.config.use_https) != desired
+        self.save_preferences_only()
+        snap = self.server_manager.snapshot()
+        if changed and snap.status in {"running", "paused"}:
+            restarted = self._launch_with_config(self.config, restart=True)
+            if restarted.status == "running":
+                if desired:
+                    self.var_feedback.set(
+                        "HTTPS enabled — server restarted (accept local self-signed cert prompt once in browser)."
+                    )
+                else:
+                    self.var_feedback.set("HTTPS disabled — server restarted in HTTP mode.")
+        else:
+            if snap.status not in {"running", "paused"}:
+                self._apply_snapshot(self._stopped_snapshot_for_config(self.config, snap))
+            self.var_feedback.set(
+                "HTTPS enabled — next start will serve https:// with a local TLS cert."
+                if desired
+                else "HTTPS disabled — next start will use plain http://."
+            )
+
+    def _resolve_lan_notice(
+        self,
+        *,
+        enable_lan: bool,
+        enable_https: bool | None = None,
+    ) -> None:
+        target_host = "0.0.0.0" if enable_lan else "127.0.0.1"
+        target_https = self.config.use_https if enable_https is None else bool(enable_https)
+        changed = (self.config.host != target_host) or (self.config.use_https != target_https)
+        self.var_host.set(target_host)
+        self.var_use_https.set(target_https)
+        self.config.host = target_host
+        self.config.use_https = target_https
+        self.config.lan_notice_shown = True
+        self.config = self.config.normalized()
+        save_desktop_config(self.config)
+        self.lan_notice_frame.pack_forget()
+        snap = self.server_manager.snapshot()
+        proto = "HTTPS" if target_https else "HTTP"
+        if changed and snap.status in {"running", "paused"}:
+            self._launch_with_config(self.config, restart=True)
+            self.var_feedback.set(f"Updated binding to {target_host} ({proto}) and restarted server.")
+        else:
+            if snap.status not in {"running", "paused"}:
+                self._apply_snapshot(self._stopped_snapshot_for_config(self.config, snap))
+            self.var_feedback.set(f"Host configured for {target_host} ({proto}).")
+
+    def pick_free_port_and_start(self) -> ServerSnapshot:
+        cfg = self._collect_form_config()
+        host = cfg.host if cfg is not None else self.config.host
+        start_from = (cfg.port if cfg is not None else self.config.port) + 1
+        free_port = find_free_port(host, preferred_start=start_from)
+        self.var_port.set(str(free_port))
+        updated = self._collect_form_config()
+        if updated is None:
+            return self.server_manager.snapshot()
+        self.var_feedback.set(f"Switched to free port {free_port}.")
+        return self._launch_with_config(updated, restart=True)
 
     def change_theme(self, theme_name: str | None = None) -> str:
         """Apply and persist the selected ttkbootstrap theme."""
@@ -766,7 +998,7 @@ class WherezyDesktopApp:
             return self.server_manager.snapshot()
 
         self.var_feedback.set("")
-        return self.server_manager.start(host=cfg.host, port=cfg.port, data_dir=cfg.data_dir)
+        return self._launch_with_config(cfg, restart=False)
 
     def handle_pause(self) -> ServerSnapshot:
         return self.server_manager.pause()
@@ -782,7 +1014,7 @@ class WherezyDesktopApp:
             self._prompt_relaunch_for_data_dir()
             return self.server_manager.snapshot()
         self.var_feedback.set("")
-        return self.server_manager.restart(host=cfg.host, port=cfg.port, data_dir=cfg.data_dir)
+        return self._launch_with_config(cfg, restart=True)
 
     def apply_settings_and_restart(self) -> None:
         cfg = self._collect_form_config()
@@ -793,21 +1025,11 @@ class WherezyDesktopApp:
             return
         snap = self.server_manager.snapshot()
         if snap.status in {"running", "paused"}:
-            self.server_manager.restart(host=cfg.host, port=cfg.port, data_dir=cfg.data_dir)
+            self._launch_with_config(cfg, restart=True)
             self.var_feedback.set("Settings saved and server restarted.")
         else:
             self.var_feedback.set("Settings saved.")
-            self._apply_snapshot(
-                ServerSnapshot(
-                    status=snap.status,
-                    host=cfg.host,
-                    port=cfg.port,
-                    data_dir=cfg.data_dir,
-                    local_url=f"http://{'127.0.0.1' if cfg.host in {'0.0.0.0', '::', ''} else cfg.host}:{cfg.port}",
-                    lan_url=snap.lan_url,
-                    error_message=snap.error_message,
-                )
-            )
+            self._apply_snapshot(self._stopped_snapshot_for_config(cfg, snap))
 
     def _prompt_relaunch_for_data_dir(self) -> None:
         choice = Messagebox.yesno(
@@ -882,6 +1104,12 @@ class WherezyDesktopApp:
 
         if snap.error_message:
             self.var_feedback.set(snap.error_message)
+
+        if status == "error" and snap.port_in_use:
+            if not self.port_error_frame.winfo_manager():
+                self.port_error_frame.pack(fill="x", pady=(6, 0))
+        elif self.port_error_frame.winfo_manager():
+            self.port_error_frame.pack_forget()
 
         if status == "paused":
             self.btn_start.configure(text="▶  Resume", state="normal", bootstyle="success")
@@ -1096,6 +1324,9 @@ def run_desktop_app(
     host: str | None = None,
     port: int | None = None,
     data_dir: str | None = None,
+    use_https: bool | None = None,
+    ssl_certfile: str | None = None,
+    ssl_keyfile: str | None = None,
     minimized: bool = False,
     open_browser: bool = False,
 ) -> int:
@@ -1105,6 +1336,9 @@ def run_desktop_app(
             initial_host=host,
             initial_port=port,
             initial_data_dir=data_dir,
+            initial_https=use_https,
+            initial_ssl_certfile=ssl_certfile,
+            initial_ssl_keyfile=ssl_keyfile,
             start_minimized=minimized,
             open_browser_override=open_browser,
         )

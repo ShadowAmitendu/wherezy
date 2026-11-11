@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-import sys
 
 from PIL import Image, ImageDraw
+
+from backend.app.core.config import resource_path
 
 
 STATUS_COLORS = {
@@ -26,29 +27,15 @@ STATUS_LABELS = {
 
 
 def resolve_asset_path(filename: str) -> Path | None:
-    """Locate a packaged or repository UI icon asset by filename."""
-    candidates: list[Path] = []
-    meipass = getattr(sys, "_MEIPASS", None)
-    if meipass:
-        mp = Path(meipass)
-        candidates.extend(
-            [
-                mp / "frontend" / "dist" / filename,
-                mp / "packaging" / filename,
-                mp / filename,
-            ]
-        )
-
-    repo_root = Path(__file__).resolve().parents[3]
+    """Locate a packaged or repository UI icon asset by filename via `resource_path`."""
+    candidates = [
+        resource_path(Path("frontend") / "dist" / filename),
+        resource_path(Path("packaging") / filename),
+        resource_path(filename),
+        resource_path(Path("frontend") / "public" / filename),
+    ]
     app_root = Path(__file__).resolve().parents[1]
-    candidates.extend(
-        [
-            repo_root / "frontend" / "public" / filename,
-            repo_root / "frontend" / "dist" / filename,
-            app_root / "static_dist" / filename,
-            repo_root / "packaging" / filename,
-        ]
-    )
+    candidates.append(app_root / "static_dist" / filename)
 
     for candidate in candidates:
         if candidate.is_file():

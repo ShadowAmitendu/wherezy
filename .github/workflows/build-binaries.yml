@@ -7,23 +7,8 @@ on:
       - "v*"
 
 jobs:
-  build-binary:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            artifact_name: wherezy-linux-x86_64
-            binary_path: dist/wherezy
-          - os: macos-latest
-            artifact_name: wherezy-macos-arm64
-            binary_path: dist/wherezy
-          - os: windows-latest
-            artifact_name: wherezy-windows-x86_64.exe
-            binary_path: dist/wherezy.exe
-
-    runs-on: ${{ matrix.os }}
-
+  build-windows:
+    runs-on: windows-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -45,29 +30,44 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt pyinstaller
 
-      - name: Build standalone binary
-        run: python scripts/build_binary.py --clean
+      - name: Ensure Inno Setup 6 is installed
+        shell: pwsh
+        run: |
+          if (-not (Get-Command ISCC.exe -ErrorAction SilentlyContinue) -and -not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup -y --no-progress
+          }
 
-      - name: Smoke test standalone binary
-        shell: bash
+      - name: Build frozen Windows app & Inno Setup installer
+        shell: pwsh
+        env:
+          WINDOWS_SIGNING_CERT_BASE64: ${{ secrets.WINDOWS_SIGNING_CERT_BASE64 }}
+          WINDOWS_SIGNING_CERT_PASSWORD: ${{ secrets.WINDOWS_SIGNING_CERT_PASSWORD }}
+          WINDOWS_SIGNING_TIMESTAMP_URL: ${{ secrets.WINDOWS_SIGNING_TIMESTAMP_URL }}
+        run: .\scripts\build_windows.ps1 -Clean
+
+      - name: Smoke test frozen Windows bundle (including spaces & non-ASCII path)
+        shell: pwsh
         run: |
           python - <<'PY'
           import os, shutil, socket, subprocess, tempfile, time, urllib.request
           from pathlib import Path
 
-          bin_src = Path("${{ matrix.binary_path }}")
-          assert bin_src.is_file(), f"Missing binary: {bin_src}"
-          tmp = Path(tempfile.mkdtemp(prefix="wherezy_ci_"))
-          bin_copy = tmp / bin_src.name
-          shutil.copy2(bin_src, bin_copy)
+          bundle_src = Path("dist/Wherezy")
+          assert (bundle_src / "Wherezy.exe").is_file(), "Missing dist/Wherezy/Wherezy.exe"
+
+          root_tmp = Path(tempfile.mkdtemp(prefix="wherezy_win_ci_"))
+          install_sim = root_tmp / "Wherezy Test 用户"
+          shutil.copytree(bundle_src, install_sim)
+          exe_path = install_sim / "Wherezy.exe"
+          data_dir = root_tmp / "data dir"
 
           with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
               s.bind(("127.0.0.1", 0))
               port = s.getsockname()[1]
 
           proc = subprocess.Popen(
-              [str(bin_copy), "--host", "127.0.0.1", "--port", str(port)],
-              cwd=str(tmp),
+              [str(exe_path), "--headless", "--host", "127.0.0.1", "--port", str(port), "--data-dir", str(data_dir)],
+              cwd=str(install_sim),
           )
           try:
               for _ in range(60):
@@ -85,24 +85,176 @@ jobs:
               with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=5) as r:
                   assert r.status == 200
                   assert b'<div id="root">' in r.read()
-              assert (tmp / "data" / "inventory.db").is_file()
+              assert (data_dir / "inventory.db").is_file()
           finally:
               proc.terminate()
               proc.wait(timeout=10)
-              shutil.rmtree(tmp, ignore_errors=True)
+              shutil.rmtree(root_tmp, ignore_errors=True)
           PY
 
-      - name: Prepare release-named binary
-        shell: bash
-        run: |
-          mkdir -p release-bin
-          cp "${{ matrix.binary_path }}" "release-bin/${{ matrix.artifact_name }}"
-
-      - name: Upload standalone binary artifact
+      - name: Upload Windows installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.artifact_name }}
-          path: release-bin/${{ matrix.artifact_name }}
+          name: wherezy-windows-installer
+          path: dist/installer/Wherezy-Setup-*.exe
+          if-no-files-found: error
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend and build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt pyinstaller
+          brew install create-dmg || true
+
+      - name: Build macOS .app bundle and .dmg
+        shell: bash
+        env:
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_NOTARY_KEYCHAIN_PROFILE: ${{ secrets.APPLE_NOTARY_KEYCHAIN_PROFILE }}
+          APPLE_API_KEY_PATH: ${{ secrets.APPLE_API_KEY_PATH }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+        run: CLEAN=1 bash scripts/build_macos.sh
+
+      - name: Smoke test frozen macOS .app binary
+        shell: bash
+        run: |
+          python - <<'PY'
+          import shutil, socket, subprocess, tempfile, time, urllib.request
+          from pathlib import Path
+
+          app_bin = Path("dist/Wherezy.app/Contents/MacOS/Wherezy")
+          assert app_bin.is_file(), f"Missing binary: {app_bin}"
+          root_tmp = Path(tempfile.mkdtemp(prefix="wherezy_mac_ci_"))
+          data_dir = root_tmp / "data dir"
+
+          with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+              s.bind(("127.0.0.1", 0))
+              port = s.getsockname()[1]
+
+          proc = subprocess.Popen(
+              [str(app_bin), "--headless", "--host", "127.0.0.1", "--port", str(port), "--data-dir", str(data_dir)],
+              cwd=str(root_tmp),
+          )
+          try:
+              for _ in range(60):
+                  if proc.poll() is not None:
+                      raise SystemExit(f"Process exited early with {proc.returncode}")
+                  try:
+                      with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health", timeout=2) as r:
+                          if r.status == 200:
+                              break
+                  except Exception:
+                      time.sleep(0.5)
+              else:
+                  raise SystemExit("Timed out waiting for /api/health")
+
+              with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=5) as r:
+                  assert r.status == 200
+                  assert b'<div id="root">' in r.read()
+              assert (data_dir / "inventory.db").is_file()
+          finally:
+              proc.terminate()
+              proc.wait(timeout=10)
+              shutil.rmtree(root_tmp, ignore_errors=True)
+          PY
+
+      - name: Upload macOS DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wherezy-macos-dmg
+          path: dist/installer/Wherezy-*-macOS.dmg
+          if-no-files-found: error
+
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install backend and build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt pyinstaller
+
+      - name: Build Linux bundle
+        run: python scripts/build_binary.py --clean
+
+      - name: Smoke test & package Linux archive
+        shell: bash
+        run: |
+          python - <<'PY'
+          import shutil, socket, subprocess, tempfile, time, urllib.request
+          from pathlib import Path
+
+          app_bin = Path("dist/Wherezy/wherezy")
+          assert app_bin.is_file(), f"Missing binary: {app_bin}"
+          root_tmp = Path(tempfile.mkdtemp(prefix="wherezy_lin_ci_"))
+          data_dir = root_tmp / "data"
+
+          with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+              s.bind(("127.0.0.1", 0))
+              port = s.getsockname()[1]
+
+          proc = subprocess.Popen(
+              [str(app_bin), "--headless", "--host", "127.0.0.1", "--port", str(port), "--data-dir", str(data_dir)],
+              cwd=str(root_tmp),
+          )
+          try:
+              for _ in range(60):
+                  if proc.poll() is not None:
+                      raise SystemExit(f"Process exited early with {proc.returncode}")
+                  try:
+                      with urllib.request.urlopen(f"http://127.0.0.1:{port}/api/health", timeout=2) as r:
+                          if r.status == 200:
+                              break
+                  except Exception:
+                      time.sleep(0.5)
+              else:
+                  raise SystemExit("Timed out waiting for /api/health")
+          finally:
+              proc.terminate()
+              proc.wait(timeout=10)
+              shutil.rmtree(root_tmp, ignore_errors=True)
+          PY
+          VER="$(python packaging/version_info.py --version)"
+          mkdir -p release-linux
+          tar -C dist -czf "release-linux/wherezy-${VER}-linux-x86_64.tar.gz" Wherezy
+
+      - name: Upload Linux bundle artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wherezy-linux-bundle
+          path: release-linux/*.tar.gz
           if-no-files-found: error
 
   build-package:
@@ -142,7 +294,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    needs: [build-binary, build-package]
+    needs: [build-windows, build-macos, build-linux, build-package]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:

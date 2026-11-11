@@ -18,8 +18,14 @@ LINUX_DESKTOP_FILENAME = "wherezy.desktop"
 
 
 def build_windows_run_command(launch_cmd: list[str]) -> str:
-    """Format a Windows Run-key command line string with proper quoting."""
-    return subprocess.list2cmdline(launch_cmd)
+    """Format a Windows Run-key command line string with explicit executable quoting."""
+    if not launch_cmd:
+        return ""
+    exe = launch_cmd[0]
+    quoted_exe = exe if (exe.startswith('"') and exe.endswith('"')) else f'"{exe}"'
+    if len(launch_cmd) == 1:
+        return quoted_exe
+    return f"{quoted_exe} {subprocess.list2cmdline(launch_cmd[1:])}"
 
 
 def build_macos_launch_agent_plist(
