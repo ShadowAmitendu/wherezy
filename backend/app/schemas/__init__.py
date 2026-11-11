@@ -916,3 +916,26 @@ class OfflineChangesOut(BaseModel):
     timestamp: str
     items_changed: List[ItemOut] = []
     items_removed: List[int] = []
+
+# --- Bulk Create ---
+
+class BulkItemEntry(BaseModel):
+    name: str
+    location_id: Optional[int] = None
+    expiry_date: Optional[str] = None
+    notes: Optional[str] = None
+    values: Optional[Dict[str, Any]] = None
+
+class BulkCreateRequest(BaseModel):
+    category_id: int
+    location_id: Optional[int] = None
+    expiry_date: Optional[str] = None
+    notes: Optional[str] = None
+    values: Dict[str, Any] = {}
+    items: List[BulkItemEntry]
+
+class BulkCreateResponse(BaseModel):
+    ok: bool = True
+    created_count: int
+    batch_id: str
+    items: List[ItemDetailOut] = []

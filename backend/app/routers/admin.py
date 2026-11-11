@@ -2,10 +2,11 @@ import os
 import csv
 import io
 import json
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, UploadFile, File, Response, status
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from backend.app.core.db import get_db
@@ -17,6 +18,9 @@ from backend.app.schemas import (
 from backend.app.services.backup_service import (
     create_backup_archive, prune_old_backups, restore_backup_archive, get_dir_size
 )
+from backend.app.services.location_service import get_location_path_str
+from backend.app.services.permissions import get_current_profile
+from backend.app.services.activity import record
 from backend.app.routers.settings import get_setting_val
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
@@ -169,16 +173,47 @@ def export_data(
         headers={"Content-Disposition": "attachment; filename=homeinventory_export.csv"}
     )
 
+def _build_location_lookup(db: Session):
+    """Build path-based and unambiguous name-based lookup maps for active locations."""
+    path_map: dict[str, int] = {}
+    name_map: dict[str, int] = {}
+    ambiguous_names: set[str] = set()
+
+    locations = db.query(Location).filter(Location.deleted_at.is_(None)).all()
+    for loc in locations:
+        full_path = get_location_path_str(db, loc.id)
+        if full_path:
+            path_map[full_path.strip().lower()] = loc.id
+        lname = loc.name.strip().lower()
+        if lname in ambiguous_names:
+            continue
+        if lname in name_map:
+            del name_map[lname]
+            ambiguous_names.add(lname)
+        else:
+            name_map[lname] = loc.id
+
+    return path_map, name_map, ambiguous_names
+
+
 @router.post("/import-csv", response_model=ImportCsvResult)
 def import_csv(
+    request: Request,
     category_id: int = Query(...),
     dry_run: bool = Query(True),
+    location_id: Optional[int] = Query(None),
     file: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
     cat = db.query(Category).filter(Category.id == category_id, Category.deleted_at.is_(None)).first()
     if not cat:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Category not found"}})
+
+    default_location_id = location_id if (location_id is not None and location_id != 0) else None
+    if default_location_id is not None:
+        default_loc = db.query(Location).filter(Location.id == default_location_id, Location.deleted_at.is_(None)).first()
+        if not default_loc:
+            raise HTTPException(status_code=404, detail={"error": {"code": "LOCATION_NOT_FOUND", "message": "Location not found"}})
 
     content = file.file.read().decode("utf-8-sig")
     reader = csv.reader(io.StringIO(content))
@@ -187,31 +222,36 @@ def import_csv(
         raise HTTPException(status_code=400, detail={"error": {"code": "EMPTY_CSV", "message": "CSV file is empty"}})
 
     # Map headers to fields
-    cat_fields = {f.label.lower(): f for f in cat.fields if not f.archived}
+    active_fields = [f for f in cat.fields if not f.archived]
+    cat_fields = {f.label.lower(): f for f in active_fields}
     header_indices = {}
-    for idx, h in enumerate(headers):
-        h_clean = h.strip().lower()
-        if h_clean in cat_fields:
-            header_indices[idx] = cat_fields[h_clean]
 
     name_idx = None
+    location_idx = None
     notes_idx = None
     expiry_idx = None
     for idx, h in enumerate(headers):
         hl = h.strip().lower()
         if hl == "name":
             name_idx = idx
+        elif hl == "location":
+            location_idx = idx
         elif hl == "notes":
             notes_idx = idx
         elif hl in ("expiry date", "expiry", "valid till"):
             expiry_idx = idx
+        elif hl in cat_fields:
+            header_indices[idx] = cat_fields[hl]
+
+    path_map, name_map, ambiguous_names = _build_location_lookup(db)
+    required_fields = [f for f in active_fields if f.required]
 
     errors = []
     total_rows = 0
     valid_items = []
 
     for row_num, row in enumerate(reader, start=2):
-        if not any(row):
+        if not any(cell.strip() for cell in row):
             continue
         total_rows += 1
         name = row[name_idx].strip() if (name_idx is not None and name_idx < len(row)) else ""
@@ -219,10 +259,29 @@ def import_csv(
             errors.append(f"Row {row_num}: Name is required")
             continue
 
-        notes = row[notes_idx].strip() if (notes_idx is not None and notes_idx < len(row)) else None
-        expiry = row[expiry_idx].strip() if (expiry_idx is not None and expiry_idx < len(row)) else None
+        row_loc_id = default_location_id
+        if location_idx is not None and location_idx < len(row):
+            raw_loc = row[location_idx].strip()
+            if raw_loc:
+                loc_key = raw_loc.lower()
+                if loc_key in path_map:
+                    row_loc_id = path_map[loc_key]
+                elif loc_key in name_map:
+                    row_loc_id = name_map[loc_key]
+                elif loc_key in ambiguous_names:
+                    errors.append(f"Row {row_num}: Location '{raw_loc}' matches multiple locations; use full path (e.g. 'Room > Shelf')")
+                    continue
+                else:
+                    errors.append(f"Row {row_num}: Location '{raw_loc}' not found")
+                    continue
+
+        raw_notes = row[notes_idx].strip() if (notes_idx is not None and notes_idx < len(row)) else ""
+        notes = raw_notes or None
+        raw_expiry = row[expiry_idx].strip() if (expiry_idx is not None and expiry_idx < len(row)) else ""
+        expiry = raw_expiry if (raw_expiry and cat.track_expiry) else None
 
         values = {}
+        row_error = False
         for idx, field in header_indices.items():
             if idx < len(row):
                 cell_val = row[idx].strip()
@@ -232,6 +291,7 @@ def import_csv(
                             values[field.key] = float(cell_val) if "." in cell_val else int(cell_val)
                         except ValueError:
                             errors.append(f"Row {row_num}: '{field.label}' must be a number")
+                            row_error = True
                     elif field.type == "checkbox":
                         values[field.key] = cell_val.lower() in ("yes", "true", "1")
                     elif field.type == "multiselect":
@@ -239,24 +299,47 @@ def import_csv(
                     else:
                         values[field.key] = cell_val
 
+        for req_f in required_fields:
+            val = values.get(req_f.key)
+            if val is None or val == "" or (isinstance(val, list) and len(val) == 0):
+                errors.append(f"Row {row_num}: '{req_f.label}' is required")
+                row_error = True
+
+        if row_error:
+            continue
+
         valid_items.append({
             "name": name,
             "category_id": category_id,
+            "location_id": row_loc_id,
             "notes": notes,
             "expiry_date": expiry,
-            "values_json": json.dumps(values)
+            "values_json": json.dumps(values),
+            "status": "active",
         })
 
-    if not dry_run and not errors:
+    if not dry_run and not errors and valid_items:
+        current = get_current_profile(request, db)
+        batch_id = str(uuid.uuid4())
+        created_items: List[Item] = []
         for it_data in valid_items:
             item = Item(**it_data)
             db.add(item)
+            created_items.append(item)
+        db.flush()
+        for item in created_items:
+            record(
+                db, "item", "created",
+                f"Imported '{item.name}' from CSV",
+                entity_id=item.id, actor=current, batch_id=batch_id
+            )
         db.commit()
 
+    imported_count = len(valid_items) if (dry_run or not errors) else 0
     return ImportCsvResult(
         ok=len(errors) == 0,
         dry_run=dry_run,
         total_rows=total_rows,
-        imported_count=len(valid_items) if (not dry_run and not errors) else len(valid_items),
+        imported_count=imported_count,
         errors=errors
     )

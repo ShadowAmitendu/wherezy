@@ -60,6 +60,38 @@ export async function apiFetch<T>(
   return (await response.text()) as unknown as T;
 }
 
+export interface BulkItemEntryPayload {
+  name: string;
+  location_id?: number | null;
+  expiry_date?: string | null;
+  notes?: string | null;
+  values?: Record<string, any>;
+}
+
+export interface BulkCreatePayload {
+  category_id: number;
+  location_id?: number | null;
+  expiry_date?: string | null;
+  notes?: string | null;
+  values: Record<string, any>;
+  items: BulkItemEntryPayload[];
+}
+
+export interface BulkCreateResult {
+  ok: boolean;
+  created_count: number;
+  batch_id: string;
+  items: any[];
+}
+
+export interface ImportCsvResult {
+  ok: boolean;
+  dry_run: boolean;
+  total_rows: number;
+  imported_count: number;
+  errors: string[];
+}
+
 export type ProfileRole = "admin" | "co_admin" | "member" | "viewer" | "custom";
 
 export interface ProfileOut {
@@ -267,6 +299,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ item_ids, location_id }),
     }),
+  bulkCreate: (data: BulkCreatePayload) =>
+    apiFetch<BulkCreateResult>("/api/items/bulk-create", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
   getExpiring: (within_days?: number) =>
     apiFetch<any[]>(
       `/api/expiring${within_days ? `?within_days=${within_days}` : ""}`
@@ -307,6 +344,25 @@ export const api = {
     const formData = new FormData();
     formData.append("file", file);
     return apiFetch<{ ok: boolean; message: string }>("/api/admin/restore", {
+      method: "POST",
+      body: formData,
+    });
+  },
+  importCsv: (
+    categoryId: number,
+    file: File,
+    options?: { dryRun?: boolean; locationId?: number | null }
+  ) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const params = new URLSearchParams({
+      category_id: String(categoryId),
+      dry_run: String(options?.dryRun ?? true),
+    });
+    if (options?.locationId) {
+      params.set("location_id", String(options.locationId));
+    }
+    return apiFetch<ImportCsvResult>(`/api/admin/import-csv?${params.toString()}`, {
       method: "POST",
       body: formData,
     });

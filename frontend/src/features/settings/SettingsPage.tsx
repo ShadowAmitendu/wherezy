@@ -26,12 +26,14 @@ import CloudUploadOutlinedIcon from "@mui/icons-material/CloudUploadOutlined";
 import DnsOutlinedIcon from "@mui/icons-material/DnsOutlined";
 import StorageOutlinedIcon from "@mui/icons-material/StorageOutlined";
 import FileDownloadOutlinedIcon from "@mui/icons-material/FileDownloadOutlined";
+import UploadFileOutlinedIcon from "@mui/icons-material/UploadFileOutlined";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { ThemePalettePicker } from "../../components/shared/ThemePalettePicker";
+import { BulkAddDialog } from "../items/BulkAddDialog";
 import { useAppTheme } from "../../theme";
 import { useAuth } from "../../auth/AuthContext";
 import { api } from "../../api/client";
@@ -71,6 +73,8 @@ export const SettingsPage: React.FC = () => {
   const [restoreConfirmOpen, setRestoreConfirmOpen] = useState(false);
   const [restoreMessage, setRestoreMessage] = useState<string | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [csvImportOpen, setCsvImportOpen] = useState(false);
+  const [importMessage, setImportMessage] = useState<string | null>(null);
 
   const restoreInputRef = React.useRef<HTMLInputElement>(null);
 
@@ -408,11 +412,11 @@ export const SettingsPage: React.FC = () => {
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
             <FileDownloadOutlinedIcon color="primary" />
             <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              Data Export
+              Data Export & Import
             </Typography>
           </Box>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Export all items with custom fields into standard spreadsheet formats.
+            Export all items with custom fields into standard spreadsheet formats, or bulk import items from CSV.
           </Typography>
           <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
             <Button
@@ -427,9 +431,33 @@ export const SettingsPage: React.FC = () => {
             >
               Export as JSON
             </Button>
+            <Button
+              variant="outlined"
+              startIcon={<UploadFileOutlinedIcon />}
+              onClick={() => setCsvImportOpen(true)}
+            >
+              Import Items (CSV / Bulk)
+            </Button>
           </Box>
         </CardContent>
       </Card>
+
+      <BulkAddDialog
+        open={csvImportOpen}
+        initialTab="csv"
+        onClose={() => setCsvImportOpen(false)}
+        onAdded={(_count, message) => {
+          setImportMessage(message || "Items imported successfully");
+        }}
+      />
+
+      <AlertDialog
+        open={Boolean(importMessage)}
+        onClose={() => setImportMessage(null)}
+        title="Bulk Import Complete"
+        message={importMessage}
+        severity="success"
+      />
 
       {/* PIN Dialog */}
       <Dialog open={pinDialogOpen} onClose={() => setPinDialogOpen(false)} maxWidth="sm" fullWidth>

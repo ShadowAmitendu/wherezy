@@ -11,11 +11,14 @@ import {
   IconButton,
   Tooltip,
   Grid,
+  Snackbar,
+  Alert,
 } from "@mui/material";
 import { DataGrid, GridColDef, GridRenderCellParams, GridPaginationModel, GridSortModel } from "@mui/x-data-grid";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import AddIcon from "@mui/icons-material/Add";
+import PlaylistAddIcon from "@mui/icons-material/PlaylistAdd";
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import DriveFileMoveOutlinedIcon from "@mui/icons-material/DriveFileMoveOutlined";
@@ -32,6 +35,7 @@ import { ItemDetailDialog } from "./ItemDetailDialog";
 import { ItemFormDialog } from "./ItemFormDialog";
 import { ItemMoveDialog } from "./ItemMoveDialog";
 import { BulkMoveDialog } from "./BulkMoveDialog";
+import { BulkAddDialog, type BulkAddTab } from "./BulkAddDialog";
 import { ItemCard } from "./ItemCard";
 import { ItemsFilterToolbar } from "./ItemsFilterToolbar";
 import { api } from "../../api/client";
@@ -79,7 +83,15 @@ export const ItemsPage: React.FC = () => {
   const [detailItemId, setDetailItemId] = useState<number | null>(
     searchParams.get("selected") ? Number(searchParams.get("selected")) : null
   );
-  const [formDialogOpen, setFormDialogOpen] = useState(searchParams.get("action") === "new");
+  const initialAction = searchParams.get("action");
+  const [formDialogOpen, setFormDialogOpen] = useState(initialAction === "new");
+  const [bulkAddOpen, setBulkAddOpen] = useState(
+    initialAction === "bulk" || initialAction === "import"
+  );
+  const [bulkAddInitialTab, setBulkAddInitialTab] = useState<BulkAddTab>(
+    initialAction === "import" ? "csv" : "list"
+  );
+  const [bulkSuccessMsg, setBulkSuccessMsg] = useState<string | null>(null);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
   const [movingItem, setMovingItem] = useState<Item | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Item | null>(null);
@@ -322,7 +334,7 @@ export const ItemsPage: React.FC = () => {
         subtitle="Browse, search, and manage items in your home inventory"
         icon={<Inventory2OutlinedIcon />}
         action={
-          <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+          <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
             {selectedItemIds.length > 0 && (
               <Button
                 variant="outlined"
@@ -346,6 +358,16 @@ export const ItemsPage: React.FC = () => {
                 <ViewModuleIcon fontSize="small" />
               </ToggleButton>
             </ToggleButtonGroup>
+            <Button
+              variant="outlined"
+              startIcon={<PlaylistAddIcon />}
+              onClick={() => {
+                setBulkAddInitialTab("list");
+                setBulkAddOpen(true);
+              }}
+            >
+              Bulk Add
+            </Button>
             <Button
               variant="contained"
               startIcon={<AddIcon />}
@@ -480,6 +502,19 @@ export const ItemsPage: React.FC = () => {
         }}
       />
 
+      {/* Bulk Add / CSV Import Dialog */}
+      <BulkAddDialog
+        open={bulkAddOpen}
+        initialCategoryId={selectedCategory ? Number(selectedCategory) : null}
+        initialLocationId={selectedLocation}
+        initialTab={bulkAddInitialTab}
+        onClose={() => setBulkAddOpen(false)}
+        onAdded={(_count, message) => {
+          setBulkSuccessMsg(message || "Items added successfully");
+          loadItems();
+        }}
+      />
+
       {/* Delete Confirmation Dialog */}
       <ConfirmDialog
         open={Boolean(deleteTarget)}
@@ -498,6 +533,17 @@ export const ItemsPage: React.FC = () => {
         onUndo={handleUndoDelete}
         onClose={() => setUndoSnackbarOpen(false)}
       />
+
+      <Snackbar
+        open={Boolean(bulkSuccessMsg)}
+        autoHideDuration={5000}
+        onClose={() => setBulkSuccessMsg(null)}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      >
+        <Alert severity="success" onClose={() => setBulkSuccessMsg(null)} variant="filled">
+          {bulkSuccessMsg}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

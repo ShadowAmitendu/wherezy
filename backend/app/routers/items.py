@@ -1,4 +1,5 @@
 import json
+import uuid
 from datetime import date, timedelta
 from typing import Optional, List
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
@@ -8,7 +9,8 @@ from backend.app.core.db import get_db
 from backend.app.models import Item, Category, Location, Tag, Profile, Contact
 from backend.app.schemas import (
     ItemCreate, ItemUpdate, ItemMoveRequest, ItemTakenRequest,
-    BulkMoveRequest, BulkMoveResponse, ItemsListResponse, ItemDetailOut, ItemOut, SuccessResponse
+    BulkMoveRequest, BulkMoveResponse, BulkCreateRequest, BulkCreateResponse,
+    ItemsListResponse, ItemDetailOut, ItemOut, SuccessResponse
 )
 from backend.app.routers.settings import get_setting_val
 from backend.app.services.item_service import map_item, map_item_detail
@@ -428,6 +430,101 @@ def bulk_move_items(
     )
     db.commit()
     return BulkMoveResponse(ok=True, moved_count=moved)
+
+
+@router.post("/items/bulk-create", response_model=BulkCreateResponse)
+def bulk_create_items(
+    payload: BulkCreateRequest,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("member"))
+):
+    if not payload.items:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": {"code": "VALIDATION_ERROR", "message": "At least one item is required"}},
+        )
+    if len(payload.items) > 500:
+        raise HTTPException(
+            status_code=422,
+            detail={"error": {"code": "VALIDATION_ERROR", "message": "Maximum 500 items per bulk request"}},
+        )
+
+    category = db.query(Category).filter(Category.id == payload.category_id, Category.deleted_at.is_(None)).first()
+    if not category:
+        raise HTTPException(status_code=404, detail={"error": {"code": "CATEGORY_NOT_FOUND", "message": "Category not found"}})
+
+    loc_ids = set()
+    if payload.location_id is not None and payload.location_id != 0:
+        loc_ids.add(payload.location_id)
+    for entry in payload.items:
+        if entry.location_id is not None and entry.location_id != 0:
+            loc_ids.add(entry.location_id)
+
+    if loc_ids:
+        existing_loc_ids = {
+            lid for (lid,) in db.query(Location.id).filter(Location.id.in_(loc_ids), Location.deleted_at.is_(None)).all()
+        }
+        if not loc_ids.issubset(existing_loc_ids):
+            raise HTTPException(status_code=404, detail={"error": {"code": "LOCATION_NOT_FOUND", "message": "Location not found"}})
+
+    prepared: List[dict] = []
+    for idx, entry in enumerate(payload.items):
+        clean_name = entry.name.strip()
+        if not clean_name:
+            raise HTTPException(
+                status_code=422,
+                detail={"error": {"code": "VALIDATION_ERROR", "message": f"Item #{idx + 1} name cannot be empty"}},
+            )
+        target_loc_id = entry.location_id if entry.location_id is not None else payload.location_id
+        if target_loc_id == 0:
+            target_loc_id = None
+
+        raw_expiry = entry.expiry_date if entry.expiry_date is not None else payload.expiry_date
+        clean_expiry = raw_expiry.strip() if (raw_expiry and raw_expiry.strip() and category.track_expiry) else None
+
+        raw_notes = entry.notes if entry.notes is not None else payload.notes
+        clean_notes = raw_notes.strip() if (raw_notes and raw_notes.strip()) else None
+
+        merged_values = {**payload.values, **(entry.values or {})}
+        clean_vals = validate_values(category, merged_values)
+
+        prepared.append({
+            "name": clean_name,
+            "category_id": payload.category_id,
+            "location_id": target_loc_id,
+            "expiry_date": clean_expiry,
+            "notes": clean_notes,
+            "values_json": json.dumps(clean_vals),
+            "status": "active",
+        })
+
+    batch_id = str(uuid.uuid4())
+    now = utc_now_iso()
+    created_items: List[Item] = []
+    for row in prepared:
+        item = Item(**row, created_at=now, updated_at=now)
+        db.add(item)
+        created_items.append(item)
+
+    db.flush()
+    for item in created_items:
+        record(
+            db, "item", "created",
+            f"Bulk added '{item.name}' in '{category.name}'",
+            entity_id=item.id, actor=current, batch_id=batch_id
+        )
+
+    db.commit()
+    for item in created_items:
+        db.refresh(item)
+
+    warn_days = int(get_setting_val(db, "expiry_warn_days", 30))
+    return BulkCreateResponse(
+        ok=True,
+        created_count=len(created_items),
+        batch_id=batch_id,
+        items=[map_item_detail(item, db, warn_days) for item in created_items],
+    )
 
 @router.get("/locations/{id}/items", response_model=List[ItemOut])
 def get_location_items(id: int, include_sub: bool = True, db: Session = Depends(get_db)):
