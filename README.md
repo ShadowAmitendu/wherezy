@@ -63,7 +63,7 @@ A lightweight, local-network (LAN-first) household inventory management web appl
     - One-click **Start**, **Pause** (returns HTTP `503` without unbinding the port), **Stop**, **Restart**, **Start with OS** (launches minimized on login), live log console, and `--headless` / `--cli` flag for servers and scripts.
 
 11. **GitHub Pages Jekyll Showcase (`site/`)**:
-    - Pure minimal Markdown documentation & download site powered by GitHub Pages Jekyll (`theme: jekyll-theme-minimal` in `site/_config.yml`) with a `_docs` page collection linked in the sidebar and automated CI builds in `.github/workflows/pages.yml`.
+    - Pure minimal Markdown documentation & download site powered by GitHub Pages Jekyll (`theme: jekyll-theme-architect` in `site/_config.yml`) with a `_docs` page collection linked in the sidebar and automated CI builds in `.github/workflows/pages.yml`.
 
 ---
 

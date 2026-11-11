@@ -38,4 +38,4 @@ See the [Downloads]({{ '/downloads/' | relative_url }}) page for full install co
 ## Theme Configuration
 
 This showcase site uses GitHub Pages Jekyll with `theme: {{ site.theme }}` configured in `site/_config.yml`.
-To switch to any official [GitHub Pages theme](https://pages.github.com/themes/) (`jekyll-theme-cayman`, `jekyll-theme-slate`, `jekyll-theme-architect`, `jekyll-theme-tactile`, `minima`, etc.), update the `theme:` field in `site/_config.yml`.
+To switch to any official [GitHub Pages theme](https://pages.github.com/themes/) (`jekyll-theme-minimal`, `jekyll-theme-cayman`, `jekyll-theme-slate`, `jekyll-theme-tactile`, `minima`, etc.), update the `theme:` field in `site/_config.yml`.
