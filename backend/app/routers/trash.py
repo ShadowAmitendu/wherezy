@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from backend.app.core.config import DATA_DIR
 from backend.app.core.db import get_db
-from backend.app.models import Item, Location, Category, Photo, Attachment, Profile
+from backend.app.models import Item, Location, Category, Photo, Profile
 from backend.app.schemas import TrashItemOut, TrashRestoreRequest, SuccessResponse
 from backend.app.services.permissions import require
 from backend.app.services.activity import record
@@ -75,6 +75,13 @@ def restore_trash(
         if not item:
             raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Item not found in trash"}})
 
+        cat = db.query(Category).filter(Category.id == item.category_id, Category.deleted_at.is_(None)).first()
+        if not cat:
+            raise HTTPException(
+                status_code=400,
+                detail={"error": {"code": "CATEGORY_DELETED", "message": "Original category was deleted. Please restore the category first."}}
+            )
+
         # Check if parent location is active or deleted
         if payload.new_location_id:
             loc = db.query(Location).filter(Location.id == payload.new_location_id, Location.deleted_at.is_(None)).first()
@@ -103,6 +110,11 @@ def restore_trash(
         loc = db.query(Location).filter(Location.id == target_id, Location.deleted_at.isnot(None)).first()
         if not loc:
             raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Location not found in trash"}})
+        # If the former parent is gone or still in trash, promote cleanly to root on restore.
+        if loc.parent_id is not None:
+            parent = db.query(Location).filter(Location.id == loc.parent_id, Location.deleted_at.is_(None)).first()
+            if not parent:
+                loc.parent_id = None
         loc.deleted_at = None
         loc.deleted_by = None
         db.commit()
@@ -127,6 +139,84 @@ def restore_trash(
 
     raise HTTPException(status_code=400, detail={"error": {"code": "INVALID_TYPE", "message": f"Unknown type '{item_type}'"}})
 
+def _cleanup_photos(db: Session, owner_type: str, owner_ids: List[int]) -> None:
+    """Remove photo files from disk and delete their metadata rows."""
+    if not owner_ids:
+        return
+    photos = (
+        db.query(Photo)
+        .filter(Photo.owner_type == owner_type, Photo.owner_id.in_(owner_ids))
+        .all()
+    )
+    for p in photos:
+        try:
+            (PHOTOS_DIR / p.file_name).unlink(missing_ok=True)
+            (PHOTOS_DIR / p.thumb_name).unlink(missing_ok=True)
+        except Exception:
+            pass
+    if photos:
+        db.query(Photo).filter(
+            Photo.owner_type == owner_type, Photo.owner_id.in_(owner_ids)
+        ).delete(synchronize_session=False)
+
+
+def _purge_items(db: Session, items: List[Item]) -> None:
+    """Permanently delete items along with attachments and photo assets."""
+    if not items:
+        return
+    item_ids = [it.id for it in items]
+    for it in items:
+        att_dir = FILES_DIR / str(it.id)
+        if att_dir.exists():
+            shutil.rmtree(att_dir, ignore_errors=True)
+    _cleanup_photos(db, "item", item_ids)
+    for it in items:
+        db.delete(it)
+    # Flush item deletions before purging locations/categories because SessionLocal uses autoflush=False
+    # and items.location_id / items.category_id enforce ON DELETE RESTRICT.
+    db.flush()
+
+
+def _purge_locations(db: Session, location_ids: List[int]) -> None:
+    """Permanently delete locations after detaching nullable item and parent-location foreign keys."""
+    if not location_ids:
+        return
+    _cleanup_photos(db, "location", location_ids)
+    db.query(Item).filter(Item.location_id.in_(location_ids)).update(
+        {Item.location_id: None}, synchronize_session=False
+    )
+    db.query(Location).filter(Location.parent_id.in_(location_ids)).update(
+        {Location.parent_id: None}, synchronize_session=False
+    )
+    db.flush()
+    db.query(Location).filter(Location.id.in_(location_ids)).delete(synchronize_session=False)
+
+
+def _purge_categories(db: Session, category_ids: List[int]) -> None:
+    """Permanently delete categories when no remaining items reference them."""
+    if not category_ids:
+        return
+    blocking = (
+        db.query(Category.name)
+        .join(Item, Item.category_id == Category.id)
+        .filter(Category.id.in_(category_ids))
+        .distinct()
+        .all()
+    )
+    if blocking:
+        names = ", ".join(f"'{name}'" for (name,) in blocking)
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "error": {
+                    "code": "CATEGORY_IN_USE",
+                    "message": f"Cannot permanently delete category {names} while items still reference it. Restore or reassign those items first.",
+                }
+            },
+        )
+    db.query(Category).filter(Category.id.in_(category_ids)).delete(synchronize_session=False)
+
+
 @router.delete("/{item_type}/{target_id}", response_model=SuccessResponse)
 def purge_trash_item(
     item_type: str,
@@ -139,21 +229,8 @@ def purge_trash_item(
         if not item:
             raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Item not found in trash"}})
 
-        # Clean attachments files
-        att_dir = FILES_DIR / str(item.id)
-        if att_dir.exists():
-            shutil.rmtree(att_dir, ignore_errors=True)
-
-        # Clean photos files
-        for p in db.query(Photo).filter(Photo.owner_type == "item", Photo.owner_id == item.id).all():
-            try:
-                (PHOTOS_DIR / p.file_name).unlink(missing_ok=True)
-                (PHOTOS_DIR / p.thumb_name).unlink(missing_ok=True)
-            except Exception:
-                pass
-
         name = item.name
-        db.delete(item)
+        _purge_items(db, [item])
         db.commit()
 
         record(db, "system", "purged", f"Permanently purged item '{name}'", actor=current)
@@ -165,7 +242,7 @@ def purge_trash_item(
         if not loc:
             raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Location not found in trash"}})
         name = loc.name
-        db.delete(loc)
+        _purge_locations(db, [loc.id])
         db.commit()
         record(db, "system", "purged", f"Permanently purged location '{name}'", actor=current)
         db.commit()
@@ -176,7 +253,7 @@ def purge_trash_item(
         if not cat:
             raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Category not found in trash"}})
         name = cat.name
-        db.delete(cat)
+        _purge_categories(db, [cat.id])
         db.commit()
         record(db, "system", "purged", f"Permanently purged category '{name}'", actor=current)
         db.commit()
@@ -190,17 +267,19 @@ def empty_trash(
     current: Profile = Depends(require("admin"))
 ):
     trashed_items = db.query(Item).filter(Item.deleted_at.isnot(None)).all()
-    count = len(trashed_items)
-    for it in trashed_items:
-        att_dir = FILES_DIR / str(it.id)
-        if att_dir.exists():
-            shutil.rmtree(att_dir, ignore_errors=True)
-        db.delete(it)
+    trashed_loc_ids = [loc_id for (loc_id,) in db.query(Location.id).filter(Location.deleted_at.isnot(None)).all()]
+    trashed_cat_ids = [cat_id for (cat_id,) in db.query(Category.id).filter(Category.deleted_at.isnot(None)).all()]
 
-    db.query(Location).filter(Location.deleted_at.isnot(None)).delete(synchronize_session=False)
-    db.query(Category).filter(Category.deleted_at.isnot(None)).delete(synchronize_session=False)
+    items_count = len(trashed_items)
+    locs_count = len(trashed_loc_ids)
+    cats_count = len(trashed_cat_ids)
+
+    _purge_items(db, trashed_items)
+    _purge_locations(db, trashed_loc_ids)
+    _purge_categories(db, trashed_cat_ids)
 
     db.commit()
-    record(db, "system", "trash_emptied", f"Emptied trash ({count} items purged)", actor=current)
+    summary = f"Emptied trash ({items_count} items, {locs_count} locations, {cats_count} categories purged)"
+    record(db, "system", "trash_emptied", summary, actor=current)
     db.commit()
-    return SuccessResponse(ok=True, message=f"Trash emptied ({count} items purged)")
+    return SuccessResponse(ok=True, message=f"Trash emptied ({items_count} items, {locs_count} locations, {cats_count} categories purged)")
