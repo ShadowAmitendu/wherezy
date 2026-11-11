@@ -7,7 +7,6 @@ import {
   Toolbar,
   Typography,
   List,
-  ListItem,
   ListItemButton,
   ListItemIcon,
   ListItemText,
@@ -44,21 +43,12 @@ import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
 import ScheduleOutlinedIcon from "@mui/icons-material/ScheduleOutlined";
 import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
-import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
-import HealingOutlinedIcon from "@mui/icons-material/HealingOutlined";
-import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
-import PeopleOutlinedIcon from "@mui/icons-material/PeopleOutlined";
-import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
-import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import QrCodeScannerOutlinedIcon from "@mui/icons-material/QrCodeScannerOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
 import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
 import LogoutIcon from "@mui/icons-material/Logout";
 import SwitchAccountOutlinedIcon from "@mui/icons-material/SwitchAccountOutlined";
-import Brightness4Icon from "@mui/icons-material/Brightness4";
-import Brightness7Icon from "@mui/icons-material/Brightness7";
 import PaletteOutlinedIcon from "@mui/icons-material/PaletteOutlined";
 import CheckIcon from "@mui/icons-material/Check";
 import DarkModeOutlinedIcon from "@mui/icons-material/DarkModeOutlined";
@@ -70,44 +60,20 @@ import { useAppTheme, THEME_PRESETS, ThemePreset } from "../theme";
 import { useAuth } from "../auth/AuthContext";
 import { AccountIcon } from "../components/shared/AccountIcon";
 import { CommandPalette } from "../features/palette/CommandPalette";
+import { SidebarNav } from "./SidebarNav";
 import { api } from "../api/client";
 
 const DRAWER_WIDTH = 240;
 const MINI_DRAWER_WIDTH = 80;
-
-interface NavItem {
-  label: string;
-  path: string;
-  icon: React.ReactNode;
-  adminOnly?: boolean;
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { label: "Dashboard", path: "/", icon: <DashboardOutlinedIcon /> },
-  { label: "Items", path: "/items", icon: <Inventory2OutlinedIcon /> },
-  { label: "Inbox", path: "/inbox", icon: <MoveToInboxOutlinedIcon /> },
-  { label: "Reminders", path: "/reminders", icon: <NotificationsOutlinedIcon /> },
-  { label: "Categories", path: "/categories", icon: <CategoryOutlinedIcon /> },
-  { label: "Locations", path: "/locations", icon: <PlaceOutlinedIcon /> },
-  { label: "Users", path: "/users", icon: <ManageAccountsOutlinedIcon />, adminOnly: true },
-  { label: "Health", path: "/health", icon: <HealingOutlinedIcon /> },
-  { label: "Moves", path: "/moves", icon: <LocalShippingOutlinedIcon /> },
-  { label: "Contacts", path: "/contacts", icon: <PeopleOutlinedIcon /> },
-  { label: "Activity", path: "/activity", icon: <HistoryOutlinedIcon /> },
-  { label: "Trash", path: "/trash", icon: <DeleteOutlinedIcon /> },
-  { label: "Scan Code", path: "/scan", icon: <QrCodeScannerOutlinedIcon /> },
-  { label: "Settings", path: "/settings", icon: <SettingsOutlinedIcon /> },
-];
 
 export const AppLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
-  const isTablet = useMediaQuery(theme.breakpoints.between("sm", "md"));
   const { mode, setMode, preset, setPreset, resolvedMode, presetConfig } = useAppTheme();
   const [themeAnchorEl, setThemeAnchorEl] = useState<null | HTMLElement>(null);
-  const { pinSet, logout, selectProfile, currentProfile: authProfile } = useAuth();
+  const { logout, selectProfile, currentProfile: authProfile } = useAuth();
 
   // Desktop/Tablet sidebar state: expanded (text + icons) or collapsed (only icons)
   // On tablets, default to mini rail (80px) to maximize content width
@@ -201,16 +167,6 @@ export const AppLayout: React.FC = () => {
     }
   };
 
-  const handleThemeToggle = () => {
-    if (mode === "system") {
-      setMode(resolvedMode === "dark" ? "light" : "dark");
-    } else if (mode === "light") {
-      setMode("dark");
-    } else {
-      setMode("system");
-    }
-  };
-
   const handleProfileSelect = async (profile: any) => {
     setProfileAnchorEl(null);
     if (profile.id === currentProfile?.id) return;
@@ -240,89 +196,20 @@ export const AppLayout: React.FC = () => {
   };
 
   const isUserAdminOrCoAdmin = currentProfile?.role === "admin" || currentProfile?.role === "co_admin";
-  const visibleNavItems = NAV_ITEMS.filter((item) => {
-    if (item.adminOnly) {
-      return isUserAdminOrCoAdmin;
-    }
-    return true;
-  });
 
-  const renderNavList = (isMini: boolean) => (
-    <List sx={{ py: 1 }}>
-      {visibleNavItems.map((item) => {
-        const isSelected =
-          item.path === "/"
-            ? location.pathname === "/"
-            : location.pathname.startsWith(item.path);
+  const handleNavSelect = (path: string) => {
+    navigate(path);
+    if (isMobile) setMobileOpen(false);
+  };
 
-        const buttonContent = (
-          <ListItemButton
-            selected={isSelected}
-            onClick={() => {
-              navigate(item.path);
-              if (isMobile) setMobileOpen(false);
-            }}
-            sx={{
-              minHeight: 48,
-              justifyContent: "initial",
-              px: 2.5,
-              mx: 1,
-              borderRadius: 1,
-              "&.Mui-selected": {
-                bgcolor: "primary.main",
-                color: "primary.contrastText",
-                "& .MuiListItemIcon-root": {
-                  color: "primary.contrastText",
-                },
-                "&:hover": {
-                  bgcolor: "primary.dark",
-                },
-              },
-            }}
-          >
-            <ListItemIcon
-              sx={{
-                minWidth: 0,
-                mr: isMini ? 0 : 2,
-                justifyContent: "center",
-                color: isSelected ? "inherit" : "text.secondary",
-              }}
-            >
-              {item.path === "/reminders" && remindersCount > 0 ? (
-                <Badge badgeContent={remindersCount} color="error" max={99}>
-                  {item.icon}
-                </Badge>
-              ) : (
-                item.icon
-              )}
-            </ListItemIcon>
-            {!isMini && (
-              <ListItemText
-                primary={item.label}
-                sx={{
-                  "& .MuiListItemText-primary": {
-                    fontWeight: isSelected ? 600 : 500,
-                    whiteSpace: "nowrap",
-                  },
-                }}
-              />
-            )}
-          </ListItemButton>
-        );
-
-        return (
-          <ListItem key={item.path} disablePadding sx={{ mb: 0.5, display: "block" }}>
-            {isMini ? (
-              <Tooltip title={item.label} placement="right" arrow>
-                {buttonContent}
-              </Tooltip>
-            ) : (
-              buttonContent
-            )}
-          </ListItem>
-        );
-      })}
-    </List>
+  const renderSidebar = (isMini: boolean) => (
+    <SidebarNav
+      currentPath={location.pathname}
+      isMini={isMini}
+      isAdminOrCoAdmin={isUserAdminOrCoAdmin}
+      badges={{ "/reminders": remindersCount }}
+      onSelectPath={handleNavSelect}
+    />
   );
 
   const currentDesktopWidth = desktopOpen ? DRAWER_WIDTH : MINI_DRAWER_WIDTH;
@@ -830,8 +717,8 @@ export const AppLayout: React.FC = () => {
           }}
         >
           <Toolbar />
-          <Box sx={{ overflowY: "auto", overflowX: "hidden", py: 1 }}>
-            {renderNavList(!desktopOpen)}
+          <Box sx={{ overflowY: "auto", overflowX: "hidden" }}>
+            {renderSidebar(!desktopOpen)}
           </Box>
         </Drawer>
       )}
@@ -859,8 +746,8 @@ export const AppLayout: React.FC = () => {
             </Typography>
           </Toolbar>
           <Divider />
-          <Box sx={{ overflowY: "auto", py: 1 }}>
-            {renderNavList(false)}
+          <Box sx={{ overflowY: "auto" }}>
+            {renderSidebar(false)}
           </Box>
         </Drawer>
       )}
