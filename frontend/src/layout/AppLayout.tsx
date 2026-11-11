@@ -19,20 +19,13 @@ import {
   MenuItem,
   Avatar,
   Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
   Button,
   Divider,
   Paper,
-  Grid,
   BottomNavigation,
   BottomNavigationAction,
   CircularProgress,
 } from "@mui/material";
-import { AlertDialog } from "../components/shared/AlertDialog";
 import MenuIcon from "@mui/icons-material/Menu";
 import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
@@ -44,8 +37,6 @@ import ScheduleOutlinedIcon from "@mui/icons-material/ScheduleOutlined";
 import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import QrCodeScannerOutlinedIcon from "@mui/icons-material/QrCodeScannerOutlined";
-import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
-import ManageAccountsOutlinedIcon from "@mui/icons-material/ManageAccountsOutlined";
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
 import LogoutIcon from "@mui/icons-material/Logout";
 import SwitchAccountOutlinedIcon from "@mui/icons-material/SwitchAccountOutlined";
@@ -73,7 +64,7 @@ export const AppLayout: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { mode, setMode, preset, setPreset, resolvedMode, presetConfig } = useAppTheme();
   const [themeAnchorEl, setThemeAnchorEl] = useState<null | HTMLElement>(null);
-  const { logout, selectProfile, currentProfile: authProfile } = useAuth();
+  const { logout, currentProfile: authProfile } = useAuth();
 
   // Desktop/Tablet sidebar state: expanded (text + icons) or collapsed (only icons)
   // On tablets, default to mini rail (80px) to maximize content width
@@ -115,32 +106,21 @@ export const AppLayout: React.FC = () => {
     setNotifAnchorEl(null);
   };
 
-  // Profile switcher state
-  const [allProfiles, setAllProfiles] = useState<any[]>([]);
+  // Account menu anchor state
   const [profileAnchorEl, setProfileAnchorEl] = useState<null | HTMLElement>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
-
-  // PIN switch dialog state
-  const [pinTargetProfile, setPinTargetProfile] = useState<any | null>(null);
-  const [pinInput, setPinInput] = useState("");
-  const [pinError, setPinError] = useState<string | null>(null);
 
   const currentProfile = authProfile;
 
   useEffect(() => {
-    const fetchProfileAndReminders = async () => {
+    const fetchRemindersCount = async () => {
       try {
-        const [remCount, profiles] = await Promise.all([
-          api.getRemindersCount().catch(() => ({ total: 0 })),
-          api.getProfiles().catch(() => []),
-        ]);
+        const remCount = await api.getRemindersCount().catch(() => ({ total: 0 }));
         if (remCount) setRemindersCount(remCount.total || 0);
-        if (profiles) setAllProfiles(profiles);
       } catch (err) {
         console.error(err);
       }
     };
-    fetchProfileAndReminders();
+    fetchRemindersCount();
   }, [location.pathname]);
 
   // Global Ctrl+K / Cmd+K listener
@@ -164,34 +144,6 @@ export const AppLayout: React.FC = () => {
         localStorage.setItem("hi_sidebar_open", String(next));
         return next;
       });
-    }
-  };
-
-  const handleProfileSelect = async (profile: any) => {
-    setProfileAnchorEl(null);
-    if (profile.id === currentProfile?.id) return;
-    if (profile.has_pin) {
-      setPinTargetProfile(profile);
-      setPinInput("");
-      setPinError(null);
-    } else {
-      try {
-        await selectProfile(profile.id);
-        window.location.reload();
-      } catch (err: any) {
-        console.error("Failed to select profile", err);
-      }
-    }
-  };
-
-  const handleConfirmPinSwitch = async () => {
-    if (!pinTargetProfile) return;
-    try {
-      await selectProfile(pinTargetProfile.id, pinInput);
-      setPinTargetProfile(null);
-      window.location.reload();
-    } catch (err: any) {
-      setPinError(err.error?.message || "Incorrect PIN");
     }
   };
 
@@ -624,67 +576,63 @@ export const AppLayout: React.FC = () => {
                   anchorEl={profileAnchorEl}
                   open={Boolean(profileAnchorEl)}
                   onClose={() => setProfileAnchorEl(null)}
+                  transformOrigin={{ horizontal: "right", vertical: "top" }}
+                  anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
+                  sx={{ mt: 1 }}
                 >
-                  <Box sx={{ px: 2, py: 1 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                      Household Profiles
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Switch active household member
-                    </Typography>
-                  </Box>
-                  <Divider />
-                  {allProfiles.map((p) => (
-                    <MenuItem
-                      key={p.id}
-                      selected={p.id === currentProfile.id}
-                      onClick={() => handleProfileSelect(p)}
-                      sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}
-                    >
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
-                        <Avatar
-                          sx={{
-                            width: 26,
-                            height: 26,
-                            bgcolor: p.color || "primary.main",
-                          }}
-                        >
-                          <AccountIcon
-                            icon={p.avatar_emoji}
-                            name={p.name}
-                            sx={{ fontSize: 16, color: "#ffffff" }}
-                          />
-                        </Avatar>
-                        <Typography variant="body2">{p.name}</Typography>
-                      </Box>
+                  <Box sx={{ px: 2, py: 1.5, minWidth: 200 }}>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }} noWrap>
+                        {currentProfile.name}
+                      </Typography>
                       <Chip
-                        label={p.role}
+                        label={currentProfile.role.replace("_", " ")}
                         size="small"
                         sx={{ height: 20, fontSize: "0.65rem", textTransform: "capitalize" }}
                       />
-                    </MenuItem>
-                  ))}
+                    </Box>
+                    {currentProfile.username && (
+                      <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                        @{currentProfile.username}
+                      </Typography>
+                    )}
+                  </Box>
                   <Divider />
-                  <MenuItem onClick={() => { setProfileAnchorEl(null); navigate("/account"); }}>
-                    <AccountCircleOutlinedIcon sx={{ mr: 1, fontSize: 18 }} /> My Account & Profile
+                  <MenuItem
+                    onClick={() => {
+                      setProfileAnchorEl(null);
+                      navigate("/account");
+                    }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 32 }}>
+                      <AccountCircleOutlinedIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary="Account & Profile" />
                   </MenuItem>
-                  {isUserAdminOrCoAdmin && (
-                    <MenuItem onClick={() => { setProfileAnchorEl(null); navigate("/users"); }}>
-                      <ManageAccountsOutlinedIcon sx={{ mr: 1, fontSize: 18 }} /> Manage Users & Roles
-                    </MenuItem>
-                  )}
-                  <MenuItem onClick={() => { setProfileAnchorEl(null); navigate("/settings"); }}>
-                    <SettingsOutlinedIcon sx={{ mr: 1, fontSize: 18 }} /> Settings & Preferences
+                  <MenuItem
+                    onClick={() => {
+                      setProfileAnchorEl(null);
+                      logout();
+                      navigate("/lock");
+                    }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 32 }}>
+                      <SwitchAccountOutlinedIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary="Switch User" />
                   </MenuItem>
-                  <MenuItem onClick={() => { setProfileAnchorEl(null); navigate("/lock"); }}>
-                    <SwitchAccountOutlinedIcon sx={{ mr: 1, fontSize: 18 }} /> Switch User (Who's Using)
-                  </MenuItem>
-                  <Divider />
-                  <MenuItem onClick={() => { setProfileAnchorEl(null); logout(); navigate("/lock"); }}>
-                    <LockOutlinedIcon sx={{ mr: 1, fontSize: 18 }} /> Lock Session
-                  </MenuItem>
-                  <MenuItem onClick={() => { setProfileAnchorEl(null); logout(); navigate("/login"); }}>
-                    <LogoutIcon sx={{ mr: 1, fontSize: 18 }} /> Sign Out
+                  <Divider sx={{ my: 0.5 }} />
+                  <MenuItem
+                    onClick={() => {
+                      setProfileAnchorEl(null);
+                      logout();
+                      navigate("/login");
+                    }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 32 }}>
+                      <LogoutIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary="Sign Out" />
                   </MenuItem>
                 </Menu>
               </>
@@ -692,7 +640,7 @@ export const AppLayout: React.FC = () => {
               <Button
                 variant="contained"
                 size="small"
-                onClick={() => setPickerOpen(true)}
+                onClick={() => navigate("/login")}
                 sx={{ borderRadius: 1, textTransform: "none" }}
               >
                 Sign In
@@ -850,113 +798,6 @@ export const AppLayout: React.FC = () => {
 
       {/* Global Command Palette */}
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
-
-      {/* PIN Switch Dialog */}
-      <Dialog open={Boolean(pinTargetProfile)} onClose={() => setPinTargetProfile(null)} maxWidth="xs" fullWidth>
-        <DialogTitle>Enter Profile PIN</DialogTitle>
-        <DialogContent sx={{ pt: "24px !important" }}>
-          <Typography variant="body2" sx={{ mb: 2 }}>
-            Switching to <strong>{pinTargetProfile?.name}</strong> requires a 4-digit PIN.
-          </Typography>
-          <AlertDialog
-            open={Boolean(pinError)}
-            onClose={() => setPinError(null)}
-            title="PIN Error"
-            message={pinError}
-            severity="error"
-          />
-          <TextField
-            autoFocus
-            fullWidth
-            type="password"
-            label="4-Digit PIN"
-            value={pinInput}
-            onChange={(e) => setPinInput(e.target.value)}
-            slotProps={{ htmlInput: { maxLength: 8 } }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setPinTargetProfile(null)}>Cancel</Button>
-          <Button variant="contained" onClick={handleConfirmPinSwitch}>
-            Unlock & Switch
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Who's Using? Profile Picker Dialog */}
-      <Dialog
-        open={pickerOpen && !currentProfile}
-        onClose={() => setPickerOpen(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle sx={{ textAlign: "center", pt: 3 }}>
-          <Typography variant="h5" sx={{ fontWeight: 700 }}>
-            Who's using HomeInventory?
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Select your profile to continue.
-          </Typography>
-        </DialogTitle>
-        <DialogContent sx={{ p: 3 }}>
-          <Grid container spacing={2}>
-            {allProfiles.map((p) => (
-              <Grid key={p.id} size={{ xs: 12, sm: 6 }}>
-                <Paper
-                  variant="outlined"
-                  onClick={() => {
-                    setPickerOpen(false);
-                    handleProfileSelect(p);
-                  }}
-                  sx={{
-                    p: 2.5,
-                    cursor: "pointer",
-                    borderRadius: 2,
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 2,
-                    transition: "all 0.15s ease",
-                    "&:hover": {
-                      borderColor: "primary.main",
-                      bgcolor: "action.hover",
-                      transform: "translateY(-2px)",
-                    },
-                  }}
-                >
-                  <Avatar
-                    sx={{
-                      width: 48,
-                      height: 48,
-                      bgcolor: p.color || "primary.main",
-                      boxShadow: 1,
-                    }}
-                  >
-                    <AccountIcon
-                      icon={p.avatar_emoji}
-                      name={p.name}
-                      fontSize="medium"
-                      sx={{ color: "#ffffff" }}
-                    />
-                  </Avatar>
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <Typography variant="subtitle1" sx={{ fontWeight: 700 }} noWrap>
-                        {p.name}
-                      </Typography>
-                      {p.has_pin && <LockOutlinedIcon sx={{ fontSize: 16, opacity: 0.6 }} />}
-                    </Box>
-                    <Chip
-                      label={p.role}
-                      size="small"
-                      sx={{ height: 20, fontSize: "0.7rem", textTransform: "capitalize", mt: 0.5 }}
-                    />
-                  </Box>
-                </Paper>
-              </Grid>
-            ))}
-          </Grid>
-        </DialogContent>
-      </Dialog>
     </Box>
   );
 };
