@@ -1,37 +1,17 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   Box,
-  Collapse,
   Divider,
   List,
   ListItem,
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Typography,
+  ListSubheader,
   Badge,
   Tooltip,
 } from "@mui/material";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { NAV_CATEGORIES, NavCategory } from "./navConfig";
-
-const COLLAPSED_CATS_KEY = "hi_sidebar_collapsed_cats";
-
-function loadCollapsedCategories(): Record<string, boolean> {
-  try {
-    const raw = localStorage.getItem(COLLAPSED_CATS_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return {};
-    const map: Record<string, boolean> = {};
-    for (const id of parsed) {
-      if (typeof id === "string") map[id] = true;
-    }
-    return map;
-  } catch {
-    return {};
-  }
-}
 
 export interface SidebarNavProps {
   categories?: NavCategory[];
@@ -43,8 +23,8 @@ export interface SidebarNavProps {
 }
 
 /**
- * Categorized Material Design navigation list with collapsible category groups
- * and compact link proportions, keeping icon X-alignment aligned with the AppBar menu button.
+ * Compact categorized Material Design navigation list with static category
+ * subheaders, keeping icon X-alignment aligned with the AppBar menu button.
  */
 export const SidebarNav: React.FC<SidebarNavProps> = ({
   categories = NAV_CATEGORIES,
@@ -54,21 +34,6 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   badges = {},
   onSelectPath,
 }) => {
-  const [collapsedMap, setCollapsedMap] = useState<Record<string, boolean>>(loadCollapsedCategories);
-
-  const toggleCategory = (categoryId: string) => {
-    setCollapsedMap((prev) => {
-      const next = { ...prev, [categoryId]: !prev[categoryId] };
-      const collapsedIds = Object.keys(next).filter((k) => next[k]);
-      try {
-        localStorage.setItem(COLLAPSED_CATS_KEY, JSON.stringify(collapsedIds));
-      } catch {
-        // Ignore storage errors (e.g. private mode quota)
-      }
-      return next;
-    });
-  };
-
   const visibleCategories = categories
     .map((category) => ({
       ...category,
@@ -78,69 +43,34 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
 
   return (
     <Box component="nav" aria-label="Main navigation" sx={{ py: 0.75 }}>
-      {visibleCategories.map((category, index) => {
-        const isExpanded = isMini || !collapsedMap[category.id];
-        const categoryBadgeCount = category.items.reduce(
-          (sum, item) => sum + (badges[item.path] || 0),
-          0,
-        );
-
-        return (
-          <React.Fragment key={category.id}>
-            {index > 0 && <Divider sx={{ my: 0.75, mx: 2 }} />}
-
-            {!isMini && (
-              <ListItemButton
-                onClick={() => toggleCategory(category.id)}
-                aria-expanded={isExpanded}
-                sx={{
-                  mx: 1,
-                  // pl: 2.5 aligns header text (8px + 20px = 28px) cleanly with ListItemIcon below
-                  pl: 2.5,
-                  pr: 1.5,
-                  py: 0.4,
-                  minHeight: 28,
-                  borderRadius: 1,
-                  justifyContent: "space-between",
-                  color: "text.secondary",
-                }}
-              >
-                <Typography
-                  variant="caption"
+      {visibleCategories.map((category, index) => (
+        <React.Fragment key={category.id}>
+          {index > 0 && <Divider sx={{ my: 0.75, mx: 2 }} />}
+          <List
+            disablePadding
+            subheader={
+              !isMini ? (
+                <ListSubheader
+                  disableSticky
                   sx={{
+                    // px: 3.5 (28px) aligns subheader text cleanly with ListItemIcon below (mx: 1 + px: 2.5)
+                    px: 3.5,
+                    pt: 0.25,
+                    pb: 0.25,
+                    lineHeight: "24px",
                     fontSize: "0.68rem",
                     fontWeight: 700,
                     letterSpacing: "0.08em",
                     textTransform: "uppercase",
-                    lineHeight: 1.2,
+                    bgcolor: "transparent",
+                    color: "text.secondary",
                   }}
                 >
                   {category.title}
-                </Typography>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                  {!isExpanded && categoryBadgeCount > 0 && (
-                    <Typography
-                      variant="caption"
-                      color="error.main"
-                      sx={{ fontSize: "0.68rem", fontWeight: 700, lineHeight: 1 }}
-                    >
-                      {categoryBadgeCount}
-                    </Typography>
-                  )}
-                  <ExpandMoreIcon
-                    sx={{
-                      fontSize: 16,
-                      color: "text.disabled",
-                      transform: isExpanded ? "rotate(0deg)" : "rotate(-90deg)",
-                      transition: "transform 0.2s ease",
-                    }}
-                  />
-                </Box>
-              </ListItemButton>
-            )}
-
-            <Collapse in={isExpanded} timeout="auto">
-              <List disablePadding sx={{ mt: !isMini ? 0.25 : 0 }}>
+                </ListSubheader>
+              ) : undefined
+            }
+          >
                 {category.items.map((item) => {
                   const isSelected =
                     item.path === "/"
@@ -218,11 +148,9 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                     </ListItem>
                   );
                 })}
-              </List>
-            </Collapse>
-          </React.Fragment>
-        );
-      })}
+          </List>
+        </React.Fragment>
+      ))}
     </Box>
   );
 };
