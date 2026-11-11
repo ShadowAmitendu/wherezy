@@ -27,6 +27,21 @@ import { CoverThumb } from "../photos/CoverThumb";
 import { renderMuiIcon } from "../../components/shared/IconPicker";
 import { api } from "../../api/client";
 
+const sectionTitleSx = {
+  fontWeight: 700,
+  fontSize: { xs: "0.9rem", sm: "1.1rem", md: "1.25rem" },
+  lineHeight: 1.3,
+  minWidth: 0,
+} as const;
+
+const sectionActionBtnSx = {
+  whiteSpace: "nowrap",
+  flexShrink: 0,
+  minWidth: "auto",
+  px: { xs: 0.75, sm: 1.25 },
+  fontSize: { xs: "0.7rem", sm: "0.8125rem" },
+} as const;
+
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const [data, setData] = useState<any | null>(null);
@@ -297,11 +312,11 @@ export const DashboardPage: React.FC = () => {
 
       {/* Categories Grid */}
       <Box sx={{ mb: 4 }}>
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1, mb: 2 }}>
+          <Typography variant="h6" noWrap sx={sectionTitleSx}>
             Categories
           </Typography>
-          <Button size="small" onClick={() => navigate("/categories")}>
+          <Button size="small" onClick={() => navigate("/categories")} sx={sectionActionBtnSx}>
             Manage Categories
           </Button>
         </Box>
@@ -392,12 +407,12 @@ export const DashboardPage: React.FC = () => {
         {/* Expiring Soon / Expired List */}
         <Grid size={{ xs: 12, md: 6 }}>
           <Card sx={{ height: "100%" }}>
-            <CardContent>
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            <CardContent sx={{ px: { xs: 1.5, sm: 2 } }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1, mb: 2 }}>
+                <Typography variant="h6" noWrap sx={sectionTitleSx}>
                   Attention Needed (Expiry)
                 </Typography>
-                <Button size="small" onClick={() => navigate("/expiry")}>
+                <Button size="small" onClick={() => navigate("/expiry")} sx={sectionActionBtnSx}>
                   View All
                 </Button>
               </Box>
@@ -438,12 +453,12 @@ export const DashboardPage: React.FC = () => {
         {/* Recently Added Items */}
         <Grid size={{ xs: 12, md: 6 }}>
           <Card sx={{ height: "100%" }}>
-            <CardContent>
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
-                <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            <CardContent sx={{ px: { xs: 1.5, sm: 2 } }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 1, mb: 2 }}>
+                <Typography variant="h6" noWrap sx={sectionTitleSx}>
                   Recently Added
                 </Typography>
-                <Button size="small" onClick={() => navigate("/items")}>
+                <Button size="small" onClick={() => navigate("/items")} sx={sectionActionBtnSx}>
                   Browse All
                 </Button>
               </Box>
