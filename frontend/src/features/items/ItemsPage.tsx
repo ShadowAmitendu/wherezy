@@ -13,6 +13,8 @@ import {
   Grid,
   Snackbar,
   Alert,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import { DataGrid, GridColDef, GridRenderCellParams, GridPaginationModel, GridSortModel } from "@mui/x-data-grid";
 import ViewListIcon from "@mui/icons-material/ViewList";
@@ -43,6 +45,8 @@ import { Item } from "./types";
 import { Category } from "../forms/types";
 
 export const ItemsPage: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [searchParams] = useSearchParams();
 
   // View mode: 'table' or 'card', remembered in localStorage; defaults to 'card' on mobile
@@ -334,10 +338,11 @@ export const ItemsPage: React.FC = () => {
         subtitle="Browse, search, and manage items"
         icon={<Inventory2OutlinedIcon />}
         action={
-          <Box sx={{ display: "flex", gap: 1, alignItems: "center", flexWrap: "wrap" }}>
+          <Box sx={{ display: "flex", gap: { xs: 0.75, sm: 1 }, alignItems: "center", flexWrap: "wrap" }}>
             {selectedItemIds.length > 0 && (
               <Button
                 variant="outlined"
+                size={isMobile ? "small" : "medium"}
                 startIcon={<DriveFileMoveOutlinedIcon />}
                 onClick={() => setBulkMoveOpen(true)}
               >
@@ -360,6 +365,7 @@ export const ItemsPage: React.FC = () => {
             </ToggleButtonGroup>
             <Button
               variant="outlined"
+              size={isMobile ? "small" : "medium"}
               startIcon={<PlaylistAddIcon />}
               onClick={() => {
                 setBulkAddInitialTab("list");
@@ -370,6 +376,7 @@ export const ItemsPage: React.FC = () => {
             </Button>
             <Button
               variant="contained"
+              size={isMobile ? "small" : "medium"}
               startIcon={<AddIcon />}
               onClick={() => {
                 setEditingItem(null);

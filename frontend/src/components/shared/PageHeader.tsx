@@ -25,8 +25,8 @@ export const PageHeader: React.FC<PageHeaderProps> = ({
         flexDirection: { xs: "column", sm: "row" },
         justifyContent: "space-between",
         alignItems: { xs: "flex-start", sm: "center" },
-        gap: { xs: 1.5, sm: 2 },
-        mb: { xs: 2.5, sm: 3 },
+        gap: { xs: 1.25, sm: 2 },
+        mb: { xs: 2, sm: 3 },
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>

@@ -19,6 +19,8 @@ import {
   ListItem,
   ListItemText,
   Grid,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 import CloudDownloadOutlinedIcon from "@mui/icons-material/CloudDownloadOutlined";
@@ -47,6 +49,8 @@ function formatBytes(bytes: number) {
 }
 
 export const SettingsPage: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { mode, setMode, preset, setPreset } = useAppTheme();
   const { pinSet, refreshAuth } = useAuth();
 
@@ -191,9 +195,18 @@ export const SettingsPage: React.FC = () => {
       />
 
       {/* Security: Household PIN */}
-      <Card sx={{ mb: 3 }}>
+      <Card sx={{ mb: { xs: 2, sm: 3 } }}>
         <CardContent>
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 1 }}>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: { xs: "column", sm: "row" },
+              justifyContent: "space-between",
+              alignItems: { xs: "flex-start", sm: "center" },
+              gap: 1,
+              mb: 1,
+            }}
+          >
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <LockOutlinedIcon color="primary" />
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
@@ -223,7 +236,7 @@ export const SettingsPage: React.FC = () => {
       </Card>
 
       {/* Network & QR Base URL */}
-      <Card sx={{ mb: 3 }}>
+      <Card sx={{ mb: { xs: 2, sm: 3 } }}>
         <CardContent>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
             <DnsOutlinedIcon color="primary" />
@@ -235,7 +248,7 @@ export const SettingsPage: React.FC = () => {
             This URL is encoded into QR codes so mobile cameras open the app directly. We recommend setting a static IP or DHCP reservation on your home router.
           </Typography>
 
-          <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: 1.5, mb: 1 }}>
+          <Box sx={{ display: "flex", flexDirection: { xs: "column", sm: "row" }, gap: { xs: 1, sm: 1.5 }, mb: 1 }}>
             <TextField
               label="Base URL"
               placeholder="e.g. http://192.168.1.100:8000"
@@ -243,7 +256,12 @@ export const SettingsPage: React.FC = () => {
               onChange={(e) => setBaseUrl(e.target.value)}
               fullWidth
             />
-            <Button variant="outlined" onClick={handleAutoDetectBaseUrl} sx={{ whiteSpace: "nowrap", flexShrink: 0 }}>
+            <Button
+              variant="outlined"
+              size={isMobile ? "small" : "medium"}
+              onClick={handleAutoDetectBaseUrl}
+              sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
+            >
               Use Current Origin
             </Button>
           </Box>
@@ -251,7 +269,7 @@ export const SettingsPage: React.FC = () => {
       </Card>
 
       {/* Preferences & Expiry */}
-      <Card sx={{ mb: 3 }}>
+      <Card sx={{ mb: { xs: 2, sm: 3 } }}>
         <CardContent>
           <Typography variant="h6" sx={{ fontWeight: 700, mb: 2 }}>
             Inventory Preferences
@@ -282,14 +300,19 @@ export const SettingsPage: React.FC = () => {
               </FormControl>
             </Grid>
           </Grid>
-          <Button variant="contained" onClick={handleSaveGeneral} sx={{ mt: 2 }}>
+          <Button
+            variant="contained"
+            size={isMobile ? "small" : "medium"}
+            onClick={handleSaveGeneral}
+            sx={{ mt: { xs: 1.5, sm: 2 } }}
+          >
             Save Preferences
           </Button>
         </CardContent>
       </Card>
 
       {/* Theme */}
-      <Card sx={{ mb: 3 }}>
+      <Card sx={{ mb: { xs: 2, sm: 3 } }}>
         <CardContent>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
             <PaletteOutlinedIcon color="primary" />
@@ -311,7 +334,7 @@ export const SettingsPage: React.FC = () => {
           <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>
             Display Mode
           </Typography>
-          <FormControl sx={{ minWidth: 220 }}>
+          <FormControl size={isMobile ? "small" : "medium"} sx={{ minWidth: { xs: "100%", sm: 220 } }}>
             <InputLabel>Theme Mode</InputLabel>
             <Select
               value={mode}
@@ -327,7 +350,7 @@ export const SettingsPage: React.FC = () => {
       </Card>
 
       {/* Backup, Restore & Storage */}
-      <Card sx={{ mb: 3 }}>
+      <Card sx={{ mb: { xs: 2, sm: 3 } }}>
         <CardContent>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
             <StorageOutlinedIcon color="primary" />
@@ -340,7 +363,17 @@ export const SettingsPage: React.FC = () => {
           </Typography>
 
           {storageStats && (
-            <Box sx={{ display: "flex", gap: 3, mb: 2.5, flexWrap: "wrap", p: 1.5, bgcolor: "action.hover", borderRadius: 2 }}>
+            <Box
+              sx={{
+                display: "flex",
+                gap: { xs: 2, sm: 3 },
+                mb: { xs: 1.5, sm: 2.5 },
+                flexWrap: "wrap",
+                p: { xs: 1.25, sm: 1.5 },
+                bgcolor: "action.hover",
+                borderRadius: 2,
+              }}
+            >
               <Box>
                 <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>Database Size</Typography>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>{formatBytes(storageStats.db_bytes)}</Typography>
@@ -360,13 +393,14 @@ export const SettingsPage: React.FC = () => {
             </Box>
           )}
 
-          <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mb: 2 }}>
+          <Box sx={{ display: "flex", gap: { xs: 1, sm: 2 }, flexWrap: "wrap", mb: 2 }}>
             <Button
               variant="contained"
+              size={isMobile ? "small" : "medium"}
               startIcon={<CloudDownloadOutlinedIcon />}
               onClick={handleDownloadBackup}
             >
-              Download Backup Now (.zip)
+              Download Backup (.zip)
             </Button>
 
             <input
@@ -379,10 +413,11 @@ export const SettingsPage: React.FC = () => {
             <Button
               variant="outlined"
               color="warning"
+              size={isMobile ? "small" : "medium"}
               startIcon={<CloudUploadOutlinedIcon />}
               onClick={() => restoreInputRef.current?.click()}
             >
-              Restore from Backup (.zip)
+              Restore Backup (.zip)
             </Button>
           </Box>
 
@@ -393,10 +428,25 @@ export const SettingsPage: React.FC = () => {
               </Typography>
               <List disablePadding>
                 {backups.slice(0, 5).map((b) => (
-                  <ListItem key={b.file_name} divider sx={{ px: 1, py: 0.5 }}>
+                  <ListItem key={b.file_name} divider sx={{ px: { xs: 0.5, sm: 1 }, py: 0.5 }}>
                     <ListItemText
+                      sx={{ minWidth: 0 }}
                       primary={b.file_name}
                       secondary={`${new Date(b.created_at).toLocaleString()} • ${formatBytes(b.size_bytes)}`}
+                      slotProps={{
+                        primary: {
+                          sx: {
+                            fontFamily: "var(--font-mono)",
+                            fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                            overflowWrap: "anywhere",
+                          },
+                        },
+                        secondary: {
+                          sx: {
+                            fontSize: { xs: "0.7rem", sm: "0.8rem" },
+                          },
+                        },
+                      }}
                     />
                   </ListItem>
                 ))}
@@ -418,25 +468,28 @@ export const SettingsPage: React.FC = () => {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Export all items with custom fields into standard spreadsheet formats, or bulk import items from CSV.
           </Typography>
-          <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap" }}>
+          <Box sx={{ display: "flex", gap: { xs: 1, sm: 2 }, flexWrap: "wrap" }}>
             <Button
               variant="outlined"
+              size={isMobile ? "small" : "medium"}
               onClick={() => (window.location.href = "/api/admin/export?format=csv")}
             >
-              Export as CSV (Spreadsheet)
+              Export as CSV
             </Button>
             <Button
               variant="outlined"
+              size={isMobile ? "small" : "medium"}
               onClick={() => (window.location.href = "/api/admin/export?format=json")}
             >
               Export as JSON
             </Button>
             <Button
               variant="outlined"
+              size={isMobile ? "small" : "medium"}
               startIcon={<UploadFileOutlinedIcon />}
               onClick={() => setCsvImportOpen(true)}
             >
-              Import Items (CSV / Bulk)
+              Import Items (CSV)
             </Button>
           </Box>
         </CardContent>

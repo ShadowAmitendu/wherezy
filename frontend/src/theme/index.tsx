@@ -582,36 +582,57 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           fontFamily: HEADING_FONT_FAMILY,
           fontWeight: 700,
           letterSpacing: "-0.015em",
+          "@media (max-width:599.95px)": {
+            fontSize: "1.45rem",
+          },
         },
         h5: {
           fontFamily: HEADING_FONT_FAMILY,
           fontWeight: 700,
           letterSpacing: "-0.015em",
+          "@media (max-width:599.95px)": {
+            fontSize: "1.1875rem",
+          },
         },
         h6: {
           fontFamily: HEADING_FONT_FAMILY,
           fontWeight: 600,
           letterSpacing: "-0.01em",
+          "@media (max-width:599.95px)": {
+            fontSize: "1rem",
+          },
         },
         subtitle1: {
           fontFamily: HEADING_FONT_FAMILY,
           fontWeight: 600,
           letterSpacing: "-0.005em",
+          "@media (max-width:599.95px)": {
+            fontSize: "0.9rem",
+          },
         },
         subtitle2: {
           fontFamily: BODY_FONT_FAMILY,
           fontWeight: 500,
           letterSpacing: "0em",
+          "@media (max-width:599.95px)": {
+            fontSize: "0.8125rem",
+          },
         },
         body1: {
           fontFamily: BODY_FONT_FAMILY,
           fontWeight: 400,
           letterSpacing: "0em",
+          "@media (max-width:599.95px)": {
+            fontSize: "0.875rem",
+          },
         },
         body2: {
           fontFamily: BODY_FONT_FAMILY,
           fontWeight: 400,
           letterSpacing: "0em",
+          "@media (max-width:599.95px)": {
+            fontSize: "0.8125rem",
+          },
         },
         button: {
           fontFamily: BODY_FONT_FAMILY,
@@ -621,6 +642,9 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         },
         caption: {
           fontFamily: BODY_FONT_FAMILY,
+          "@media (max-width:599.95px)": {
+            fontSize: "0.7rem",
+          },
         },
         overline: {
           fontFamily: BODY_FONT_FAMILY,
@@ -683,6 +707,24 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               fontWeight: 600,
               letterSpacing: "0.015em",
               padding: "6px 16px",
+              "@media (max-width:599.95px)": {
+                fontSize: "0.75rem",
+                lineHeight: 1.4,
+                padding: "5px 11px",
+                minHeight: 32,
+                "& .MuiButton-startIcon, & .MuiButton-endIcon": {
+                  "& svg": {
+                    fontSize: "1rem",
+                  },
+                },
+              },
+            },
+            sizeSmall: {
+              "@media (max-width:599.95px)": {
+                fontSize: "0.72rem",
+                padding: "3px 9px",
+                minHeight: 28,
+              },
             },
             contained: {
               boxShadow: isDark
@@ -708,6 +750,18 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 ? "0px 2px 1px -1px rgba(0,0,0,0.5), 0px 1px 1px 0px rgba(0,0,0,0.35), 0px 1px 3px 0px rgba(0,0,0,0.3)"
                 : "0px 2px 1px -1px rgba(0,0,0,0.12), 0px 1px 1px 0px rgba(0,0,0,0.08), 0px 1px 3px 0px rgba(0,0,0,0.06)",
               transition: "box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1) 0ms, transform 150ms ease",
+            },
+          },
+        },
+        MuiCardContent: {
+          styleOverrides: {
+            root: {
+              "@media (max-width:599.95px)": {
+                padding: 14,
+                "&:last-child": {
+                  paddingBottom: 14,
+                },
+              },
             },
           },
         },
@@ -743,6 +797,10 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
               fontWeight: 600,
               letterSpacing: "-0.01em",
               padding: "24px 24px 16px 24px",
+              "@media (max-width:599.95px)": {
+                fontSize: "1.1rem",
+                padding: "16px 18px 12px 18px",
+              },
             },
           },
         },
@@ -791,6 +849,16 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             root: {
               borderRadius: 16,
               fontWeight: 500,
+              "@media (max-width:599.95px)": {
+                height: 24,
+                fontSize: "0.72rem",
+              },
+            },
+            sizeSmall: {
+              "@media (max-width:599.95px)": {
+                height: 20,
+                fontSize: "0.68rem",
+              },
             },
           },
         },
@@ -799,8 +867,70 @@ export const AppThemeProvider: React.FC<{ children: React.ReactNode }> = ({ chil
             root: {
               borderRadius: 4,
               backgroundColor: isDark ? alpha(paperBg, 0.7) : "#ffffff",
+              "@media (max-width:599.95px)": {
+                fontSize: "0.8125rem",
+                "& .MuiOutlinedInput-input": {
+                  paddingTop: "9px",
+                  paddingBottom: "9px",
+                },
+                "& .MuiOutlinedInput-input:not(.MuiInputBase-inputAdornedStart)": {
+                  paddingLeft: "10px",
+                },
+                "& .MuiOutlinedInput-input:not(.MuiInputBase-inputAdornedEnd):not(.MuiSelect-select)": {
+                  paddingRight: "10px",
+                },
+                "& .MuiOutlinedInput-input.MuiInputBase-inputSizeSmall": {
+                  paddingTop: "6.5px",
+                  paddingBottom: "6.5px",
+                },
+              },
               "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
                 borderColor: primaryMain,
+              },
+            },
+          },
+        },
+        MuiSelect: {
+          styleOverrides: {
+            select: {
+              "@media (max-width:599.95px)": {
+                paddingLeft: "10px",
+                paddingRight: "26px !important",
+              },
+            },
+            icon: {
+              "@media (max-width:599.95px)": {
+                right: "4px",
+              },
+            },
+          },
+        },
+        MuiInputLabel: {
+          styleOverrides: {
+            root: {
+              "@media (max-width:599.95px)": {
+                fontSize: "0.875rem",
+              },
+            },
+          },
+        },
+        MuiFormHelperText: {
+          styleOverrides: {
+            root: {
+              "@media (max-width:599.95px)": {
+                fontSize: "0.7rem",
+              },
+            },
+          },
+        },
+        MuiToggleButton: {
+          styleOverrides: {
+            root: {
+              "@media (max-width:599.95px)": {
+                padding: "5px 8px",
+                "& svg": {
+                  fontSize: "1.1rem",
+                },
               },
             },
           },

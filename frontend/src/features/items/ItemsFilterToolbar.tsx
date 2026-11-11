@@ -9,6 +9,8 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  useTheme,
+  useMediaQuery,
 } from "@mui/material";
 import SearchIcon from "@mui/icons-material/Search";
 import { LocationPicker } from "../locations/LocationPicker";
@@ -41,13 +43,17 @@ export const ItemsFilterToolbar: React.FC<ItemsFilterToolbarProps> = ({
   expiryFilter,
   onExpiryChange,
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   return (
-    <Card sx={{ mb: 3 }}>
-      <CardContent sx={{ p: 2, "&:last-child": { pb: 2 } }}>
-        <Grid container spacing={2} sx={{ alignItems: "center" }}>
+    <Card sx={{ mb: { xs: 2, sm: 3 } }}>
+      <CardContent sx={{ p: { xs: 1.5, sm: 2 }, "&:last-child": { pb: { xs: 1.5, sm: 2 } } }}>
+        <Grid container spacing={{ xs: 1.25, sm: 2 }} sx={{ alignItems: "center" }}>
           {/* Search Query */}
           <Grid size={{ xs: 12, sm: 6, md: 3 }}>
             <TextField
+              size={isMobile ? "small" : "medium"}
               fullWidth
               label="Search"
               placeholder="Search name, notes, serials..."
@@ -68,7 +74,7 @@ export const ItemsFilterToolbar: React.FC<ItemsFilterToolbarProps> = ({
 
           {/* Category Filter */}
           <Grid size={{ xs: 6, sm: 3, md: 2 }}>
-            <FormControl fullWidth>
+            <FormControl fullWidth size={isMobile ? "small" : "medium"}>
               <InputLabel shrink id="category-filter-label">
                 Category
               </InputLabel>
@@ -103,6 +109,7 @@ export const ItemsFilterToolbar: React.FC<ItemsFilterToolbarProps> = ({
           {/* Location Filter */}
           <Grid size={{ xs: 6, sm: 3, md: 3 }}>
             <LocationPicker
+              size={isMobile ? "small" : "medium"}
               value={selectedLocation}
               onChange={onLocationChange}
               label="Location"
@@ -112,7 +119,7 @@ export const ItemsFilterToolbar: React.FC<ItemsFilterToolbarProps> = ({
 
           {/* Taken Out / Status Filter */}
           <Grid size={{ xs: 6, sm: 3, md: 2 }}>
-            <FormControl fullWidth>
+            <FormControl fullWidth size={isMobile ? "small" : "medium"}>
               <InputLabel shrink id="status-filter-label">
                 Status
               </InputLabel>
@@ -133,7 +140,7 @@ export const ItemsFilterToolbar: React.FC<ItemsFilterToolbarProps> = ({
 
           {/* Expiry Filter */}
           <Grid size={{ xs: 6, sm: 3, md: 2 }}>
-            <FormControl fullWidth>
+            <FormControl fullWidth size={isMobile ? "small" : "medium"}>
               <InputLabel shrink id="expiry-filter-label">
                 Expiry
               </InputLabel>
