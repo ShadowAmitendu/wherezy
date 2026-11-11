@@ -6,8 +6,6 @@ import {
   AppBar,
   Toolbar,
   Typography,
-  List,
-  ListItemButton,
   ListItemIcon,
   ListItemText,
   IconButton,
@@ -18,7 +16,6 @@ import {
   Menu,
   MenuItem,
   Avatar,
-  Chip,
   Button,
   Divider,
   Paper,
@@ -31,11 +28,8 @@ import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import MoveToInboxOutlinedIcon from "@mui/icons-material/MoveToInboxOutlined";
 import NotificationsOutlinedIcon from "@mui/icons-material/NotificationsOutlined";
-import NotificationsActiveOutlinedIcon from "@mui/icons-material/NotificationsActiveOutlined";
 import WarningAmberOutlinedIcon from "@mui/icons-material/WarningAmberOutlined";
 import ScheduleOutlinedIcon from "@mui/icons-material/ScheduleOutlined";
-import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import QrCodeScannerOutlinedIcon from "@mui/icons-material/QrCodeScannerOutlined";
 import AccountCircleOutlinedIcon from "@mui/icons-material/AccountCircleOutlined";
 import LogoutIcon from "@mui/icons-material/Logout";
@@ -243,7 +237,7 @@ export const AppLayout: React.FC = () => {
               </IconButton>
             </Tooltip>
 
-            {/* Notification Dropdown Menu Box */}
+            {/* Notification Dropdown Menu */}
             <Menu
               anchorEl={notifAnchorEl}
               open={Boolean(notifAnchorEl)}
@@ -253,160 +247,113 @@ export const AppLayout: React.FC = () => {
               slotProps={{
                 paper: {
                   sx: {
-                    width: { xs: 320, sm: 380 },
+                    width: { xs: 300, sm: 340 },
                     maxWidth: "92vw",
-                    maxHeight: 480,
-                    borderRadius: 2,
-                    boxShadow: 8,
-                    overflow: "hidden",
-                    p: 0,
                     mt: 1,
                   },
                 },
+                list: {
+                  disablePadding: true,
+                },
               }}
             >
-              {/* Header */}
               <Box
                 sx={{
                   px: 2,
-                  py: 1.5,
+                  py: 1.25,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "space-between",
-                  bgcolor: "background.paper",
                   borderBottom: 1,
                   borderColor: "divider",
                 }}
               >
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <NotificationsActiveOutlinedIcon fontSize="small" color="primary" />
-                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                    Notifications
+                <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                  Notifications
+                </Typography>
+                {remindersCount > 0 && (
+                  <Typography variant="caption" color="error.main" sx={{ fontWeight: 600 }}>
+                    {remindersCount} due
                   </Typography>
-                </Box>
-                {remindersCount > 0 ? (
-                  <Chip
-                    label={`${remindersCount} New`}
-                    size="small"
-                    color="error"
-                    sx={{ height: 20, fontSize: "0.65rem", fontWeight: 700 }}
-                  />
-                ) : (
-                  <Chip
-                    label="All Clear"
-                    size="small"
-                    color="success"
-                    variant="outlined"
-                    sx={{ height: 20, fontSize: "0.65rem", fontWeight: 600 }}
-                  />
                 )}
               </Box>
 
-              {/* Notifications List */}
-              <Box sx={{ maxHeight: 320, overflowY: "auto" }}>
+              <Box sx={{ maxHeight: 300, overflowY: "auto" }}>
                 {loadingNotifications ? (
-                  <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
-                    <CircularProgress size={28} />
+                  <Box sx={{ display: "flex", justifyContent: "center", py: 3 }}>
+                    <CircularProgress size={22} />
                   </Box>
                 ) : topNotifications.length === 0 ? (
-                  <Box sx={{ py: 4, px: 2, textAlign: "center" }}>
-                    <CheckCircleOutlinedIcon sx={{ fontSize: 40, color: "success.main", mb: 1, opacity: 0.8 }} />
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      All caught up!
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      No overdue or pending inventory reminders right now.
+                  <Box sx={{ py: 3, px: 2, textAlign: "center" }}>
+                    <Typography variant="body2" color="text.secondary">
+                      No pending reminders
                     </Typography>
                   </Box>
                 ) : (
-                  <List disablePadding>
-                    {topNotifications.map((n, i) => {
-                      const isOverdue = n.status === "overdue";
-                      return (
-                        <ListItemButton
-                          key={n.id || i}
-                          divider={i < topNotifications.length - 1}
-                          onClick={() => {
-                            handleCloseNotifications();
-                            if (n.item_id) {
-                              navigate(`/items?selected=${n.item_id}`);
-                            } else {
-                              navigate("/reminders");
-                            }
-                          }}
-                          sx={{
-                            px: 2,
-                            py: 1.25,
-                            gap: 1.5,
-                            alignItems: "flex-start",
-                            "&:hover": { bgcolor: "action.hover" },
-                          }}
-                        >
-                          <ListItemIcon sx={{ minWidth: 28, mt: 0.5 }}>
-                            {isOverdue ? (
-                              <WarningAmberOutlinedIcon fontSize="small" color="error" />
-                            ) : (
-                              <ScheduleOutlinedIcon fontSize="small" color="warning" />
-                            )}
-                          </ListItemIcon>
-                          <ListItemText
-                            primary={
-                              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1 }}>
-                                <Typography variant="body2" sx={{ fontWeight: 700 }} noWrap>
-                                  {n.item_name}
-                                </Typography>
-                                <Chip
-                                  label={isOverdue ? "OVERDUE" : "SOON"}
-                                  size="small"
-                                  color={isOverdue ? "error" : "warning"}
-                                  sx={{ height: 18, fontSize: "0.6rem", fontWeight: 800 }}
-                                />
-                              </Box>
-                            }
-                            secondary={
-                              <Box sx={{ mt: 0.25 }}>
-                                <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                                  {n.source_type ? `${n.source_type.toUpperCase()}: ` : ""}
-                                  {isOverdue ? `Expired on ${n.due_date}` : `Due on ${n.due_date}`}
-                                </Typography>
-                                {n.borrower_name && (
-                                  <Typography variant="caption" color="info.main" sx={{ display: "block", fontWeight: 600 }}>
-                                    Loaned to: {n.borrower_name}
-                                  </Typography>
-                                )}
-                              </Box>
-                            }
-                          />
-                        </ListItemButton>
-                      );
-                    })}
-                  </List>
+                  topNotifications.map((n, i) => {
+                    const isOverdue = n.status === "overdue";
+                    const subtitleParts = [
+                      isOverdue ? `Overdue (${n.due_date})` : `Due ${n.due_date}`,
+                      n.borrower_name ? `Loaned to ${n.borrower_name}` : null,
+                    ].filter(Boolean);
+
+                    return (
+                      <MenuItem
+                        key={n.id || i}
+                        divider={i < topNotifications.length - 1}
+                        onClick={() => {
+                          handleCloseNotifications();
+                          navigate(n.item_id ? `/items?selected=${n.item_id}` : "/reminders");
+                        }}
+                        sx={{
+                          px: 2,
+                          py: 1.25,
+                          gap: 1.5,
+                          alignItems: "flex-start",
+                          whiteSpace: "normal",
+                        }}
+                      >
+                        <ListItemIcon sx={{ minWidth: 24, mt: 0.25 }}>
+                          {isOverdue ? (
+                            <WarningAmberOutlinedIcon fontSize="small" color="error" />
+                          ) : (
+                            <ScheduleOutlinedIcon fontSize="small" color="warning" />
+                          )}
+                        </ListItemIcon>
+                        <ListItemText
+                          primary={
+                            <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+                              {n.item_name}
+                            </Typography>
+                          }
+                          secondary={
+                            <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                              {subtitleParts.join(" · ")}
+                            </Typography>
+                          }
+                        />
+                      </MenuItem>
+                    );
+                  })
                 )}
               </Box>
 
-              {/* Footer */}
-              <Box
+              <MenuItem
+                onClick={() => {
+                  handleCloseNotifications();
+                  navigate("/reminders");
+                }}
                 sx={{
-                  p: 1,
-                  display: "flex",
-                  justifyContent: "space-between",
-                  bgcolor: "background.paper",
+                  justifyContent: "center",
+                  py: 1.25,
                   borderTop: 1,
                   borderColor: "divider",
                 }}
               >
-                <Button
-                  size="small"
-                  onClick={() => {
-                    handleCloseNotifications();
-                    navigate("/reminders");
-                  }}
-                  endIcon={<OpenInNewIcon fontSize="small" />}
-                  sx={{ textTransform: "none", fontWeight: 600, width: "100%" }}
-                >
-                  Open Reminder Centre
-                </Button>
-              </Box>
+                <Typography variant="body2" color="primary" sx={{ fontWeight: 600 }}>
+                  View all reminders
+                </Typography>
+              </MenuItem>
             </Menu>
 
             {/* Theme & Palette Switcher */}
@@ -528,27 +475,21 @@ export const AppLayout: React.FC = () => {
               </MenuItem>
             </Menu>
 
-            {/* Profile Switcher Menu */}
+            {/* Profile Menu */}
             {currentProfile ? (
               <>
-                <Tooltip title={`Signed in as ${currentProfile.name} (${currentProfile.role})`}>
-                  <Box
+                <Tooltip title={currentProfile.name}>
+                  <IconButton
                     onClick={(e) => setProfileAnchorEl(e.currentTarget)}
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 1,
-                      cursor: "pointer",
-                      px: 1,
-                      py: 0.5,
-                      borderRadius: 1,
-                      "&:hover": { bgcolor: "action.hover" },
-                    }}
+                    color="inherit"
+                    size={isMobile ? "small" : "medium"}
+                    aria-label="account menu"
+                    sx={{ p: 0.5 }}
                   >
                     <Avatar
                       sx={{
-                        width: 32,
-                        height: 32,
+                        width: isMobile ? 28 : 32,
+                        height: isMobile ? 28 : 32,
                         bgcolor: currentProfile.color || "primary.main",
                       }}
                     >
@@ -559,17 +500,7 @@ export const AppLayout: React.FC = () => {
                         sx={{ color: "#ffffff" }}
                       />
                     </Avatar>
-                    {!isMobile && (
-                      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-                        <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
-                          {currentProfile.name}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{ textTransform: "capitalize", fontSize: "0.65rem" }}>
-                          {currentProfile.role}
-                        </Typography>
-                      </Box>
-                    )}
-                  </Box>
+                  </IconButton>
                 </Tooltip>
 
                 <Menu
@@ -580,22 +511,10 @@ export const AppLayout: React.FC = () => {
                   anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
                   sx={{ mt: 1 }}
                 >
-                  <Box sx={{ px: 2, py: 1.5, minWidth: 200 }}>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }} noWrap>
-                        {currentProfile.name}
-                      </Typography>
-                      <Chip
-                        label={currentProfile.role.replace("_", " ")}
-                        size="small"
-                        sx={{ height: 20, fontSize: "0.65rem", textTransform: "capitalize" }}
-                      />
-                    </Box>
-                    {currentProfile.username && (
-                      <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                        @{currentProfile.username}
-                      </Typography>
-                    )}
+                  <Box sx={{ px: 2, py: 1, minWidth: 180 }}>
+                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }} noWrap>
+                      {currentProfile.name}
+                    </Typography>
                   </Box>
                   <Divider />
                   <MenuItem
