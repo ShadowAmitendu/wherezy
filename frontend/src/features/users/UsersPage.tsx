@@ -60,6 +60,11 @@ const CUSTOM_PERM_OPTIONS = [
   { key: "trash:restore", label: "Restore from Trash", category: "System" },
 ];
 
+/** Normalizes a name or input string into a valid lowercase login username. */
+function sanitizeUsername(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9_]/g, "");
+}
+
 export const UsersPage: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
@@ -74,6 +79,7 @@ export const UsersPage: React.FC = () => {
   const [editingProfile, setEditingProfile] = useState<ProfileOut | null>(null);
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
+  const [usernameManuallyEdited, setUsernameManuallyEdited] = useState(false);
   const [avatarEmoji, setAvatarEmoji] = useState("Person");
   const [color, setColor] = useState("#486B85");
   const [role, setRole] = useState<ProfileRole>("member");
@@ -109,6 +115,7 @@ export const UsersPage: React.FC = () => {
     setEditingProfile(null);
     setName("");
     setUsername("");
+    setUsernameManuallyEdited(false);
     setAvatarEmoji("Person");
     setColor("#486B85");
     setRole("member");
@@ -122,6 +129,8 @@ export const UsersPage: React.FC = () => {
     setEditingProfile(p);
     setName(p.name);
     setUsername(p.username || "");
+    // Keep existing users' saved login username untouched when editing display name.
+    setUsernameManuallyEdited(Boolean(p.username));
     setAvatarEmoji(p.avatar_emoji || "Person");
     setColor(p.color || "#486B85");
     setRole(p.role);
@@ -129,6 +138,19 @@ export const UsersPage: React.FC = () => {
     setCustomPerms(p.custom_permissions || []);
     setDialogError(null);
     setUserDialogOpen(true);
+  };
+
+  const handleNameChange = (nextName: string) => {
+    setName(nextName);
+    if (!usernameManuallyEdited) {
+      setUsername(sanitizeUsername(nextName));
+    }
+  };
+
+  const handleUsernameChange = (nextValue: string) => {
+    const sanitized = sanitizeUsername(nextValue);
+    setUsername(sanitized);
+    setUsernameManuallyEdited(sanitized.length > 0);
   };
 
   const handleOpenReset = (p: ProfileOut) => {
@@ -483,7 +505,7 @@ export const UsersPage: React.FC = () => {
                   label="Full Name"
                   placeholder="e.g. Alex Smith"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => handleNameChange(e.target.value)}
                   required
                   autoFocus
                 />
@@ -495,7 +517,7 @@ export const UsersPage: React.FC = () => {
                   label="Username"
                   placeholder="e.g. alex"
                   value={username}
-                  onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                  onChange={(e) => handleUsernameChange(e.target.value)}
                   helperText="Unique lowercase login username"
                 />
               </Grid>
