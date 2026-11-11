@@ -362,21 +362,6 @@ export const AppLayout: React.FC = () => {
                 <PaletteOutlinedIcon fontSize={isMobile ? "small" : "medium"} />
               </IconButton>
             </Tooltip>
-
-            {/* Lock / Switch User Button - visible on sm+ to prevent toolbar crowding on mobile */}
-            <Tooltip title="Lock Session / Switch User">
-              <IconButton
-                onClick={() => {
-                  logout();
-                  navigate("/lock");
-                }}
-                color="inherit"
-                size={isMobile ? "small" : "medium"}
-                sx={{ display: { xs: "none", sm: "inline-flex" } }}
-              >
-                <LockOutlinedIcon fontSize={isMobile ? "small" : "medium"} />
-              </IconButton>
-            </Tooltip>
             <Menu
               anchorEl={themeAnchorEl}
               open={Boolean(themeAnchorEl)}
@@ -583,7 +568,6 @@ export const AppLayout: React.FC = () => {
                   <MenuItem
                     onClick={() => {
                       setProfileAnchorEl(null);
-                      logout();
                       navigate("/lock");
                     }}
                   >
@@ -593,6 +577,18 @@ export const AppLayout: React.FC = () => {
                     <ListItemText primary="Switch User" />
                   </MenuItem>
                   <Divider sx={{ my: 0.75 }} />
+                  <MenuItem
+                    onClick={() => {
+                      setProfileAnchorEl(null);
+                      logout();
+                      navigate("/lock");
+                    }}
+                  >
+                    <ListItemIcon>
+                      <LockOutlinedIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText primary="Lock Session" />
+                  </MenuItem>
                   <MenuItem
                     onClick={() => {
                       setProfileAnchorEl(null);
