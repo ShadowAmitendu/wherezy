@@ -484,6 +484,9 @@ export const AppLayout: React.FC = () => {
                     color="inherit"
                     size={isMobile ? "small" : "medium"}
                     aria-label="account menu"
+                    aria-controls={profileAnchorEl ? "profile-menu" : undefined}
+                    aria-haspopup="true"
+                    aria-expanded={profileAnchorEl ? "true" : undefined}
                     sx={{ p: 0.5 }}
                   >
                     <Avatar
@@ -504,26 +507,75 @@ export const AppLayout: React.FC = () => {
                 </Tooltip>
 
                 <Menu
+                  id="profile-menu"
                   anchorEl={profileAnchorEl}
                   open={Boolean(profileAnchorEl)}
                   onClose={() => setProfileAnchorEl(null)}
                   transformOrigin={{ horizontal: "right", vertical: "top" }}
                   anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
-                  sx={{ mt: 1 }}
+                  slotProps={{
+                    paper: {
+                      elevation: 4,
+                      sx: {
+                        minWidth: 210,
+                        maxWidth: 260,
+                        mt: 1,
+                        borderRadius: 2,
+                        border: "1px solid",
+                        borderColor: "divider",
+                        overflow: "hidden",
+                      },
+                    },
+                    list: {
+                      disablePadding: true,
+                      sx: {
+                        pb: 0.75,
+                        "& .MuiMenuItem-root": {
+                          mx: 0.75,
+                          px: 1.5,
+                          py: 0.875,
+                          borderRadius: 1,
+                        },
+                        "& .MuiMenuItem-root + .MuiMenuItem-root": {
+                          mt: 0.25,
+                        },
+                        "& .MuiListItemIcon-root": {
+                          minWidth: 28,
+                          color: "text.secondary",
+                        },
+                        "& .MuiListItemText-primary": {
+                          fontSize: "0.875rem",
+                          fontWeight: 500,
+                        },
+                      },
+                    },
+                  }}
                 >
-                  <Box sx={{ px: 2, py: 1, minWidth: 180 }}>
-                    <Typography variant="subtitle2" sx={{ fontWeight: 700 }} noWrap>
+                  <Box
+                    sx={{
+                      px: 2.5,
+                      py: 1.25,
+                      mb: 0.75,
+                      textAlign: "center",
+                      borderBottom: 1,
+                      borderColor: "divider",
+                    }}
+                  >
+                    <Typography
+                      variant="subtitle1"
+                      sx={{ fontWeight: 700, fontSize: "0.9375rem", lineHeight: 1.3 }}
+                      noWrap
+                    >
                       {currentProfile.name}
                     </Typography>
                   </Box>
-                  <Divider />
                   <MenuItem
                     onClick={() => {
                       setProfileAnchorEl(null);
                       navigate("/account");
                     }}
                   >
-                    <ListItemIcon sx={{ minWidth: 32 }}>
+                    <ListItemIcon>
                       <AccountCircleOutlinedIcon fontSize="small" />
                     </ListItemIcon>
                     <ListItemText primary="Account & Profile" />
@@ -535,20 +587,26 @@ export const AppLayout: React.FC = () => {
                       navigate("/lock");
                     }}
                   >
-                    <ListItemIcon sx={{ minWidth: 32 }}>
+                    <ListItemIcon>
                       <SwitchAccountOutlinedIcon fontSize="small" />
                     </ListItemIcon>
                     <ListItemText primary="Switch User" />
                   </MenuItem>
-                  <Divider sx={{ my: 0.5 }} />
+                  <Divider sx={{ my: 0.75 }} />
                   <MenuItem
                     onClick={() => {
                       setProfileAnchorEl(null);
                       logout();
                       navigate("/login");
                     }}
+                    sx={{
+                      color: "error.main",
+                      "& .MuiListItemIcon-root": {
+                        color: "inherit",
+                      },
+                    }}
                   >
-                    <ListItemIcon sx={{ minWidth: 32 }}>
+                    <ListItemIcon>
                       <LogoutIcon fontSize="small" />
                     </ListItemIcon>
                     <ListItemText primary="Sign Out" />
