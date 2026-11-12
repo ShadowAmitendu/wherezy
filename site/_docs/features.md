@@ -46,7 +46,7 @@ Instead of forcing every item into rigid spreadsheets, each category defines its
 
 Wherezy focuses on **physical belongings in real places** (where exact items live, who borrowed them, and when consumables expire):
 
-- **Item Details:** Name, category, custom category fields, exact storage location, tags, multiple photos (with cover photo selection and automatic EXIF GPS stripping + 256px thumbnail generation), and file/PDF attachments (manuals, warranties, prescriptions).
+- **Item Details:** Name, category, custom category fields, exact storage location, tags, multiple photos (with cover photo selection, automatic EXIF orientation + GPS removal, <= 2000 px photo optimization, and 400 px thumbnail generation), and file/PDF attachments (manuals, warranties, prescriptions).
 - **Taken-Out Tracking:** Mark any item (like a drill, soldering iron, spare key, or document folder) as **Taken Out**, choose a borrower from **Contacts** (`/contacts`) or type a name, and inspect everything currently out on the **Dashboard** (`/`) or **Items** filter.
 - **Expiry & Renewal Tracking (`/expiry`, `/reminders`):**
   - Track medicines, first-aid supplies, dry pantry staples, water purifier cartridges, passports, and vehicle documents.
@@ -85,6 +85,6 @@ Mount an old tablet or kitchen screen using a **`display`** (kiosk) profile:
 
 ## 7. Backups, Export & Import (`/settings`)
 
-- **Full `.zip` Backup & Restore:** Open **Settings &rsaquo; Database & Storage** to download a complete `.zip` containing `inventory.db`, `photos/`, and `files/`. Restoring a zip automatically captures a pre-restore safety snapshot first.
+- **Full `.zip` Backup & Restore:** Open **Settings &rsaquo; Backups &amp; Storage** (`/settings`) to click **Download Backup (.zip)** or **Restore Backup (.zip)** containing `inventory.db`, `photos/`, and `files/`. Restoring a zip automatically captures a pre-restore safety snapshot first.
 - **Automatic Pre-Upgrade Backups:** Whenever a newer version applies SQLite migrations (`_wherezy_schema_meta`), Wherezy automatically saves an online SQLite + media archive in `<data_dir>/backups/pre-upgrade-v<from>-to-v<to>-<timestamp>.zip`.
 - **Multi-Format Export & Import:** Export or bulk-import items via **CSV**, **JSON**, or **Excel (`.xlsx`)**.

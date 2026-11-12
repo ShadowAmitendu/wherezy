@@ -14,10 +14,22 @@ Wherezy is an open-source, self-hosted household inventory system built for spee
 
 ## Why Wherezy?
 
-- **100% Local & Private**: Your database, item photos, PDF receipts, and encrypted AI keys stay on your own computer or NAS — no cloud account or subscription needed.
+- **100% Local & Private**: Your database, item photos (EXIF GPS removed), PDF attachments, and encrypted AI keys stay on your own computer or NAS — no cloud account or subscription needed.
 - **Built Around Real Household Storage**: Model rooms, cupboards, racks, shelves, boxes, and seasonal bins with custom per-category fields and **27 starter category templates**.
 - **Works Across Desktop & Phones**: Manage everything from a PC browser, print sticker label sheets or paper clipboard audits, and scan items from phones over Wi-Fi (with built-in optional **HTTPS/TLS**).
 - **Safe for Non-Technical Families**: Per-user Windows installer (no admin prompt), visual system tray controller, multi-user profile switcher, 10-second Undo snackbars, activity rollback, and one-click `.zip` backups.
+
+---
+
+## Choose Your Path
+
+| I want to... | Best Starting Point | Guide |
+| :--- | :--- | :--- |
+| **Install & use it on my Windows/Mac PC** | Download desktop installer / `.dmg` | [Getting Started & Setup]({{ '/instructions/' | relative_url }}) |
+| **Scan bins & items from family phones** | Turn on `0.0.0.0` + HTTPS in Desktop Controller | [Labels, Barcodes & Scanning]({{ '/labels-and-scanning/' | relative_url }}) |
+| **Self-host via Docker or Linux server** | Compose `/data` volume + env vars | [CLI, Env & Docker Reference]({{ '/configuration/' | relative_url }}) |
+| **Use offline Ollama / LM Studio AI** | Point Local LLM endpoint in Settings | [Private AI Workflows]({{ '/ai-workflows/' | relative_url }}) |
+| **Read code architecture or contribute** | Run FastAPI + React dev servers & tests | [Architecture & Development]({{ '/development/' | relative_url }}) |
 
 ---
 
@@ -26,7 +38,7 @@ Wherezy is an open-source, self-hosted household inventory system built for spee
 - **Windows Desktop**: Download [Wherezy-Setup-2.2.2.exe](https://github.com/ShadowAmitendu/wherezy/releases/latest/download/Wherezy-Setup-2.2.2.exe), run the per-user installer, sign in as **Admin** with starter PIN `0000`, and change your PIN.
 - **macOS Desktop**: Open [Wherezy-2.2.2-macOS.dmg](https://github.com/ShadowAmitendu/wherezy/releases/latest/download/Wherezy-2.2.2-macOS.dmg), drag **Wherezy.app** into **Applications**, and launch from the Menu Bar.
 - **Docker / Home Server**: Run `docker compose up -d --build` (persists state in the `/data` volume on port `8000`).
-- **From Source**: Check [Getting Started & Setup]({{ '/instructions/' | relative_url }}) or the repository [README](https://github.com/ShadowAmitendu/wherezy).
+- **From Source**: Follow [Getting Started & Setup]({{ '/instructions/' | relative_url }}) or [Architecture & Development]({{ '/development/' | relative_url }}).
 
 ---
 
@@ -42,9 +54,9 @@ Wherezy is an open-source, self-hosted household inventory system built for spee
 
 ## Documentation Guide
 
-{% assign doc_pages = site.docs | sort: "nav_order" %}
-{% for doc in doc_pages %}
-- **[{{ doc.title }}]({{ doc.url | relative_url }})** — {{ doc.summary }}
+| # | Guide | Summary |
+| :--- | :--- | :--- |
+{% assign doc_pages = site.docs | sort: "nav_order" %}{% for doc in doc_pages %}| {{ doc.nav_order }} | **[{{ doc.title }}]({{ doc.url | relative_url }})** | {{ doc.summary }} |
 {% endfor %}
 
 ---

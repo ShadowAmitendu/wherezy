@@ -47,13 +47,13 @@ Before doing a physical garage, pantry, or medicine-cabinet check, open any loca
 ### Mode A: Live Phone Camera Scanner *(Recommended over Wi-Fi HTTPS)*
 1. Enable **LAN + HTTPS (Camera Ready)** in the first-run notice, or set Host to `0.0.0.0` and turn on **Enable HTTPS (TLS)** in the Desktop Controller (or start CLI with `--https`).
 2. Open Wherezy on your phone at `https://<your-pc-ip>:8000` (accept the one-time local self-signed certificate prompt in Chrome/Safari).
-3. Go to **Scan** (`/scan`) — modern mobile browsers receive a **Secure Context** (`window.isSecureContext`) and grant live video camera access to decode QR codes and Code 128 barcodes continuously.
+3. Go to **Scan** (`/scan`) and click **Start Live Camera** — modern mobile browsers receive a **Secure Context** (`window.isSecureContext`) and grant live video camera access to decode QR codes and Code 128 barcodes continuously.
 
 > **Why HTTPS?** Mobile Safari (iOS) and Chrome (Android) block live camera streaming (`getUserMedia`) on non-`localhost` plain HTTP URLs. Wherezy includes built-in local HTTPS specifically so live phone scanning works on home Wi-Fi with zero third-party setup.
 
-### Mode B: Photo Capture Fallback *(Works on Plain HTTP)*
-If you run over plain `http://<your-pc-ip>:8000`, tap **"Take a Photo"** on the Scan screen. Your phone takes a still photo via the OS camera picker and Wherezy decodes the QR or barcode immediately without needing HTTPS.
+### Mode B: Scan from Photo *(Works on Plain HTTP)*
+If you run over plain `http://<your-pc-ip>:8000`, tap **Take Photo of Code** in the **Scan from Photo** card on `/scan`. Your phone takes a still photo via the OS camera picker and Wherezy decodes the QR or barcode immediately without needing HTTPS.
 
-### Mode C: Native Camera Deep Links & USB / Bluetooth Scanners
+### Mode C: Native Camera Deep Links & Barcode Scanner / Manual Code
 - **Native Phone Camera:** Point your default iPhone/Android camera app at a printed QR code — it opens `https://<ip>:8000/#/i/<id>` or `/#/l/<id>` straight to the item or bin.
-- **USB / Bluetooth Barcode Scanner:** Open **Scan** (`/scan`) and focus the code input box — hardware wedge scanners type `I26` + Enter instantly.
+- **USB / Bluetooth Barcode Scanner:** Open **Scan** (`/scan`) and focus the **Barcode Scanner / Manual Code** box — hardware wedge scanners type `I26` + Enter instantly.

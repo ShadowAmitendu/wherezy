@@ -31,9 +31,9 @@ When the **Wherezy Server Controller** opens for the first time, it starts safel
 
 A one-time **Network & Firewall Notice** lets you choose:
 
-- **Keep `127.0.0.1` Only (HTTP):** Use Wherezy only on the computer running it (fastest, zero firewall or cert prompts).
+- **Keep `127.0.0.1` Only:** Use Wherezy only on the computer running it (fastest, zero firewall or cert prompts).
 - **LAN + HTTPS (Camera Ready):** Binds to `0.0.0.0` so phones/tablets on your home Wi-Fi can connect over encrypted `https://` — unlocks live mobile camera barcode/QR scanning and voice capture.
-- **LAN Only (HTTP):** Binds to `0.0.0.0` over plain `http://` (phones can still scan via the **Take Photo of Code** fallback or printed QR deep links).
+- **LAN Only (HTTP):** Binds to `0.0.0.0` over plain `http://` (phones can still scan via **Take Photo of Code** or printed QR deep links).
 
 You can change **Host** (`127.0.0.1` vs `0.0.0.0`), **Port**, and the **Enable HTTPS (TLS)** toggle switch anytime inside **Server & Startup Settings**.
 
@@ -44,7 +44,7 @@ You can change **Host** (`127.0.0.1` vs `0.0.0.0`), **Port**, and the **Enable H
 Click **Open Web UI** in the Desktop Controller (or click the **This Computer** link) to open the web interface:
 
 1. Select the **Admin** profile and enter the default starter PIN: **`0000`**.
-2. Open **Account Profile** (`/account`) or **Settings &rsaquo; Profiles & Security** (`/settings`) and set a strong PIN or password right away.
+2. Open **Account Profile** (`/account`) or **Settings &rsaquo; Household Security (PIN)** (`/settings`) and set a strong PIN or password right away.
 3. Add profiles for family members (`member` or `viewer`) under **Users** (`/users`) so each person has their own name, avatar, theme, and role permissions. See [Profiles, Roles & HTTPS]({{ '/security-and-profiles/' | relative_url }}).
 
 ---

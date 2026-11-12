@@ -44,7 +44,75 @@
     <div id="content-wrapper">
       <div class="inner clearfix">
         <section id="main-content">
+          <details class="mobile-doc-nav">
+            <summary>Documentation Menu</summary>
+            <ul>
+              <li>
+                <a
+                  href="{{ '/' | relative_url }}"
+                  {% if page.url == '/' or page.url == '/index.html' %}class="is-active"{% endif %}
+                >
+                  Overview
+                </a>
+              </li>
+              {% assign doc_pages = site.docs | sort: "nav_order" %}
+              {% for item in doc_pages %}
+                <li>
+                  <a
+                    href="{{ item.url | relative_url }}"
+                    {% if page.url == item.url %}class="is-active"{% endif %}
+                  >
+                    {{ item.nav_order }}. {{ item.title }}
+                  </a>
+                </li>
+              {% endfor %}
+            </ul>
+          </details>
+
           {{ content }}
+
+          {% if page.collection == 'docs' %}
+            {% assign doc_pages = site.docs | sort: "nav_order" %}
+            {% assign prev_doc = nil %}
+            {% assign next_doc = nil %}
+            {% assign found_current = false %}
+            {% for item in doc_pages %}
+              {% if found_current and next_doc == nil %}
+                {% assign next_doc = item %}
+              {% endif %}
+              {% if item.url == page.url %}
+                {% assign found_current = true %}
+              {% endif %}
+              {% unless found_current %}
+                {% assign prev_doc = item %}
+              {% endunless %}
+            {% endfor %}
+            <nav class="doc-pager" aria-label="Documentation pagination">
+              {% if prev_doc %}
+                <a class="doc-pager-link prev" href="{{ prev_doc.url | relative_url }}">
+                  <small>&larr; Previous</small>
+                  <span>{{ prev_doc.title }}</span>
+                </a>
+              {% else %}
+                <a class="doc-pager-link prev" href="{{ '/' | relative_url }}">
+                  <small>&larr; Previous</small>
+                  <span>Overview</span>
+                </a>
+              {% endif %}
+
+              {% if next_doc %}
+                <a class="doc-pager-link next" href="{{ next_doc.url | relative_url }}">
+                  <small>Next &rarr;</small>
+                  <span>{{ next_doc.title }}</span>
+                </a>
+              {% else %}
+                <a class="doc-pager-link next" href="{{ '/' | relative_url }}">
+                  <small>Back to Start</small>
+                  <span>Overview &rarr;</span>
+                </a>
+              {% endif %}
+            </nav>
+          {% endif %}
         </section>
 
         <aside id="sidebar">
@@ -62,8 +130,8 @@
             </div>
           {% endif %}
 
-          <nav class="collection-nav" aria-label="Page collection">
-            <div class="collection-heading">Pages Collection</div>
+          <nav class="collection-nav" aria-label="Documentation navigation">
+            <div class="collection-heading">Documentation</div>
             <ul>
               <li>
                 <a
@@ -80,7 +148,7 @@
                     href="{{ item.url | relative_url }}"
                     {% if page.url == item.url %}class="is-active"{% endif %}
                   >
-                    {{ item.title }}
+                    {{ item.nav_order }}. {{ item.title }}
                   </a>
                 </li>
               {% endfor %}

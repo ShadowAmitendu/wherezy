@@ -17,7 +17,7 @@ Wherezy is built for shared homes and teams: separate people get their own profi
 
 When you start for the first time, log in with the default **`Admin`** profile using PIN **`0000`**.
 
-> **Important:** Change the default **`0000`** Admin PIN immediately after logging in (**Settings** &rarr; **Profiles** / **Change PIN**), especially before enabling LAN access (`0.0.0.0`).
+> **Important:** Change the default **`0000`** Admin PIN immediately after logging in (**Account Profile** `/account` or **Settings &rsaquo; Household Security (PIN)** `/settings`), especially before enabling LAN access (`0.0.0.0`).
 
 | Role | Built-In Access Scope | Best For |
 | :--- | :--- | :--- |
@@ -57,7 +57,7 @@ On first launch, Wherezy defaults safely to **`127.0.0.1` over HTTP** (accessibl
 
 1. **Keep 127.0.0.1 Only:** Best if you only use Wherezy on that computer.
 2. **LAN + HTTPS (Camera Ready):** Binds to `0.0.0.0` so phones and tablets on Wi-Fi can connect, and enables HTTPS automatically so phone camera scanning works.
-3. **LAN Only (HTTP):** Exposes `0.0.0.0` over plain HTTP (you can still scan using **Take/Upload Photo** fallback or URL QR codes).
+3. **LAN Only (HTTP):** Exposes `0.0.0.0` over plain HTTP (you can still scan using **Take Photo of Code** under **Scan from Photo**, or URL QR codes).
 
 ### How Built-In Self-Signed Certificates Work
 
@@ -66,7 +66,7 @@ When HTTPS is enabled without custom `--ssl-certfile` / `--ssl-keyfile` paths, W
 - **Algorithm & Validity:** RSA-2048 X.509 certificate signed with SHA-256, valid for **800 days** (automatically renewed within 30 days of expiration or whenever your machine's detected LAN IP changes).
 - **Subject Alternative Names (SANs):** Automatically populated with `localhost`, `127.0.0.1`, `::1`, your active local LAN IPv4 address, hostname, and `<hostname>.local`.
 - **Storage Location:** Saved under `%LOCALAPPDATA%\Wherezy\certs\wherezy-cert.pem` and `wherezy-key.pem` on Windows (or your OS user data `certs/` directory, with `0600` private key permissions on macOS/Linux). Overridable via `WHEREZY_CERT_DIR`.
-- **SHA-256 Verification:** The Desktop Controller and CLI startup banner display the certificate's **TLS SHA-256 fingerprint** so you can verify you are connecting to your own server the first time you accept the browser's self-signed certificate prompt.
+- **SHA-256 Verification:** The **Server Logs** pane in the Desktop Controller and the CLI startup banner print the certificate's **TLS SHA-256 fingerprint** (`TLS SHA-256 fingerprint: ...`) so you can verify you are connecting to your own server the first time you accept the browser's self-signed certificate prompt.
 
 > **One-time browser warning on self-signed HTTPS:** Because the certificate is generated locally on your computer rather than issued by a public Certificate Authority, browsers show a **"Your connection is not private"** prompt the first time each device connects. Click **Advanced &rarr; Proceed** once per browser/phone, or see below for custom trusted certificates.
 
@@ -78,7 +78,7 @@ If you already terminate TLS on your home network (for example with **Caddy**, *
 
 - **Direct Custom PEM Files:** Pass `--ssl-certfile /path/to/cert.pem --ssl-keyfile /path/to/key.pem` (or set `WHEREZY_SSL_CERTFILE` and `WHEREZY_SSL_KEYFILE`). Passing cert/key paths implies HTTPS automatically.
 - **Reverse Proxy:** Leave Wherezy listening on plain HTTP (`127.0.0.1:8000` or Docker `8000`) behind your proxy and ensure the proxy sends `X-Forwarded-Proto: https` so Wherezy marks session cookies `Secure`.
-- **Disable HTTPS at Any Time:** Uncheck **Use HTTPS** in the Desktop Controller, pass `--no-https` on CLI, or set `WHEREZY_HTTPS=0`.
+- **Disable HTTPS at Any Time:** Turn off **Enable HTTPS (TLS)** in the Desktop Controller's **Server & Startup Settings**, pass `--no-https` on CLI, or set `WHEREZY_HTTPS=0`.
 
 ---
 
