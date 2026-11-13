@@ -2,8 +2,10 @@ from dataclasses import dataclass
 from typing import Dict, List, Optional, Sequence, Set, Tuple
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
-from backend.app.models import Location
+from sqlalchemy import func
+from backend.app.models import Location, Item
 from backend.app.schemas import LocationBreadcrumb
+from backend.app.services.visibility import items_visible
 
 ROOM_GROUP_KINDS: Tuple[str, ...] = (
     "Room",
@@ -36,6 +38,8 @@ class LocationNodeMetrics:
     children_count: int
     room_id: Optional[int]
     room_name: Optional[str]
+    direct_items_quantity: int = 0
+    total_items_quantity: int = 0
 
 
 def is_room_kind(kind: Optional[str]) -> bool:
@@ -138,8 +142,12 @@ def get_root_room(db: Session, location_id: Optional[int]) -> Optional[LocationB
 def compute_location_tree_metrics(
     nodes: Sequence[Location],
     direct_counts_map: Dict[int, int],
+    direct_quantities_map: Optional[Dict[int, int]] = None,
 ) -> Dict[int, LocationNodeMetrics]:
-    """Compute rolled-up item totals, child counts, and enclosing Room for active locations."""
+    """Compute rolled-up item totals, quantities, child counts, and enclosing Room for active locations."""
+    if direct_quantities_map is None:
+        direct_quantities_map = direct_counts_map
+
     children_by_parent: Dict[Optional[int], List[Location]] = {}
     for node in nodes:
         children_by_parent.setdefault(node.parent_id, []).append(node)
@@ -147,11 +155,11 @@ def compute_location_tree_metrics(
     metrics: Dict[int, LocationNodeMetrics] = {}
     visiting: Set[int] = set()
 
-    def walk(node: Location, active_room: Optional[Tuple[int, str]]) -> int:
+    def walk(node: Location, active_room: Optional[Tuple[int, str]]) -> Tuple[int, int]:
         if node.id in metrics:
-            return metrics[node.id].total_items_count
+            return (metrics[node.id].total_items_count, metrics[node.id].total_items_quantity)
         if node.id in visiting:
-            return direct_counts_map.get(node.id, 0)
+            return (direct_counts_map.get(node.id, 0), direct_quantities_map.get(node.id, 0))
 
         visiting.add(node.id)
         next_room = active_room
@@ -160,9 +168,13 @@ def compute_location_tree_metrics(
 
         children = children_by_parent.get(node.id, [])
         direct_cnt = int(direct_counts_map.get(node.id, 0) or 0)
+        direct_qty = int(direct_quantities_map.get(node.id, 0) or 0)
         total_cnt = direct_cnt
+        total_qty = direct_qty
         for child in children:
-            total_cnt += walk(child, next_room)
+            c_cnt, c_qty = walk(child, next_room)
+            total_cnt += c_cnt
+            total_qty += c_qty
 
         metrics[node.id] = LocationNodeMetrics(
             direct_items_count=direct_cnt,
@@ -170,9 +182,11 @@ def compute_location_tree_metrics(
             children_count=len(children),
             room_id=next_room[0] if next_room else None,
             room_name=next_room[1] if next_room else None,
+            direct_items_quantity=direct_qty,
+            total_items_quantity=total_qty,
         )
         visiting.remove(node.id)
-        return total_cnt
+        return (total_cnt, total_qty)
 
     for root in children_by_parent.get(None, []):
         walk(root, None)
@@ -182,6 +196,70 @@ def compute_location_tree_metrics(
             walk(node, None)
 
     return metrics
+
+
+def get_location_subtree_quantity(
+    db: Session,
+    location_id: int,
+    exclude_item_ids: Optional[Sequence[int]] = None,
+) -> int:
+    """Return the total quantity of active items assigned to location_id and all its descendants."""
+    descendant_ids = get_descendant_location_ids(db, location_id)
+    q = (
+        items_visible(db, db.query(func.coalesce(func.sum(Item.quantity), 0)))
+        .filter(Item.location_id.in_(descendant_ids))
+    )
+    if exclude_item_ids:
+        q = q.filter(~Item.id.in_(list(exclude_item_ids)))
+    return int(q.scalar() or 0)
+
+
+def validate_location_capacity(
+    db: Session,
+    location_id: int,
+    additional_quantity: int = 1,
+    exclude_item_ids: Optional[Sequence[int]] = None,
+) -> None:
+    """
+    Verify that adding additional_quantity to location_id does not exceed
+    max_quantity on location_id or any of its ancestor locations.
+    Raises HTTPException(status_code=400) if capacity would be exceeded.
+    """
+    if not location_id or additional_quantity <= 0:
+        return
+
+    crumbs = get_location_breadcrumbs(db, location_id)
+    # Check each location in hierarchy (target location up to root)
+    for crumb in crumbs:
+        loc = db.query(Location).filter(Location.id == crumb.id, Location.deleted_at.is_(None)).first()
+        if not loc or loc.max_quantity is None:
+            continue
+
+        max_q = int(loc.max_quantity)
+        current_q = get_location_subtree_quantity(db, loc.id, exclude_item_ids=exclude_item_ids)
+        new_total = current_q + additional_quantity
+
+        if new_total > max_q:
+            available = max(0, max_q - current_q)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "error": {
+                        "code": "LOCATION_CAPACITY_EXCEEDED",
+                        "message": (
+                            f"Location '{loc.name}' capacity exceeded: maximum allowed quantity is {max_q}, "
+                            f"currently has {current_q} and cannot accept {additional_quantity} more "
+                            f"(available capacity: {available})."
+                        ),
+                        "location_id": loc.id,
+                        "location_name": loc.name,
+                        "max_quantity": max_q,
+                        "current_quantity": current_q,
+                        "requested_quantity": additional_quantity,
+                        "available_capacity": available,
+                    }
+                },
+            )
 
 
 def get_location_path_str(db: Session, location_id: int) -> str:

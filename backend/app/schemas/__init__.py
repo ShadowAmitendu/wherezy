@@ -271,6 +271,7 @@ class LocationChildCreate(BaseModel):
     name: str
     kind: str = "Shelf"
     notes: Optional[str] = None
+    max_quantity: Optional[int] = Field(default=None, ge=1, le=1_000_000)
 
 class LocationBatchChildrenRequest(BaseModel):
     children: List[LocationChildCreate] = Field(default_factory=list)
@@ -281,6 +282,7 @@ class LocationBase(BaseModel):
     notes: Optional[str] = None
     parent_id: Optional[int] = None
     storage_only: bool = False
+    max_quantity: Optional[int] = Field(default=None, ge=1, le=1_000_000)
 
 class LocationCreate(LocationBase):
     children: List[LocationChildCreate] = Field(default_factory=list)
@@ -292,6 +294,7 @@ class LocationUpdate(BaseModel):
     parent_id: Optional[int] = None
     sort_order: Optional[int] = None
     storage_only: Optional[bool] = None
+    max_quantity: Optional[int] = Field(default=None, ge=1, le=1_000_000)
 
 class LocationMoveRequest(BaseModel):
     parent_id: Optional[int] = None
@@ -310,6 +313,8 @@ class LocationOut(BaseModel):
     children_count: int = 0
     is_room: bool = False
     storage_only: bool = False
+    max_quantity: Optional[int] = None
+    available_capacity: Optional[int] = None
     room_id: Optional[int] = None
     room_name: Optional[str] = None
     path: Optional[str] = None

@@ -13,6 +13,7 @@ from backend.app.services.location_service import (
     compute_location_tree_metrics,
     get_location_breadcrumbs,
     get_location_path_str,
+    get_location_subtree_quantity,
     get_root_room,
     is_room_kind,
     normalize_location_kind,
@@ -37,6 +38,16 @@ def _get_location_item_counts_map(db: Session) -> dict:
     return dict(counts)
 
 
+def _get_location_item_quantities_map(db: Session) -> dict:
+    quantities = (
+        items_visible(db, db.query(Item.location_id, func.coalesce(func.sum(Item.quantity), 0)))
+        .filter(Item.location_id.isnot(None))
+        .group_by(Item.location_id)
+        .all()
+    )
+    return dict(quantities)
+
+
 def map_location(
     loc: Location,
     db: Session,
@@ -52,6 +63,7 @@ def map_location(
         children_count = metrics.children_count
         room_id = metrics.room_id
         room_name = metrics.room_name
+        current_total_qty = metrics.total_items_quantity
     else:
         direct_count = int(items_count or 0)
         total_count = direct_count
@@ -63,6 +75,13 @@ def map_location(
         root_room = get_root_room(db, loc.id)
         room_id = root_room.id if root_room else None
         room_name = root_room.name if root_room else None
+        current_total_qty = get_location_subtree_quantity(db, loc.id)
+
+    max_q = getattr(loc, "max_quantity", None)
+    if max_q is not None and max_q > 0:
+        available_cap = max(0, max_q - current_total_qty)
+    else:
+        available_cap = None
 
     return LocationOut(
         id=loc.id,
@@ -78,6 +97,8 @@ def map_location(
         children_count=children_count,
         is_room=room_mode,
         storage_only=bool(getattr(loc, "storage_only", 0)) and room_mode and children_count == 0,
+        max_quantity=max_q,
+        available_capacity=available_cap,
         room_id=room_id,
         room_name=room_name,
         path=path,
@@ -114,7 +135,8 @@ def get_locations_tree(
 ):
     all_locs = db.query(Location).filter(Location.deleted_at.is_(None)).all()
     counts_map = _get_location_item_counts_map(db)
-    metrics_map = compute_location_tree_metrics(all_locs, counts_map)
+    quantities_map = _get_location_item_quantities_map(db)
+    metrics_map = compute_location_tree_metrics(all_locs, counts_map, quantities_map)
     return build_tree(all_locs, None, metrics_map, db)
 
 
@@ -163,6 +185,7 @@ def create_location(
         name=clean_name,
         kind=clean_kind,
         storage_only=is_storage_only,
+        max_quantity=payload.max_quantity,
         notes=payload.notes.strip() if payload.notes else None,
         parent_id=payload.parent_id,
         sort_order=max_sort + 1,
@@ -175,6 +198,7 @@ def create_location(
             name=child.name.strip(),
             kind=normalize_location_kind(child.kind, "Shelf"),
             storage_only=0,
+            max_quantity=child.max_quantity,
             notes=child.notes.strip() if child.notes else None,
             parent_id=loc.id,
             sort_order=idx,
@@ -238,6 +262,7 @@ def add_location_children(
             name=child.name.strip(),
             kind=normalize_location_kind(child.kind, "Shelf"),
             storage_only=0,
+            max_quantity=child.max_quantity,
             notes=child.notes.strip() if child.notes else None,
             parent_id=parent.id,
             sort_order=max_sort + idx,
@@ -274,7 +299,8 @@ def get_location(
 
     all_locs = db.query(Location).filter(Location.deleted_at.is_(None)).all()
     counts_map = _get_location_item_counts_map(db)
-    metrics_map = compute_location_tree_metrics(all_locs, counts_map)
+    quantities_map = _get_location_item_quantities_map(db)
+    metrics_map = compute_location_tree_metrics(all_locs, counts_map, quantities_map)
 
     crumbs = get_location_breadcrumbs(db, id)
     photos = db.query(Photo).filter(Photo.owner_type == "location", Photo.owner_id == id).order_by(Photo.sort_order).all()
@@ -368,6 +394,29 @@ def update_location(
             loc.storage_only = 0
     elif not is_room_kind(loc.kind):
         loc.storage_only = 0
+
+    if "max_quantity" in payload.model_fields_set:
+        if payload.max_quantity is not None:
+            current_q = get_location_subtree_quantity(db, loc.id)
+            if payload.max_quantity < current_q:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail={
+                        "error": {
+                            "code": "LOCATION_CAPACITY_EXCEEDED",
+                            "message": (
+                                f"Cannot set maximum quantity to {payload.max_quantity} because location '{loc.name}' "
+                                f"already contains {current_q} items/units. Please relocate items first."
+                            ),
+                            "location_id": loc.id,
+                            "current_quantity": current_q,
+                            "requested_max_quantity": payload.max_quantity,
+                        }
+                    },
+                )
+            loc.max_quantity = payload.max_quantity
+        else:
+            loc.max_quantity = None
 
     loc.updated_at = utc_now_iso()
     db.commit()

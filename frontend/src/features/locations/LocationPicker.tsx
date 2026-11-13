@@ -80,6 +80,13 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
                 ? `${opt.childrenCount} ${opt.childrenCount === 1 ? "area" : "areas"}`
                 : "Room"
             : opt.kind;
+          const isFull = typeof opt.maxQuantity === "number" && opt.availableCapacity === 0;
+          const capacityText =
+            typeof opt.maxQuantity === "number" && opt.maxQuantity > 0
+              ? isFull
+                ? "Full"
+                : `${opt.availableCapacity} left`
+              : null;
           return (
             <MenuItem
               key={opt.id}
@@ -110,9 +117,22 @@ export const LocationPicker: React.FC<LocationPickerProps> = ({
                     {opt.name}
                   </Typography>
                 </Box>
-                <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
-                  {roleHint}
-                </Typography>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexShrink: 0 }}>
+                  {capacityText && (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontWeight: 600,
+                        color: isFull ? "error.main" : "text.secondary",
+                      }}
+                    >
+                      {capacityText}
+                    </Typography>
+                  )}
+                  <Typography variant="caption" color="text.secondary">
+                    {roleHint}
+                  </Typography>
+                </Box>
               </Box>
             </MenuItem>
           );

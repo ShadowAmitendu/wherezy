@@ -8,6 +8,7 @@ from backend.app.models import Item, Location, ItemTag, BoxItem, Profile, Activi
 from backend.app.schemas import BulkRequest, BulkResponse, BulkSkipItem, BatchUndoResponse
 from backend.app.services.visibility import items_visible
 from backend.app.services.activity import record
+from backend.app.services.location_service import validate_location_capacity
 
 MAX_BULK_LIMIT = 1000
 
@@ -43,6 +44,16 @@ def execute_bulk(db: Session, req: BulkRequest, actor: Profile) -> BulkResponse:
     batch_id = str(uuid.uuid4())
     changed_count = 0
     skipped: List[BulkSkipItem] = []
+
+    if req.action == "move" and move_target_loc_id is not None:
+        total_moving_qty = sum(max(1, int(it.quantity or 1)) for it in items if it.location_id != move_target_loc_id)
+        if total_moving_qty > 0:
+            validate_location_capacity(
+                db,
+                move_target_loc_id,
+                additional_quantity=total_moving_qty,
+                exclude_item_ids=[it.id for it in items],
+            )
 
     for item in items:
         skip_reason = None

@@ -41,6 +41,8 @@ export interface FlatLocationOption {
   childrenCount: number;
   itemsCount: number;
   totalItemsCount: number;
+  maxQuantity?: number | null;
+  availableCapacity?: number | null;
   roomId?: number | null;
   roomName?: string | null;
 }
@@ -82,6 +84,8 @@ export function flattenLocationTree(
             : typeof node.items_count === "number"
               ? node.items_count
               : 0,
+        maxQuantity: typeof node.max_quantity === "number" ? node.max_quantity : null,
+        availableCapacity: typeof node.available_capacity === "number" ? node.available_capacity : null,
         roomId: node.room_id ?? null,
         roomName: node.room_name ?? null,
       });

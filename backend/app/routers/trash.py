@@ -10,6 +10,7 @@ from backend.app.schemas import TrashItemOut, TrashRestoreRequest, SuccessRespon
 from backend.app.services.permissions import require
 from backend.app.services.activity import record
 from backend.app.services.photo_service import delete_photo_files
+from backend.app.services.location_service import validate_location_capacity
 
 router = APIRouter(prefix="/trash", tags=["Trash"])
 
@@ -81,6 +82,7 @@ def restore_trash(
             )
 
         # Check if parent location is active or deleted
+        target_loc_id = payload.new_location_id if payload.new_location_id else item.location_id
         if payload.new_location_id:
             loc = db.query(Location).filter(Location.id == payload.new_location_id, Location.deleted_at.is_(None)).first()
             if not loc:
@@ -93,6 +95,9 @@ def restore_trash(
                     status_code=400,
                     detail={"error": {"code": "LOCATION_DELETED", "message": "Original location was deleted. Please specify a new location."}}
                 )
+
+        if item.location_id:
+            validate_location_capacity(db, item.location_id, additional_quantity=max(1, int(item.quantity or 1)))
 
         item.deleted_at = None
         item.deleted_by = None

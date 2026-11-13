@@ -14,7 +14,10 @@ from backend.app.schemas import (
 )
 from backend.app.routers.settings import get_setting_val
 from backend.app.services.item_service import map_item, map_item_detail, parse_item_code
-from backend.app.services.location_service import get_descendant_location_ids
+from backend.app.services.location_service import (
+    get_descendant_location_ids,
+    validate_location_capacity,
+)
 from backend.app.models import utc_now_iso
 from backend.app.services.visibility import items_visible
 from backend.app.services.permissions import require
@@ -190,6 +193,7 @@ def create_item(
         loc = db.query(Location).filter(Location.id == payload.location_id, Location.deleted_at.is_(None)).first()
         if not loc:
             raise HTTPException(status_code=404, detail={"error": {"code": "LOCATION_NOT_FOUND", "message": "Location not found"}})
+        validate_location_capacity(db, payload.location_id, additional_quantity=payload.quantity)
 
     validated_vals = validate_values(category, payload.values)
 
@@ -243,6 +247,22 @@ def update_item(
     if not category:
         raise HTTPException(status_code=404, detail={"error": {"code": "CATEGORY_NOT_FOUND", "message": "Category not found"}})
 
+    target_loc_id = payload.location_id if payload.location_id is not None else item.location_id
+    if target_loc_id == 0:
+        target_loc_id = None
+    target_qty = payload.quantity if payload.quantity is not None else item.quantity
+
+    if target_loc_id:
+        loc = db.query(Location).filter(Location.id == target_loc_id, Location.deleted_at.is_(None)).first()
+        if not loc:
+            raise HTTPException(status_code=404, detail={"error": {"code": "LOCATION_NOT_FOUND", "message": "Location not found"}})
+        validate_location_capacity(
+            db,
+            target_loc_id,
+            additional_quantity=target_qty,
+            exclude_item_ids=[item.id],
+        )
+
     old_loc = item.location_id
     if payload.name is not None:
         item.name = payload.name.strip()
@@ -250,9 +270,6 @@ def update_item(
         item.category_id = payload.category_id
     if payload.location_id is not None:
         if payload.location_id != 0:
-            loc = db.query(Location).filter(Location.id == payload.location_id, Location.deleted_at.is_(None)).first()
-            if not loc:
-                raise HTTPException(status_code=404, detail={"error": {"code": "LOCATION_NOT_FOUND", "message": "Location not found"}})
             item.location_id = payload.location_id
         else:
             item.location_id = None
@@ -340,6 +357,13 @@ def duplicate_item(
     if not item:
         raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Item not found"}})
 
+    if item.location_id:
+        validate_location_capacity(
+            db,
+            item.location_id,
+            additional_quantity=max(1, int(item.quantity or 1)),
+        )
+
     new_item = Item(
         name=f"{item.name} (Copy)",
         category_id=item.category_id,
@@ -380,6 +404,12 @@ def move_item(
         loc = db.query(Location).filter(Location.id == payload.location_id, Location.deleted_at.is_(None)).first()
         if not loc:
             raise HTTPException(status_code=404, detail={"error": {"code": "LOCATION_NOT_FOUND", "message": "Location not found"}})
+        validate_location_capacity(
+            db,
+            payload.location_id,
+            additional_quantity=max(1, int(item.quantity or 1)),
+            exclude_item_ids=[item.id],
+        )
         item.location_id = payload.location_id
     else:
         item.location_id = None
@@ -566,6 +596,16 @@ def bulk_create_items(
             "values_json": json.dumps(clean_vals),
             "status": "active",
         })
+
+    # Validate location capacity for each target location
+    incoming_loc_qty: dict[int, int] = {}
+    for p in prepared:
+        target_lid = p["location_id"]
+        if target_lid:
+            incoming_loc_qty[target_lid] = incoming_loc_qty.get(target_lid, 0) + max(1, int(p["quantity"] or 1))
+
+    for target_lid, add_q in incoming_loc_qty.items():
+        validate_location_capacity(db, target_lid, additional_quantity=add_q)
 
     batch_id = str(uuid.uuid4())
     now = utc_now_iso()

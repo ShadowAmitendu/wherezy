@@ -63,6 +63,7 @@ class Location(Base):
     name = Column(String, nullable=False)
     kind = Column(String, nullable=False, default="Room")
     storage_only = Column(Integer, nullable=False, default=0)
+    max_quantity = Column(Integer, nullable=True)
     notes = Column(Text, nullable=True)
     sort_order = Column(Integer, nullable=False, default=0)
     created_at = Column(String, nullable=False, default=utc_now_iso)

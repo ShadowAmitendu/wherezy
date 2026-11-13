@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from backend.app.models import Category, FieldDef, Item, Location, Profile
 from backend.app.schemas import ImportCsvResult
 from backend.app.services.activity import record
-from backend.app.services.location_service import build_location_path_map
+from backend.app.services.location_service import build_location_path_map, validate_location_capacity
 
 ImportFormat = Literal["csv", "json", "xlsx"]
 
@@ -639,6 +639,20 @@ def import_inventory_file(
                 "status": "active",
             }
         )
+
+    # Check location capacity for valid_items
+    incoming_loc_qty: Dict[int, int] = {}
+    for it_data in valid_items:
+        lid = it_data.get("location_id")
+        if lid:
+            incoming_loc_qty[lid] = incoming_loc_qty.get(lid, 0) + max(1, int(it_data.get("quantity") or 1))
+
+    for lid, add_q in incoming_loc_qty.items():
+        try:
+            validate_location_capacity(db, lid, additional_quantity=add_q)
+        except HTTPException as exc:
+            err_detail = exc.detail.get("error", {}) if isinstance(exc.detail, dict) else {}
+            errors.append(err_detail.get("message", f"Location capacity exceeded for location #{lid}"))
 
     batch_id: Optional[str] = None
     if not dry_run and not errors and valid_items:

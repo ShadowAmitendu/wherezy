@@ -90,4 +90,34 @@ describe("locationUtils room grouping helpers", () => {
     const withoutGarage = flattenLocationTree(sampleTree, 0, 1);
     expect(withoutGarage.map((o) => o.name)).toEqual(["Store Room"]);
   });
+
+  it("preserves maxQuantity and availableCapacity in flattened options", () => {
+    const treeWithCapacity = [
+      {
+        id: 10,
+        name: "Pantry",
+        kind: "Room",
+        path: "Pantry",
+        max_quantity: 20,
+        available_capacity: 8,
+        children: [
+          {
+            id: 11,
+            name: "Top Shelf",
+            kind: "Shelf",
+            path: "Pantry > Top Shelf",
+            max_quantity: 5,
+            available_capacity: 0,
+            children: [],
+          },
+        ],
+      },
+    ];
+
+    const flat = flattenLocationTree(treeWithCapacity);
+    expect(flat[0].maxQuantity).toBe(20);
+    expect(flat[0].availableCapacity).toBe(8);
+    expect(flat[1].maxQuantity).toBe(5);
+    expect(flat[1].availableCapacity).toBe(0);
+  });
 });

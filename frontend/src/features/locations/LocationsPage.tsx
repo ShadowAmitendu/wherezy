@@ -119,6 +119,7 @@ export const LocationsPage: React.FC = () => {
   const [name, setName] = useState("");
   const [kind, setKind] = useState("Room");
   const [storageOnly, setStorageOnly] = useState(false);
+  const [maxQuantity, setMaxQuantity] = useState<string>("");
   const [starterChildren, setStarterChildren] = useState<DraftSubLocation[]>([]);
   const [notes, setNotes] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -275,6 +276,7 @@ export const LocationsPage: React.FC = () => {
     setName("");
     setKind(preferredKind || (role === "room" ? "Room" : "Storage Area"));
     setStorageOnly(false);
+    setMaxQuantity("");
     setStarterChildren([]);
     setNotes("");
     setErrorMsg(null);
@@ -290,6 +292,7 @@ export const LocationsPage: React.FC = () => {
     setName(loc.name);
     setKind(loc.kind);
     setStorageOnly(Boolean(loc.storage_only));
+    setMaxQuantity(loc.max_quantity ? String(loc.max_quantity) : "");
     setStarterChildren([]);
     setNotes(loc.notes || "");
     setErrorMsg(null);
@@ -312,6 +315,12 @@ export const LocationsPage: React.FC = () => {
       .map((c) => ({ name: c.name.trim(), kind: c.kind || "Shelf" }))
       .filter((c) => c.name.length > 0);
 
+    const parsedMaxQuantity = maxQuantity.trim() ? parseInt(maxQuantity.trim(), 10) : null;
+    if (parsedMaxQuantity !== null && (isNaN(parsedMaxQuantity) || parsedMaxQuantity < 1)) {
+      setErrorMsg("Max capacity must be a positive number (minimum 1)");
+      return;
+    }
+
     setIsSaving(true);
     setErrorMsg(null);
     try {
@@ -322,6 +331,7 @@ export const LocationsPage: React.FC = () => {
           kind: editingLoc.kind || "Room",
           parent_id: editingLoc.parent_id ?? null,
           storage_only: Boolean(editingLoc.storage_only),
+          max_quantity: editingLoc.max_quantity ?? null,
           notes: editingLoc.notes ?? null,
         };
         const updated = await api.updateLocation(editedId, {
@@ -329,6 +339,7 @@ export const LocationsPage: React.FC = () => {
           kind: kind.trim() || "Room",
           parent_id: parentTargetId,
           storage_only: locationRole === "room" ? storageOnly : false,
+          max_quantity: parsedMaxQuantity,
           notes: notes.trim() || null,
         });
         setDialogOpen(false);
@@ -345,6 +356,7 @@ export const LocationsPage: React.FC = () => {
           name: name.trim(),
           kind: kind.trim() || "Room",
           storage_only: locationRole === "room" ? storageOnly && cleanChildren.length === 0 : false,
+          max_quantity: parsedMaxQuantity,
           notes: notes.trim() || null,
           parent_id: parentTargetId,
           children: locationRole === "room" && !storageOnly ? cleanChildren : [],
@@ -366,6 +378,7 @@ export const LocationsPage: React.FC = () => {
 
         if (keepAdding && parentTargetId) {
           setName("");
+          setMaxQuantity("");
           setNotes("");
           setErrorMsg(null);
           await loadTree(parentTargetId);
@@ -606,12 +619,21 @@ export const LocationsPage: React.FC = () => {
                       sx={{ height: 18, fontSize: "0.65rem" }}
                     />
                   )}
-                  {totalCount > 0 && (
+                  {(totalCount > 0 || Boolean(node.max_quantity)) && (
                     <Chip
-                      label={totalCount}
+                      label={node.max_quantity ? `${totalCount} / ${node.max_quantity}` : totalCount}
                       size="small"
-                      color={nodeIsRoom ? "primary" : "default"}
-                      sx={{ height: 18, fontSize: "0.7rem" }}
+                      color={
+                        node.max_quantity && totalCount >= node.max_quantity
+                          ? "error"
+                          : node.max_quantity && totalCount >= node.max_quantity * 0.8
+                          ? "warning"
+                          : nodeIsRoom
+                          ? "primary"
+                          : "default"
+                      }
+                      variant={node.max_quantity && totalCount >= node.max_quantity ? "filled" : "outlined"}
+                      sx={{ height: 18, fontSize: "0.7rem", fontWeight: node.max_quantity ? 600 : 400 }}
                     />
                   )}
                 </Box>
@@ -791,6 +813,24 @@ export const LocationsPage: React.FC = () => {
                           ) : (
                             <Chip size="small" variant="outlined" label={selectedDetail.kind} />
                           )}
+                          {Boolean(selectedDetail.max_quantity) && (
+                            <Chip
+                              size="small"
+                              color={
+                                selectedTotalCount >= selectedDetail.max_quantity
+                                  ? "error"
+                                  : selectedTotalCount >= selectedDetail.max_quantity * 0.8
+                                  ? "warning"
+                                  : "default"
+                              }
+                              variant={selectedTotalCount >= selectedDetail.max_quantity ? "filled" : "outlined"}
+                              label={
+                                selectedTotalCount >= selectedDetail.max_quantity
+                                  ? `Full: ${selectedTotalCount} / ${selectedDetail.max_quantity} units`
+                                  : `Capacity: ${selectedTotalCount} / ${selectedDetail.max_quantity} units (${selectedDetail.available_capacity ?? Math.max(0, selectedDetail.max_quantity - selectedTotalCount)} left)`
+                              }
+                            />
+                          )}
                         </Box>
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                           Type: {selectedDetail.kind} • {selectedTotalCount} total{" "}
@@ -939,8 +979,19 @@ export const LocationsPage: React.FC = () => {
                                     </Box>
                                     <Chip
                                       size="small"
-                                      label={`${childTotal} ${childTotal === 1 ? "item" : "items"}`}
-                                      variant="outlined"
+                                      label={
+                                        child.max_quantity
+                                          ? `${childTotal} / ${child.max_quantity}`
+                                          : `${childTotal} ${childTotal === 1 ? "item" : "items"}`
+                                      }
+                                      color={
+                                        child.max_quantity && childTotal >= child.max_quantity
+                                          ? "error"
+                                          : child.max_quantity && childTotal >= child.max_quantity * 0.8
+                                          ? "warning"
+                                          : "default"
+                                      }
+                                      variant={child.max_quantity && childTotal >= child.max_quantity ? "filled" : "outlined"}
                                     />
                                   </Paper>
                                 </Grid>
@@ -1307,6 +1358,17 @@ export const LocationsPage: React.FC = () => {
               )}
             </Paper>
           )}
+
+          <TextField
+            label="Max Capacity / Quantity Limit (Optional)"
+            placeholder="e.g. 50 (Leave empty for unlimited)"
+            type="number"
+            slotProps={{ htmlInput: { min: 1, step: 1 } }}
+            value={maxQuantity}
+            onChange={(e) => setMaxQuantity(e.target.value)}
+            helperText="Maximum total items/units allowed in this location and any of its sub-locations. Once reached, items cannot be added or moved here."
+            fullWidth
+          />
 
           <TextField
             label="Notes (Optional)"

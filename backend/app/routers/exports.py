@@ -131,7 +131,7 @@ def export_inventory_book_excel(
 
     # 3. Sheet: Locations
     ws_loc = wb.create_sheet(title="Locations")
-    loc_headers = ["ID", "Name", "Kind", "Parent Location", "Items Count", "Total Units"]
+    loc_headers = ["ID", "Name", "Kind", "Parent Location", "Items Count", "Total Units", "Max Capacity", "Available Capacity"]
     ws_loc.append(loc_headers)
     for col_idx in range(1, len(loc_headers) + 1):
         cell = ws_loc.cell(row=1, column=col_idx)
@@ -142,6 +142,8 @@ def export_inventory_book_excel(
         loc_items = [it for it in items if it.location_id == loc.id]
         count = len(loc_items)
         units = sum(max(1, int(it.quantity or 1)) for it in loc_items)
+        max_cap = loc.max_quantity if loc.max_quantity is not None else "Unlimited"
+        avail_cap = max(0, loc.max_quantity - units) if loc.max_quantity is not None else "Unlimited"
         ws_loc.append([
             loc.id,
             escape_formula(loc.name),
@@ -149,6 +151,8 @@ def export_inventory_book_excel(
             escape_formula(loc.parent.name if loc.parent else ""),
             count,
             units,
+            max_cap,
+            avail_cap,
         ])
     ws_loc.freeze_panes = "A2"
 
