@@ -3,7 +3,7 @@
   "info": {
     "title": "Wherezy API",
     "description": "LAN-only Wherezy Household Inventory API v2 with Profiles, Activity, Tags, Reminders, Audits, Inbox, and Moving",
-    "version": "2.3.6"
+    "version": "2.3.7"
   },
   "paths": {
     "/api/health": {
@@ -3238,6 +3238,46 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "Moving-House Mode"
+        ],
+        "summary": "Delete Move",
+        "operationId": "delete_move_api_moves__move_id__delete",
+        "parameters": [
+          {
+            "name": "move_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Move Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/moves/{move_id}/finish": {
@@ -3247,6 +3287,48 @@
         ],
         "summary": "Finish Move",
         "operationId": "finish_move_api_moves__move_id__finish_post",
+        "parameters": [
+          {
+            "name": "move_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Move Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MoveOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/moves/{move_id}/reopen": {
+      "post": {
+        "tags": [
+          "Moving-House Mode"
+        ],
+        "summary": "Reopen Move",
+        "operationId": "reopen_move_api_moves__move_id__reopen_post",
         "parameters": [
           {
             "name": "move_id",
@@ -5273,6 +5355,219 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": [
+          "Templates"
+        ],
+        "summary": "Create Custom Template",
+        "operationId": "create_custom_template_api_templates_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomTemplateCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/templates/{slug}": {
+      "get": {
+        "tags": [
+          "Templates"
+        ],
+        "summary": "Get Template",
+        "operationId": "get_template_api_templates__slug__get",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Templates"
+        ],
+        "summary": "Update Custom Template",
+        "operationId": "update_custom_template_api_templates__slug__put",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomTemplateUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Templates"
+        ],
+        "summary": "Delete Custom Template",
+        "operationId": "delete_custom_template_api_templates__slug__delete",
+        "parameters": [
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Slug"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/templates/from-category/{category_id}": {
+      "post": {
+        "tags": [
+          "Templates"
+        ],
+        "summary": "Save Category As Template",
+        "operationId": "save_category_as_template_api_templates_from_category__category_id__post",
+        "parameters": [
+          {
+            "name": "category_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Category Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TemplateDetailOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/templates/{slug}/apply": {
@@ -5293,6 +5588,23 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ApplyCustomizedTemplate"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Payload"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -8105,6 +8417,81 @@
         ],
         "title": "AiLocationPlan"
       },
+      "ApplyCustomizedTemplate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "track_expiry": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Track Expiry"
+          },
+          "expiry_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expiry Label"
+          },
+          "fields": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TemplateFieldDef"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fields"
+          }
+        },
+        "type": "object",
+        "title": "ApplyCustomizedTemplate"
+      },
       "AttachmentOut": {
         "properties": {
           "id": {
@@ -9040,6 +9427,28 @@
             "type": "integer",
             "title": "Quantity",
             "default": 1
+          },
+          "code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Code"
+          },
+          "photo_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Photo Url"
           }
         },
         "type": "object",
@@ -10072,7 +10481,8 @@
             "type": "string",
             "enum": [
               "item",
-              "location"
+              "location",
+              "box"
             ],
             "title": "Type"
           },
@@ -10099,6 +10509,15 @@
                 "type": "null"
               }
             ]
+          },
+          "box": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Box"
           }
         },
         "type": "object",
@@ -10363,6 +10782,162 @@
         },
         "type": "object",
         "title": "ContactUpdate"
+      },
+      "CustomTemplateCreate": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "slug": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slug"
+          },
+          "icon": {
+            "type": "string",
+            "title": "Icon",
+            "default": "category"
+          },
+          "color": {
+            "type": "string",
+            "title": "Color",
+            "default": "#1976d2"
+          },
+          "track_expiry": {
+            "type": "boolean",
+            "title": "Track Expiry",
+            "default": false
+          },
+          "expiry_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expiry Label",
+            "default": "Expiry date"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/TemplateFieldDef"
+            },
+            "type": "array",
+            "title": "Fields",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "CustomTemplateCreate"
+      },
+      "CustomTemplateUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "track_expiry": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Track Expiry"
+          },
+          "expiry_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expiry Label"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "fields": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/TemplateFieldDef"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fields"
+          }
+        },
+        "type": "object",
+        "title": "CustomTemplateUpdate"
       },
       "DashboardResponse": {
         "properties": {
@@ -12498,6 +13073,19 @@
               }
             ],
             "title": "Notes"
+          },
+          "max_quantity": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000000.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Quantity"
           }
         },
         "type": "object",
@@ -12543,6 +13131,19 @@
             "type": "boolean",
             "title": "Storage Only",
             "default": false
+          },
+          "max_quantity": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000000.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Quantity"
           },
           "children": {
             "items": {
@@ -12630,6 +13231,28 @@
             "type": "boolean",
             "title": "Storage Only",
             "default": false
+          },
+          "max_quantity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Quantity"
+          },
+          "available_capacity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available Capacity"
           },
           "room_id": {
             "anyOf": [
@@ -12797,6 +13420,28 @@
             "title": "Storage Only",
             "default": false
           },
+          "max_quantity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Quantity"
+          },
+          "available_capacity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available Capacity"
+          },
           "room_id": {
             "anyOf": [
               {
@@ -12922,6 +13567,28 @@
             "title": "Storage Only",
             "default": false
           },
+          "max_quantity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Quantity"
+          },
+          "available_capacity": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Available Capacity"
+          },
           "room_id": {
             "anyOf": [
               {
@@ -13042,6 +13709,19 @@
               }
             ],
             "title": "Storage Only"
+          },
+          "max_quantity": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 1000000.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Quantity"
           }
         },
         "type": "object",
@@ -13134,6 +13814,16 @@
           "packed_box_count": {
             "type": "integer",
             "title": "Packed Box Count",
+            "default": 0
+          },
+          "packing_box_count": {
+            "type": "integer",
+            "title": "Packing Box Count",
+            "default": 0
+          },
+          "unpacked_box_count": {
+            "type": "integer",
+            "title": "Unpacked Box Count",
             "default": 0
           },
           "total_items": {
@@ -13931,7 +14621,8 @@
               "category",
               "tag",
               "contact",
-              "action"
+              "action",
+              "box"
             ],
             "title": "Type"
           },
@@ -14929,6 +15620,153 @@
         "type": "object",
         "title": "TagUpdate"
       },
+      "TemplateDetailOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug"
+          },
+          "icon": {
+            "type": "string",
+            "title": "Icon"
+          },
+          "color": {
+            "type": "string",
+            "title": "Color"
+          },
+          "track_expiry": {
+            "type": "boolean",
+            "title": "Track Expiry",
+            "default": false
+          },
+          "expiry_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expiry Label",
+            "default": "Expiry date"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "is_custom": {
+            "type": "boolean",
+            "title": "Is Custom",
+            "default": false
+          },
+          "field_count": {
+            "type": "integer",
+            "title": "Field Count",
+            "default": 0
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/TemplateFieldDef"
+            },
+            "type": "array",
+            "title": "Fields",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "slug",
+          "icon",
+          "color"
+        ],
+        "title": "TemplateDetailOut"
+      },
+      "TemplateFieldDef": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "text",
+              "longtext",
+              "number",
+              "date",
+              "dropdown",
+              "multiselect",
+              "checkbox"
+            ],
+            "title": "Type",
+            "default": "text"
+          },
+          "required": {
+            "type": "boolean",
+            "title": "Required",
+            "default": false
+          },
+          "show_in_list": {
+            "type": "boolean",
+            "title": "Show In List",
+            "default": true
+          },
+          "options": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Options"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "hint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hint"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label"
+        ],
+        "title": "TemplateFieldDef"
+      },
       "TemplateSummary": {
         "properties": {
           "name": {
@@ -14960,11 +15798,28 @@
                 "type": "null"
               }
             ],
-            "title": "Expiry Label"
+            "title": "Expiry Label",
+            "default": "Expiry date"
           },
           "field_count": {
             "type": "integer",
             "title": "Field Count"
+          },
+          "is_custom": {
+            "type": "boolean",
+            "title": "Is Custom",
+            "default": false
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
           }
         },
         "type": "object",
@@ -14974,7 +15829,6 @@
           "icon",
           "color",
           "track_expiry",
-          "expiry_label",
           "field_count"
         ],
         "title": "TemplateSummary"
