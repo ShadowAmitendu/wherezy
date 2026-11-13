@@ -523,7 +523,7 @@ def test_desktop_gui_window_and_tray_smoke(tmp_path, monkeypatch):
     )
 
     try:
-        assert isinstance(desktop.window, QtWidgets.QMainWindow)
+        assert isinstance(desktop.window, QtWidgets.QWidget)
 
         for _ in range(15):
             desktop.app.processEvents()

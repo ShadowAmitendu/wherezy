@@ -461,16 +461,26 @@ class WherezyDesktopApp:
                 f"Qt Designer UI file not found: {resolved_ui}"
             )
 
-        self.window = _ControllerMainWindow(self._handle_window_close_event)
-        self.root = self.window  # Friendly alias alongside `.window`
-        if _HAS_FLUENT:
+        if _HAS_FLUENT and ui_path is None:
             try:
                 setTheme(Theme.DARK if isDarkTheme() else Theme.LIGHT)
             except Exception:
                 pass
-        uic.loadUi(str(resolved_ui), self.window)
+            from backend.app.desktop.fluent_window import WherezyFluentMainWindow
+
+            self.window = WherezyFluentMainWindow(self._handle_window_close_event)
+            self.root = self.window
+        else:
+            self.window = _ControllerMainWindow(self._handle_window_close_event)
+            self.root = self.window  # Friendly alias alongside `.window`
+            if _HAS_FLUENT:
+                try:
+                    setTheme(Theme.DARK if isDarkTheme() else Theme.LIGHT)
+                except Exception:
+                    pass
+            uic.loadUi(str(resolved_ui), self.window)
+
         self.window.setWindowIcon(self._app_icon)
-        self.window.resize(625, 600)
 
         self._bind_ui_widgets()
         self._populate_initial_form_state()
