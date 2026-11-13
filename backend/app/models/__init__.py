@@ -347,3 +347,21 @@ class BoxItem(Base):
     added_at = Column(String, nullable=False, default=utc_now_iso)
 
     box = relationship("Box", back_populates="box_items")
+
+
+class CustomTemplate(Base):
+    __tablename__ = "custom_templates"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    slug = Column(String, unique=True, nullable=False, index=True)
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    icon = Column(String, nullable=False, default="category")
+    color = Column(String, nullable=False, default="#1976d2")
+    track_expiry = Column(Integer, nullable=False, default=0)
+    expiry_label = Column(String, nullable=False, default="Expiry date")
+    fields_json = Column(Text, nullable=False, default="[]")
+    created_by_id = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(String, nullable=False, default=utc_now_iso)
+    updated_at = Column(String, nullable=False, default=utc_now_iso, onupdate=utc_now_iso)
+

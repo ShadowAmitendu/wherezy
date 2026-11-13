@@ -33,6 +33,7 @@ def init_db():
 def clean_tables():
     with engine.begin() as conn:
         conn.execute(text("PRAGMA foreign_keys = OFF;"))
+        conn.execute(text("DELETE FROM custom_templates;"))
         conn.execute(text("DELETE FROM box_items;"))
         conn.execute(text("DELETE FROM boxes;"))
         conn.execute(text("DELETE FROM moves;"))

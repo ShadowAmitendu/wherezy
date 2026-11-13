@@ -642,8 +642,26 @@ export const api = {
 
   // Templates
   getTemplates: () => apiFetch<any[]>("/api/templates"),
-  applyTemplate: (slug: string) =>
-    apiFetch<any>(`/api/templates/${slug}/apply`, { method: "POST" }),
+  getTemplate: (slug: string) => apiFetch<any>(`/api/templates/${slug}`),
+  createCustomTemplate: (data: any) =>
+    apiFetch<any>("/api/templates", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  updateCustomTemplate: (slug: string, data: any) =>
+    apiFetch<any>(`/api/templates/${slug}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  deleteCustomTemplate: (slug: string) =>
+    apiFetch<{ ok: boolean }>(`/api/templates/${slug}`, { method: "DELETE" }),
+  applyTemplate: (slug: string, customData?: any) =>
+    apiFetch<any>(`/api/templates/${slug}/apply`, {
+      method: "POST",
+      body: customData ? JSON.stringify(customData) : undefined,
+    }),
+  saveCategoryAsTemplate: (categoryId: number) =>
+    apiFetch<any>(`/api/templates/from-category/${categoryId}`, { method: "POST" }),
 
   // Locations
   getLocationsTree: () => apiFetch<any[]>("/api/locations/tree"),

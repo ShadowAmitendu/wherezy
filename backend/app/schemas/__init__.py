@@ -159,8 +159,58 @@ class TemplateSummary(BaseModel):
     icon: str
     color: str
     track_expiry: bool
-    expiry_label: Optional[str]
+    expiry_label: Optional[str] = "Expiry date"
     field_count: int
+    is_custom: bool = False
+    description: Optional[str] = None
+
+class TemplateFieldDef(BaseModel):
+    label: str
+    type: FieldType = "text"
+    required: bool = False
+    show_in_list: bool = True
+    options: Optional[List[str]] = None
+    unit: Optional[str] = None
+    hint: Optional[str] = None
+
+class TemplateDetailOut(BaseModel):
+    name: str
+    slug: str
+    icon: str
+    color: str
+    track_expiry: bool = False
+    expiry_label: Optional[str] = "Expiry date"
+    description: Optional[str] = None
+    is_custom: bool = False
+    field_count: int = 0
+    fields: List[TemplateFieldDef] = []
+
+class CustomTemplateCreate(BaseModel):
+    name: str
+    slug: Optional[str] = None
+    icon: str = "category"
+    color: str = "#1976d2"
+    track_expiry: bool = False
+    expiry_label: Optional[str] = "Expiry date"
+    description: Optional[str] = None
+    fields: List[TemplateFieldDef] = []
+
+class CustomTemplateUpdate(BaseModel):
+    name: Optional[str] = None
+    icon: Optional[str] = None
+    color: Optional[str] = None
+    track_expiry: Optional[bool] = None
+    expiry_label: Optional[str] = None
+    description: Optional[str] = None
+    fields: Optional[List[TemplateFieldDef]] = None
+
+class ApplyCustomizedTemplate(BaseModel):
+    name: Optional[str] = None
+    icon: Optional[str] = None
+    color: Optional[str] = None
+    track_expiry: Optional[bool] = None
+    expiry_label: Optional[str] = None
+    fields: Optional[List[TemplateFieldDef]] = None
 
 class AiCategoryFieldPlan(BaseModel):
     label: str
