@@ -709,6 +709,9 @@ export const AppLayout: React.FC = () => {
         component="main"
         sx={{
           flexGrow: 1,
+          display: "flex",
+          flexDirection: "column",
+          minHeight: "calc(100vh - 64px)",
           p: { xs: 1.5, sm: 2.5, md: 3 },
           width: { xs: "100%", sm: `calc(100% - ${currentDesktopWidth}px)` },
           transition: (t) =>
@@ -724,10 +727,44 @@ export const AppLayout: React.FC = () => {
         }}
       >
         <Fade key={location.pathname} in appear timeout={{ enter: theme.transitions.duration.enteringScreen, exit: 0 }}>
-          <Box sx={{ width: "100%", maxWidth: 1400, mx: "auto" }}>
+          <Box sx={{ width: "100%", maxWidth: 1400, mx: "auto", flexGrow: 1 }}>
             <Outlet />
           </Box>
         </Fade>
+
+        {/* Simple Footer */}
+        <Box
+          component="footer"
+          className="no-print"
+          sx={{
+            mt: "auto",
+            pt: 4,
+            pb: { xs: 2, sm: 2 },
+            display: "flex",
+            flexDirection: { xs: "column", sm: "row" },
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1,
+            borderTop: 1,
+            borderColor: "divider",
+            maxWidth: 1400,
+            mx: "auto",
+            width: "100%",
+            color: "text.secondary",
+          }}
+        >
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography variant="caption" sx={{ fontWeight: 700, color: "text.primary" }}>
+              Wherezy
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              • Household Inventory &amp; Moving
+            </Typography>
+          </Box>
+          <Typography variant="caption" color="text.secondary">
+            LAN-only • Private &amp; Offline-Ready
+          </Typography>
+        </Box>
       </Box>
 
       {/* Mobile Bottom Navigation Bar */}

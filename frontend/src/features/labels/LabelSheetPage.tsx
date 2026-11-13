@@ -640,6 +640,20 @@ export const LabelSheetPage: React.FC = () => {
         ))}
       </Box>
 
+      {/* Footer info note */}
+      <Box
+        className="no-print"
+        sx={{
+          mt: 2.5,
+          textAlign: "center",
+          color: "text.secondary",
+        }}
+      >
+        <Typography variant="caption" color="text.secondary">
+          Wherezy Label Sheet • Ready for Standard A4 &amp; Direct Thermal Printing
+        </Typography>
+      </Box>
+
       {/* Print CSS for Labels */}
       <style>{`
         @media print {

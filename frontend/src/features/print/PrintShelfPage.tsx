@@ -350,6 +350,30 @@ export const PrintShelfPage: React.FC = () => {
             </TableContainer>
           </Box>
         ))}
+
+        {/* Shelf Sheet Footer */}
+        <Box
+          sx={{
+            mt: 4,
+            pt: 2,
+            borderTop: "1px solid",
+            borderColor: "divider",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            color: "text.secondary",
+            fontSize: "0.8rem",
+            flexWrap: "wrap",
+            gap: 1,
+          }}
+        >
+          <Typography variant="caption" sx={{ fontWeight: 600 }}>
+            Wherezy Shelf Audit Sheet • Location: {location?.name}
+          </Typography>
+          <Typography variant="caption">
+            {items.length} total {items.length === 1 ? "item" : "items"} listed • Printed on {printedAt.toLocaleDateString()} {printedAt.toLocaleTimeString()}
+          </Typography>
+        </Box>
       </Paper>
 
       {/* Global Print CSS */}
