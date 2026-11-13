@@ -754,7 +754,15 @@ def test_desktop_settings_copy_and_logs(tmp_path, monkeypatch):
         snap = desktop.handle_start_or_resume()
         assert snap.status == "running"
         desktop.app.processEvents()
+        assert desktop.log_text.isReadOnly() is True
+        assert desktop.btn_copy_logs is not None
         assert desktop.log_text.toPlainText().strip() != ""
+
+        # Test copying console logs to clipboard
+        desktop.copy_logs()
+        if cb is not None:
+            assert desktop.log_text.toPlainText() in cb.text()
+        assert "copied to clipboard" in desktop._last_feedback.lower()
 
         desktop.clear_logs()
         assert desktop.log_text.toPlainText() == ""

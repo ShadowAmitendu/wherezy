@@ -59,10 +59,10 @@
        </sizepolicy>
       </property>
       <property name="frameShape">
-       <enum>QFrame::StyledPanel</enum>
+       <enum>QFrame::NoFrame</enum>
       </property>
       <property name="frameShadow">
-       <enum>QFrame::Raised</enum>
+       <enum>QFrame::Plain</enum>
       </property>
       <layout class="QHBoxLayout" name="horizontalLayout">
        <property name="leftMargin">
@@ -149,10 +149,10 @@
        </sizepolicy>
       </property>
       <property name="frameShape">
-       <enum>QFrame::StyledPanel</enum>
+       <enum>QFrame::NoFrame</enum>
       </property>
       <property name="frameShadow">
-       <enum>QFrame::Raised</enum>
+       <enum>QFrame::Plain</enum>
       </property>
       <layout class="QHBoxLayout" name="horizontalLayout_2">
        <property name="leftMargin">
@@ -183,21 +183,21 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButton">
+        <widget class="PrimaryPushButton" name="pushButton">
          <property name="text">
           <string>Start Server</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButton_2">
+        <widget class="PushButton" name="pushButton_2">
          <property name="text">
           <string>Stop Server</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButton_3">
+        <widget class="PushButton" name="pushButton_3">
          <property name="text">
           <string>Restart Server</string>
          </property>
@@ -215,10 +215,10 @@
        </sizepolicy>
       </property>
       <property name="frameShape">
-       <enum>QFrame::StyledPanel</enum>
+       <enum>QFrame::NoFrame</enum>
       </property>
       <property name="frameShadow">
-       <enum>QFrame::Raised</enum>
+       <enum>QFrame::Plain</enum>
       </property>
       <layout class="QHBoxLayout" name="horizontalLayout_3">
        <property name="leftMargin">
@@ -249,21 +249,21 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButton_4">
+        <widget class="PushButton" name="pushButton_4">
          <property name="text">
           <string>Open Web UI</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButton_5">
+        <widget class="PushButton" name="pushButton_5">
          <property name="text">
           <string>Copy URL</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButton_6">
+        <widget class="PushButton" name="pushButton_6">
          <property name="text">
           <string>Open Data Folder</string>
          </property>
@@ -281,10 +281,10 @@
        </sizepolicy>
       </property>
       <property name="frameShape">
-       <enum>QFrame::StyledPanel</enum>
+       <enum>QFrame::NoFrame</enum>
       </property>
       <property name="frameShadow">
-       <enum>QFrame::Raised</enum>
+       <enum>QFrame::Plain</enum>
       </property>
       <property name="lineWidth">
        <number>0</number>
@@ -345,7 +345,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QPushButton" name="pushButton_13">
+           <widget class="PushButton" name="pushButton_13">
             <property name="text">
              <string>Reset Settings to Default</string>
             </property>
@@ -379,42 +379,42 @@
            <number>0</number>
           </property>
           <item row="2" column="0">
-           <widget class="QCheckBox" name="checkBox_5">
+           <widget class="CheckBox" name="checkBox_5">
             <property name="text">
              <string>Enable HTTPS</string>
             </property>
            </widget>
           </item>
           <item row="1" column="2">
-           <widget class="QCheckBox" name="checkBox_3">
+           <widget class="CheckBox" name="checkBox_3">
             <property name="text">
              <string>Exit to Tray</string>
             </property>
            </widget>
           </item>
           <item row="1" column="0">
-           <widget class="QCheckBox" name="checkBox">
+           <widget class="CheckBox" name="checkBox">
             <property name="text">
              <string>Start App on startup</string>
             </property>
            </widget>
           </item>
           <item row="0" column="0">
-           <widget class="QCheckBox" name="checkBox_2">
+           <widget class="CheckBox" name="checkBox_2">
             <property name="text">
              <string>Open Browser Automatically</string>
             </property>
            </widget>
           </item>
           <item row="0" column="2">
-           <widget class="QCheckBox" name="checkBox_4">
+           <widget class="CheckBox" name="checkBox_4">
             <property name="text">
              <string>Start Server on Startup</string>
             </property>
            </widget>
           </item>
           <item row="2" column="2">
-           <widget class="QPushButton" name="pushButton_8">
+           <widget class="PrimaryPushButton" name="pushButton_8">
             <property name="text">
              <string>Save</string>
             </property>
@@ -470,10 +470,10 @@
            </widget>
           </item>
           <item>
-           <widget class="QLineEdit" name="lineEdit"/>
+           <widget class="LineEdit" name="lineEdit"/>
           </item>
           <item>
-           <widget class="QPushButton" name="pushButton_9">
+           <widget class="PushButton" name="pushButton_9">
             <property name="text">
              <string>Browse</string>
             </property>
@@ -529,10 +529,10 @@
            </widget>
           </item>
           <item>
-           <widget class="QLineEdit" name="lineEdit_2"/>
+           <widget class="LineEdit" name="lineEdit_2"/>
           </item>
           <item>
-           <widget class="QPushButton" name="pushButton_10">
+           <widget class="PrimaryPushButton" name="pushButton_10">
             <property name="text">
              <string>Save</string>
             </property>
@@ -553,10 +553,10 @@
        </sizepolicy>
       </property>
       <property name="frameShape">
-       <enum>QFrame::StyledPanel</enum>
+       <enum>QFrame::NoFrame</enum>
       </property>
       <property name="frameShadow">
-       <enum>QFrame::Raised</enum>
+       <enum>QFrame::Plain</enum>
       </property>
       <layout class="QVBoxLayout" name="verticalLayout_2">
        <property name="leftMargin">
@@ -624,7 +624,14 @@
            </spacer>
           </item>
           <item>
-           <widget class="QPushButton" name="pushButton_7">
+           <widget class="PushButton" name="pushButton_copy">
+            <property name="text">
+             <string>Copy</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="PushButton" name="pushButton_7">
             <property name="autoFillBackground">
              <bool>false</bool>
             </property>
@@ -637,7 +644,10 @@
         </widget>
        </item>
        <item>
-        <widget class="QPlainTextEdit" name="plainTextEdit">
+        <widget class="PlainTextEdit" name="plainTextEdit">
+         <property name="readOnly">
+          <bool>true</bool>
+         </property>
          <property name="sizePolicy">
           <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
            <horstretch>0</horstretch>
@@ -661,7 +671,7 @@
      </widget>
     </item>
     <item>
-     <widget class="QProgressBar" name="progressBar">
+     <widget class="ProgressBar" name="progressBar">
       <property name="value">
        <number>50</number>
       </property>
@@ -679,10 +689,10 @@
     <item>
      <widget class="QFrame" name="frame_9">
       <property name="frameShape">
-       <enum>QFrame::StyledPanel</enum>
+       <enum>QFrame::NoFrame</enum>
       </property>
       <property name="frameShadow">
-       <enum>QFrame::Raised</enum>
+       <enum>QFrame::Plain</enum>
       </property>
       <layout class="QHBoxLayout" name="horizontalLayout_8">
        <property name="leftMargin">
@@ -698,14 +708,14 @@
         <number>0</number>
        </property>
        <item>
-        <widget class="QPushButton" name="pushButton_11">
+        <widget class="PushButton" name="pushButton_11">
          <property name="text">
           <string>Hide to tray</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButton_12">
+        <widget class="PushButton" name="pushButton_12">
          <property name="text">
           <string>Stop Server and Quit</string>
          </property>
@@ -719,4 +729,36 @@
  </widget>
  <resources/>
  <connections/>
+ <customwidgets>
+  <customwidget>
+   <class>PrimaryPushButton</class>
+   <extends>QPushButton</extends>
+   <header>qfluentwidgets</header>
+  </customwidget>
+  <customwidget>
+   <class>PushButton</class>
+   <extends>QPushButton</extends>
+   <header>qfluentwidgets</header>
+  </customwidget>
+  <customwidget>
+   <class>CheckBox</class>
+   <extends>QCheckBox</extends>
+   <header>qfluentwidgets</header>
+  </customwidget>
+  <customwidget>
+   <class>LineEdit</class>
+   <extends>QLineEdit</extends>
+   <header>qfluentwidgets</header>
+  </customwidget>
+  <customwidget>
+   <class>PlainTextEdit</class>
+   <extends>QPlainTextEdit</extends>
+   <header>qfluentwidgets</header>
+  </customwidget>
+  <customwidget>
+   <class>ProgressBar</class>
+   <extends>QProgressBar</extends>
+   <header>qfluentwidgets</header>
+  </customwidget>
+ </customwidgets>
 </ui>

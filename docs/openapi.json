@@ -3,7 +3,7 @@
   "info": {
     "title": "Wherezy API",
     "description": "LAN-only Wherezy Household Inventory API v2 with Profiles, Activity, Tags, Reminders, Audits, Inbox, and Moving",
-    "version": "2.3.3"
+    "version": "2.3.4"
   },
   "paths": {
     "/api/health": {

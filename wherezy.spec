@@ -5,7 +5,7 @@ import importlib.util
 from pathlib import Path
 import sys as _spec_sys
 
-from PyInstaller.utils.hooks import collect_submodules
+from PyInstaller.utils.hooks import collect_data_files, collect_submodules
 
 ROOT_DIR = Path(SPECPATH).resolve()
 if str(ROOT_DIR) not in _spec_sys.path:
@@ -40,7 +40,7 @@ datas = [
     (str(ROOT_DIR / "packaging" / "wherezy.ico"), "packaging"),
     (str(ROOT_DIR / "packaging" / "wherezy.icns"), "packaging"),
     (str(ROOT_DIR / "LICENSE"), "."),
-]
+] + collect_data_files("qfluentwidgets")
 
 _platform_hiddenimports = []
 if _spec_sys.platform == "win32":
@@ -58,6 +58,7 @@ hiddenimports = sorted(
         collect_submodules("backend.app")
         + collect_submodules("PyQt6.uic")
         + collect_submodules("cryptography")
+        + collect_submodules("qfluentwidgets")
         + _platform_hiddenimports
         + [
             "PyQt6",

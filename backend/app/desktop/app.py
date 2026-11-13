@@ -47,6 +47,12 @@ from backend.app.desktop.server_manager import (
     get_local_ip,
 )
 
+try:
+    from qfluentwidgets import setTheme, Theme, isDarkTheme
+    _HAS_FLUENT = True
+except ImportError:
+    _HAS_FLUENT = False
+
 UI_RELATIVE_PATH = "backend/app/desktop/ui/main_window.ui"
 
 
@@ -457,6 +463,11 @@ class WherezyDesktopApp:
 
         self.window = _ControllerMainWindow(self._handle_window_close_event)
         self.root = self.window  # Friendly alias alongside `.window`
+        if _HAS_FLUENT:
+            try:
+                setTheme(Theme.DARK if isDarkTheme() else Theme.LIGHT)
+            except Exception:
+                pass
         uic.loadUi(str(resolved_ui), self.window)
         self.window.setWindowIcon(self._app_icon)
         self.window.resize(625, 600)
@@ -531,6 +542,7 @@ class WherezyDesktopApp:
 
         self.log_text: QtWidgets.QPlainTextEdit = w.plainTextEdit
         self.btn_clear_logs: QtWidgets.QPushButton = w.pushButton_7
+        self.btn_copy_logs: QtWidgets.QPushButton | None = getattr(w, "pushButton_copy", None)
         self.progress_bar: QtWidgets.QProgressBar = w.progressBar
 
         self.btn_hide_tray: QtWidgets.QPushButton = w.pushButton_11
@@ -702,6 +714,9 @@ class WherezyDesktopApp:
         self.btn_save_settings.clicked.connect(self.apply_settings_and_restart)
         self.btn_save_apply.clicked.connect(self.apply_settings_and_restart)
         self.btn_clear_logs.clicked.connect(self.clear_logs)
+        if self.btn_copy_logs is not None:
+            self.btn_copy_logs.clicked.connect(self.copy_logs)
+        self._setup_console_context_menu()
 
         self.btn_hide_tray.clicked.connect(self.hide_to_tray)
         self.btn_quit.clicked.connect(self.quit_app)
@@ -1338,6 +1353,37 @@ class WherezyDesktopApp:
         """Clear both backend ring-buffer logs and the visible log panel."""
         self.server_manager.clear_logs()
         self.log_text.clear()
+
+    def copy_logs(self) -> None:
+        """Copy selected console output (or entire console log) to the OS clipboard."""
+        cursor = self.log_text.textCursor()
+        if cursor.hasSelection():
+            text = cursor.selectedText()
+        else:
+            text = self.log_text.toPlainText()
+
+        if not text:
+            self._set_feedback("Console is empty — nothing copied.", log=False)
+            return
+
+        clipboard = self.app.clipboard()
+        if clipboard is not None:
+            clipboard.setText(text)
+            self._set_feedback("Console logs copied to clipboard.", log=False)
+
+    def _setup_console_context_menu(self) -> None:
+        """Enforce non-editable console with strictly Copy and Clear context options."""
+        self.log_text.setReadOnly(True)
+        self.log_text.setContextMenuPolicy(QtCore.Qt.ContextMenuPolicy.CustomContextMenu)
+        self.log_text.customContextMenuRequested.connect(self._show_console_context_menu)
+
+    def _show_console_context_menu(self, pos: QtCore.QPoint) -> None:
+        menu = QtWidgets.QMenu(self.log_text)
+        act_copy = menu.addAction("Copy")
+        act_copy.triggered.connect(self.copy_logs)
+        act_clear = menu.addAction("Clear")
+        act_clear.triggered.connect(self.clear_logs)
+        menu.exec(self.log_text.mapToGlobal(pos))
 
     def show_window(self) -> None:
         """Restore and focus the Desktop Controller window."""
