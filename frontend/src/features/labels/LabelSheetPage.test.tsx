@@ -69,6 +69,18 @@ describe("LabelSheetPage & labelUtils", () => {
     expect(html).toContain("Barcode");
     expect(html).toContain("Storage Place");
     expect(html).toContain("Thermal / B&amp;W");
+    expect(html).toContain("One per page");
+  });
+
+  it("defaults to one per page when opened with box_id", () => {
+    const html = renderToStaticMarkup(
+      <MemoryRouter initialEntries={["/labels?box_id=1"]}>
+        <LabelSheetPage />
+      </MemoryRouter>
+    );
+
+    expect(html).toContain("One per Page (1 per sheet)");
+    expect(html).toContain("One per page");
   });
 
   it("duplicates box labels cleanly preserving box metadata", () => {

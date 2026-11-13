@@ -10,6 +10,7 @@ export interface LabelData {
   boxNumber?: number;
   destination?: string;
   itemCount?: number;
+  locationKind?: string;
 }
 
 /** Extracts only the last storage place name from a full hierarchy path (e.g. "Room > Shelf > Box" -> "Box"). */

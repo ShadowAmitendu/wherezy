@@ -28,6 +28,23 @@ import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { formatTakenOutStatusLabel, getItemQuantity } from "../items/quantityUtils";
 import { formatItemCode } from "../items/itemCodeUtils";
 
+function safeGetLocalStorage(key: string): string | null {
+  try {
+    if (typeof window !== "undefined" && typeof window.localStorage !== "undefined") {
+      return window.localStorage.getItem(key);
+    }
+  } catch {}
+  return null;
+}
+
+function safeSetLocalStorage(key: string, value: string): void {
+  try {
+    if (typeof window !== "undefined" && typeof window.localStorage !== "undefined") {
+      window.localStorage.setItem(key, value);
+    }
+  } catch {}
+}
+
 export const PrintShelfPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -40,16 +57,19 @@ export const PrintShelfPage: React.FC = () => {
 
   // Options
   const [includeSub, setIncludeSub] = useState<boolean>(() => {
-    return localStorage.getItem("print_inc_sub") !== "false";
+    return safeGetLocalStorage("print_inc_sub") !== "false";
   });
   const [showPhotos, setShowPhotos] = useState<boolean>(() => {
-    return localStorage.getItem("print_photos") !== "false";
+    return safeGetLocalStorage("print_photos") !== "false";
   });
   const [showAuditBox, setShowAuditBox] = useState<boolean>(() => {
-    return localStorage.getItem("print_audit") !== "false";
+    return safeGetLocalStorage("print_audit") !== "false";
+  });
+  const [onePerPage, setOnePerPage] = useState<boolean>(() => {
+    return safeGetLocalStorage("print_one_per_page") === "true";
   });
   const [fontSize, setFontSize] = useState<string>(() => {
-    return localStorage.getItem("print_font") || "medium";
+    return safeGetLocalStorage("print_font") || "medium";
   });
 
   useEffect(() => {
@@ -126,7 +146,7 @@ export const PrintShelfPage: React.FC = () => {
                 checked={includeSub}
                 onChange={(e) => {
                   setIncludeSub(e.target.checked);
-                  localStorage.setItem("print_inc_sub", String(e.target.checked));
+                  safeSetLocalStorage("print_inc_sub", String(e.target.checked));
                 }}
               />
             }
@@ -138,7 +158,7 @@ export const PrintShelfPage: React.FC = () => {
                 checked={showPhotos}
                 onChange={(e) => {
                   setShowPhotos(e.target.checked);
-                  localStorage.setItem("print_photos", String(e.target.checked));
+                  safeSetLocalStorage("print_photos", String(e.target.checked));
                 }}
               />
             }
@@ -150,11 +170,23 @@ export const PrintShelfPage: React.FC = () => {
                 checked={showAuditBox}
                 onChange={(e) => {
                   setShowAuditBox(e.target.checked);
-                  localStorage.setItem("print_audit", String(e.target.checked));
+                  safeSetLocalStorage("print_audit", String(e.target.checked));
                 }}
               />
             }
             label="Audit tick-box"
+          />
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={onePerPage}
+                onChange={(e) => {
+                  setOnePerPage(e.target.checked);
+                  safeSetLocalStorage("print_one_per_page", String(e.target.checked));
+                }}
+              />
+            }
+            label="One location/box per page"
           />
           <FormControl size="small" sx={{ minWidth: 120 }}>
             <InputLabel>Font Size</InputLabel>
@@ -163,7 +195,7 @@ export const PrintShelfPage: React.FC = () => {
               label="Font Size"
               onChange={(e) => {
                 setFontSize(e.target.value);
-                localStorage.setItem("print_font", e.target.value);
+                safeSetLocalStorage("print_font", e.target.value);
               }}
             >
               <MenuItem value="small">Small</MenuItem>
@@ -218,8 +250,45 @@ export const PrintShelfPage: React.FC = () => {
         <Divider sx={{ mb: 2 }} />
 
         {/* Grouped Tables */}
-        {Object.entries(groupedItems).map(([groupPath, groupItemList]) => (
-          <Box key={groupPath} sx={{ mb: 3 }}>
+        {Object.entries(groupedItems).map(([groupPath, groupItemList], groupIdx) => (
+          <Box
+            key={groupPath}
+            className={`location-group-box ${onePerPage ? "one-per-page" : ""}`}
+            sx={{
+              mb: onePerPage ? 4 : 3,
+              p: onePerPage ? { xs: 1.5, sm: 3 } : 0,
+              border: onePerPage ? "1px solid" : "none",
+              borderColor: "divider",
+              borderRadius: onePerPage ? 2 : 0,
+              bgcolor: onePerPage ? "background.paper" : "transparent",
+              pageBreakAfter: onePerPage && groupIdx < Object.keys(groupedItems).length - 1 ? "always" : "auto",
+              breakAfter: onePerPage && groupIdx < Object.keys(groupedItems).length - 1 ? "page" : "auto",
+            }}
+          >
+            {onePerPage && groupIdx > 0 && (
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
+                <Box>
+                  <Typography variant="overline" color="text.secondary">
+                    Wherezy Shelf Audit Sheet • Page {groupIdx + 1} of {Object.keys(groupedItems).length}
+                  </Typography>
+                  <Typography variant="h5" sx={{ fontWeight: 800 }}>
+                    {groupPath}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                    Location: {location?.name} • Printed on {printedAt.toLocaleDateString()}
+                  </Typography>
+                </Box>
+                {qrDataUrl && (
+                  <Box sx={{ textAlign: "center" }}>
+                    <img src={qrDataUrl} alt="Location QR" style={{ width: 60, height: 60 }} />
+                    <Typography variant="caption" sx={{ display: "block", fontFamily: "var(--font-mono)", fontWeight: 700 }}>
+                      L{location?.id}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            )}
+
             <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1, bgcolor: "action.hover", p: 1, borderRadius: 1 }}>
               {groupPath} ({groupItemList.length} items)
             </Typography>
@@ -302,6 +371,19 @@ export const PrintShelfPage: React.FC = () => {
             box-shadow: none !important;
             border: none !important;
             padding: 0 !important;
+          }
+          .location-group-box.one-per-page {
+            page-break-after: always !important;
+            break-after: page !important;
+            break-inside: avoid !important;
+            border: none !important;
+            padding: 0 !important;
+            margin-bottom: 0 !important;
+            min-height: 90vh !important;
+          }
+          .location-group-box.one-per-page:last-child {
+            page-break-after: auto !important;
+            break-after: auto !important;
           }
           table {
             page-break-inside: auto;
