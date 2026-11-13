@@ -621,6 +621,8 @@ class WherezyDesktopApp:
 
         self.edit_port.setText(str(port))
         self.edit_data_dir.setText(data_dir)
+        self.edit_data_dir.setCursorPosition(0)
+        self.edit_data_dir.setToolTip(data_dir)
 
         for checkbox, checked in (
             (self.chk_autostart, autostart_os),
@@ -1214,7 +1216,10 @@ class WherezyDesktopApp:
             current,
         )
         if selected:
-            self.edit_data_dir.setText(str(Path(selected).resolve()))
+            resolved_selected = str(Path(selected).resolve())
+            self.edit_data_dir.setText(resolved_selected)
+            self.edit_data_dir.setCursorPosition(0)
+            self.edit_data_dir.setToolTip(resolved_selected)
 
     def _prompt_relaunch_for_data_dir(self, prompt_text: str, decline_msg: str) -> None:
         """Ask user whether to relaunch immediately when the DB data folder changed."""

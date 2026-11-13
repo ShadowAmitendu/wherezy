@@ -43,8 +43,8 @@ class DashboardInterface(QtWidgets.QWidget):
 
     def _init_ui(self) -> None:
         main_layout = QtWidgets.QVBoxLayout(self)
-        main_layout.setContentsMargins(36, 24, 36, 24)
-        main_layout.setSpacing(14)
+        main_layout.setContentsMargins(24, 16, 24, 16)
+        main_layout.setSpacing(12)
 
         # Header Title
         title_box = QtWidgets.QVBoxLayout()
@@ -60,12 +60,12 @@ class DashboardInterface(QtWidgets.QWidget):
         # Status & Quick Access Card
         self.status_card = CardWidget(self)
         status_layout = QtWidgets.QVBoxLayout(self.status_card)
-        status_layout.setContentsMargins(20, 16, 20, 16)
-        status_layout.setSpacing(12)
+        status_layout.setContentsMargins(18, 14, 18, 14)
+        status_layout.setSpacing(10)
 
         # Row 1: State Pill & Server URL
         top_row = QtWidgets.QHBoxLayout()
-        top_row.setSpacing(14)
+        top_row.setSpacing(12)
 
         self.status_icon = ToolButton(FluentIcon.ACCEPT, self.status_card)
         self.status_icon.setDisabled(True)
@@ -89,17 +89,22 @@ class DashboardInterface(QtWidgets.QWidget):
 
         top_row.addWidget(self.status_icon)
         top_row.addLayout(url_box, stretch=1)
+        status_layout.addLayout(top_row)
 
+        # Quick Actions Row
+        actions_row = QtWidgets.QHBoxLayout()
+        actions_row.setSpacing(10)
         self.btn_open_browser = PrimaryPushButton(
             FluentIcon.GLOBE, "Open Web UI", self.status_card
         )
         self.btn_copy_lan = PushButton(FluentIcon.COPY, "Copy URL", self.status_card)
         self.btn_open_data = PushButton(FluentIcon.FOLDER, "Open Data Folder", self.status_card)
 
-        top_row.addWidget(self.btn_open_browser)
-        top_row.addWidget(self.btn_copy_lan)
-        top_row.addWidget(self.btn_open_data)
-        status_layout.addLayout(top_row)
+        actions_row.addWidget(self.btn_open_browser)
+        actions_row.addWidget(self.btn_copy_lan)
+        actions_row.addWidget(self.btn_open_data)
+        actions_row.addStretch()
+        status_layout.addLayout(actions_row)
 
         # Embedded Progress Bar
         self.progress_bar = ProgressBar(self.status_card)
@@ -111,25 +116,35 @@ class DashboardInterface(QtWidgets.QWidget):
 
         # Server Lifecycle Actions Card
         lifecycle_card = CardWidget(self)
-        lifecycle_layout = QtWidgets.QHBoxLayout(lifecycle_card)
-        lifecycle_layout.setContentsMargins(20, 14, 20, 14)
-        lifecycle_layout.setSpacing(12)
+        lifecycle_layout = QtWidgets.QVBoxLayout(lifecycle_card)
+        lifecycle_layout.setContentsMargins(18, 12, 18, 12)
+        lifecycle_layout.setSpacing(10)
 
-        server_label = StrongBodyLabel("Server Lifecycle:")
+        # Row 1: Server Process Controls
+        row_server = QtWidgets.QHBoxLayout()
+        row_server.setSpacing(10)
+        server_label = StrongBodyLabel("Server:")
         self.btn_start = PrimaryPushButton(FluentIcon.PLAY, "Start Server", lifecycle_card)
         self.btn_stop = PushButton(FluentIcon.CANCEL, "Stop Server", lifecycle_card)
         self.btn_restart = PushButton(FluentIcon.SYNC, "Restart Server", lifecycle_card)
 
-        lifecycle_layout.addWidget(server_label)
-        lifecycle_layout.addWidget(self.btn_start)
-        lifecycle_layout.addWidget(self.btn_stop)
-        lifecycle_layout.addWidget(self.btn_restart)
-        lifecycle_layout.addStretch()
+        row_server.addWidget(server_label)
+        row_server.addWidget(self.btn_start)
+        row_server.addWidget(self.btn_stop)
+        row_server.addWidget(self.btn_restart)
+        row_server.addStretch()
+        lifecycle_layout.addLayout(row_server)
 
+        # Row 2: Desktop Window Controls
+        row_window = QtWidgets.QHBoxLayout()
+        row_window.setSpacing(10)
         self.btn_hide_tray = PushButton(FluentIcon.MINIMIZE, "Hide to Tray", lifecycle_card)
         self.btn_quit = PushButton(FluentIcon.POWER_BUTTON, "Quit Wherezy", lifecycle_card)
-        lifecycle_layout.addWidget(self.btn_hide_tray)
-        lifecycle_layout.addWidget(self.btn_quit)
+
+        row_window.addStretch()
+        row_window.addWidget(self.btn_hide_tray)
+        row_window.addWidget(self.btn_quit)
+        lifecycle_layout.addLayout(row_window)
 
         main_layout.addWidget(lifecycle_card)
 
@@ -153,7 +168,7 @@ class DashboardInterface(QtWidgets.QWidget):
         self.log_text = PlainTextEdit(console_card)
         self.log_text.setReadOnly(True)
         self.log_text.setFont(QtGui.QFont("Cascadia Code", 9))
-        self.log_text.setMinimumHeight(160)
+        self.log_text.setMinimumHeight(150)
         console_layout.addWidget(self.log_text)
 
         main_layout.addWidget(console_card, stretch=1)
@@ -169,8 +184,8 @@ class SettingsInterface(QtWidgets.QWidget):
 
     def _init_ui(self) -> None:
         main_layout = QtWidgets.QVBoxLayout(self)
-        main_layout.setContentsMargins(36, 24, 36, 24)
-        main_layout.setSpacing(16)
+        main_layout.setContentsMargins(24, 16, 24, 16)
+        main_layout.setSpacing(14)
 
         title_box = QtWidgets.QVBoxLayout()
         title_box.setSpacing(4)
@@ -264,28 +279,39 @@ class SettingsInterface(QtWidgets.QWidget):
         data_card = SettingCard(
             FluentIcon.FOLDER,
             "Data Folder",
-            "Local folder where inventory database and uploaded media are stored",
+            "Database and media storage folder",
             parent=network_group,
         )
         self.edit_data_dir = LineEdit(data_card)
-        self.edit_data_dir.setMinimumWidth(240)
+        self.edit_data_dir.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding, QtWidgets.QSizePolicy.Policy.Fixed
+        )
+        self.edit_data_dir.setMinimumWidth(280)
+        self.edit_data_dir.setMaximumWidth(560)
+        self.edit_data_dir.setClearButtonEnabled(True)
         self.btn_browse_data = PushButton(FluentIcon.FOLDER, "Browse", data_card)
-        data_card.hBoxLayout.addWidget(self.edit_data_dir)
-        data_card.hBoxLayout.addWidget(self.btn_browse_data)
+
+        data_card.hBoxLayout.addWidget(self.edit_data_dir, stretch=4)
+        data_card.hBoxLayout.addSpacing(10)
+        data_card.hBoxLayout.addWidget(self.btn_browse_data, stretch=0)
+        data_card.hBoxLayout.addSpacing(16)
         network_group.addSettingCard(data_card)
 
         # Port Setting Card
         port_card = SettingCard(
             FluentIcon.SYNC,
             "Server Port",
-            "Local network port bound by the FastAPI and Uvicorn server",
+            "Local TCP port for Wherezy server",
             parent=network_group,
         )
         self.edit_port = LineEdit(port_card)
-        self.edit_port.setFixedWidth(100)
-        self.btn_save_apply = PrimaryPushButton(FluentIcon.SAVE, "Save Port", port_card)
+        self.edit_port.setFixedWidth(90)
+        self.btn_save_apply = PushButton(FluentIcon.SAVE, "Save Port", port_card)
+
         port_card.hBoxLayout.addWidget(self.edit_port)
+        port_card.hBoxLayout.addSpacing(10)
         port_card.hBoxLayout.addWidget(self.btn_save_apply)
+        port_card.hBoxLayout.addSpacing(16)
         network_group.addSettingCard(port_card)
 
         scroll_layout.addWidget(network_group)
@@ -317,7 +343,8 @@ class WherezyFluentMainWindow(FluentWindow):
         super().__init__()
         self._on_close_intercept = on_close_intercept
         self.setWindowTitle("Wherezy Desktop Controller")
-        self.resize(780, 620)
+        self.navigationInterface.setReturnButtonVisible(False)
+        self.resize(625, 600)
 
         self.dashboard_interface = DashboardInterface(self)
         self.settings_interface = SettingsInterface(self)
