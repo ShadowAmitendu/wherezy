@@ -459,6 +459,7 @@ class WherezyDesktopApp:
         self.root = self.window  # Friendly alias alongside `.window`
         uic.loadUi(str(resolved_ui), self.window)
         self.window.setWindowIcon(self._app_icon)
+        self.window.resize(625, 600)
 
         self._bind_ui_widgets()
         self._populate_initial_form_state()
