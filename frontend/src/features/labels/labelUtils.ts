@@ -8,6 +8,26 @@ export interface LabelData {
   qrUrl: string;
 }
 
+/** Extracts only the last storage place name from a full hierarchy path (e.g. "Room > Shelf > Box" -> "Box"). */
+export function extractStoragePlaceName(raw?: string | null): string | undefined {
+  if (!raw) return undefined;
+  const trimmed = raw.trim();
+  if (!trimmed) return undefined;
+  if (trimmed.includes(" > ")) {
+    const parts = trimmed.split(" > ").map((s) => s.trim()).filter(Boolean);
+    return parts.length > 0 ? parts[parts.length - 1] : trimmed;
+  }
+  if (trimmed.includes(">")) {
+    const parts = trimmed.split(">").map((s) => s.trim()).filter(Boolean);
+    return parts.length > 0 ? parts[parts.length - 1] : trimmed;
+  }
+  if (trimmed.includes(" / ")) {
+    const parts = trimmed.split(" / ").map((s) => s.trim()).filter(Boolean);
+    return parts.length > 0 ? parts[parts.length - 1] : trimmed;
+  }
+  return trimmed;
+}
+
 /** Parse positive unique item IDs from either `?item_id=` or `?item_ids=1,2,3`. */
 export function parseLabelItemIds(
   itemIdParam: string | null,

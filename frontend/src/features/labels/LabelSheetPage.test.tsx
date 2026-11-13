@@ -5,6 +5,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 import JsBarcode from "jsbarcode";
 import {
   buildLabelCopies,
+  extractStoragePlaceName,
   parseLabelItemIds,
   renderBarcodeToCanvas,
   type LabelData,
@@ -70,5 +71,25 @@ describe("LabelSheetPage & labelUtils", () => {
     expect(parseLabelItemIds(null, "12, 27,12, -1, abc, 45")).toEqual([12, 27, 45]);
     expect(parseLabelItemIds("9", "3,9,15")).toEqual([3, 9, 15]);
     expect(parseLabelItemIds(null, null)).toEqual([]);
+  });
+
+  it("extracts only the immediate storage place name from hierarchy paths", () => {
+    // Multi-level hierarchy paths
+    expect(extractStoragePlaceName("Garage > Workshop > Tool Bench > Shelf 2")).toBe("Shelf 2");
+    expect(extractStoragePlaceName("Living Room > Bookshelf > Top Shelf")).toBe("Top Shelf");
+    expect(extractStoragePlaceName("Attic>Holiday Box>Ornaments")).toBe("Ornaments");
+    expect(extractStoragePlaceName("Master Bedroom / Closet / Shoe Rack")).toBe("Shoe Rack");
+
+    // Single location name
+    expect(extractStoragePlaceName("Tool Box")).toBe("Tool Box");
+
+    // Preserves single location names with internal slashes
+    expect(extractStoragePlaceName("A/C Closet")).toBe("A/C Closet");
+
+    // Falsy and empty values
+    expect(extractStoragePlaceName(null)).toBeUndefined();
+    expect(extractStoragePlaceName(undefined)).toBeUndefined();
+    expect(extractStoragePlaceName("")).toBeUndefined();
+    expect(extractStoragePlaceName("   ")).toBeUndefined();
   });
 });

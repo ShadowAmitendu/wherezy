@@ -19,6 +19,7 @@ import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { formatItemCode } from "../items/itemCodeUtils";
 import {
   buildLabelCopies,
+  extractStoragePlaceName,
   parseLabelItemIds,
   renderBarcodeToCanvas,
   type LabelData,
@@ -69,7 +70,7 @@ export const LabelSheetPage: React.FC = () => {
             id: formatItemCode(item.id),
             type: "item",
             name: item.name,
-            path: item.location_path || undefined,
+            path: extractStoragePlaceName(item.location_name || item.location_path),
             qrUrl: qrUrls[index],
           });
         });
@@ -81,7 +82,7 @@ export const LabelSheetPage: React.FC = () => {
           id: `L${loc.id}`,
           type: "location",
           name: loc.name,
-          path: loc.path || undefined,
+          path: undefined,
           qrUrl,
         });
       } else {
