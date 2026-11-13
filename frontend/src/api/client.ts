@@ -1053,6 +1053,10 @@ export const api = {
     apiFetch<any>(`/api/moves/${moveId}`, { method: "PUT", body: JSON.stringify(data) }),
   finishMove: (moveId: number) =>
     apiFetch<any>(`/api/moves/${moveId}/finish`, { method: "POST" }),
+  reopenMove: (moveId: number) =>
+    apiFetch<any>(`/api/moves/${moveId}/reopen`, { method: "POST" }),
+  deleteMove: (moveId: number) =>
+    apiFetch<{ ok: boolean; message: string }>(`/api/moves/${moveId}`, { method: "DELETE" }),
   getBoxes: (moveId: number) => apiFetch<any[]>(`/api/moves/${moveId}/boxes`),
   createBox: (moveId: number, data: any) =>
     apiFetch<any>(`/api/moves/${moveId}/boxes`, { method: "POST", body: JSON.stringify(data) }),

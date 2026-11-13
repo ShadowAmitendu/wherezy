@@ -373,13 +373,14 @@ class ItemsListResponse(BaseModel):
 
 # --- Codes ---
 
-CodeType = Literal["item", "location"]
+CodeType = Literal["item", "location", "box"]
 
 class CodeResolveResponse(BaseModel):
     type: CodeType
     id: int
     item: Optional[ItemOut] = None
     location: Optional[LocationOut] = None
+    box: Optional[Any] = None
 
 # --- Dashboard ---
 
@@ -707,7 +708,7 @@ class TrashRestoreRequest(BaseModel):
 # --- Quick Search ---
 
 class QuickSearchResult(BaseModel):
-    type: Literal["item", "location", "category", "tag", "contact", "action"]
+    type: Literal["item", "location", "category", "tag", "contact", "action", "box"]
     id: Optional[int] = None
     title: str
     subtitle: Optional[str] = None
@@ -844,6 +845,8 @@ class MoveOut(BaseModel):
     finished_at: Optional[str] = None
     box_count: int = 0
     packed_box_count: int = 0
+    packing_box_count: int = 0
+    unpacked_box_count: int = 0
     total_items: int = 0
     packed_items: int = 0
 
@@ -870,6 +873,8 @@ class BoxItemOut(BaseModel):
     category_name: Optional[str] = None
     location_path: Optional[str] = None
     quantity: int = 1
+    code: Optional[str] = None
+    photo_url: Optional[str] = None
 
 class BoxOut(BaseModel):
     id: int

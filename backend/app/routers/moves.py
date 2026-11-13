@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from backend.app.core.db import get_db
-from backend.app.models import Move, Box, BoxItem, Item, Location, Profile
+from backend.app.models import Move, Box, BoxItem, Item, Location, Profile, Photo
 from backend.app.schemas import (
     MoveOut, MoveCreate, MoveUpdate, BoxOut, BoxCreate, BoxUpdate,
     BoxItemOut, BoxUnpackRequest, BoxUnpackResponse, BoxUnpackUndoRequest, BulkRequest, SuccessResponse
@@ -13,13 +13,17 @@ from backend.app.services.permissions import require
 from backend.app.services.activity import record
 from backend.app.services.visibility import items_visible
 from backend.app.services.bulk import execute_bulk, undo_batch
+from backend.app.services.item_service import format_item_code
+from backend.app.services.location_service import get_location_path_str
 
 router = APIRouter(tags=["Moving-House Mode"])
 
 def _move_to_out(m: Move, db: Session) -> MoveOut:
     boxes = db.query(Box).filter(Box.move_id == m.id).all()
     box_ids = [b.id for b in boxes]
-    packed_boxes = sum(1 for b in boxes if b.status in ("packed", "unpacked"))
+    packed_boxes = sum(1 for b in boxes if b.status == "packed")
+    packing_boxes = sum(1 for b in boxes if b.status == "packing")
+    unpacked_boxes = sum(1 for b in boxes if b.status == "unpacked")
 
     # Active items in this move's boxes
     packed_items_count = db.query(BoxItem).filter(BoxItem.box_id.in_(box_ids), BoxItem.active == 1).count() if box_ids else 0
@@ -35,6 +39,8 @@ def _move_to_out(m: Move, db: Session) -> MoveOut:
         finished_at=m.finished_at,
         box_count=len(boxes),
         packed_box_count=packed_boxes,
+        packing_box_count=packing_boxes,
+        unpacked_box_count=unpacked_boxes,
         total_items=total_active_items,
         packed_items=packed_items_count
     )
@@ -46,16 +52,25 @@ def _box_to_out(b: Box, db: Session) -> BoxOut:
         .filter(BoxItem.box_id == b.id, BoxItem.active == 1)
         .all()
     )
-    item_outs = [
-        BoxItemOut(
-            id=it.id,
-            name=it.name,
-            category_name=it.category.name if it.category else None,
-            location_path=it.location.name if it.location else None,
-            quantity=max(1, int(it.quantity or 1)),
+    item_outs = []
+    for it in box_items:
+        loc_path = get_location_path_str(db, it.location_id) if it.location_id else None
+        cover = db.query(Photo).filter(
+            Photo.owner_type == "item",
+            Photo.owner_id == it.id,
+        ).order_by(Photo.is_cover.desc(), Photo.id.asc()).first()
+        photo_url = f"/api/photos/{cover.id}/thumb" if cover else None
+        item_outs.append(
+            BoxItemOut(
+                id=it.id,
+                name=it.name,
+                category_name=it.category.name if it.category else None,
+                location_path=loc_path,
+                quantity=max(1, int(it.quantity or 1)),
+                code=format_item_code(it.id),
+                photo_url=photo_url,
+            )
         )
-        for it in box_items
-    ]
     dest_loc = db.query(Location).filter(Location.id == b.destination_location_id).first() if b.destination_location_id else None
 
     return BoxOut(
@@ -154,6 +169,53 @@ def finish_move(
     db.commit()
 
     return _move_to_out(move, db)
+
+@router.post("/moves/{move_id}/reopen", response_model=MoveOut)
+def reopen_move(
+    move_id: int,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("moves:write"))
+):
+    move = db.query(Move).filter(Move.id == move_id).first()
+    if not move:
+        raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Move not found"}})
+
+    # Check if another active move exists
+    active = db.query(Move).filter(Move.status == "planning", Move.id != move_id).first()
+    if active:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": {"code": "ACTIVE_MOVE_EXISTS", "message": f"Move '{active.name}' is already active. Finish or delete it before reopening this move."}}
+        )
+
+    move.status = "planning"
+    move.finished_at = None
+    db.commit()
+    db.refresh(move)
+
+    record(db, "move", "reopened", f"Reopened move '{move.name}'", entity_id=move.id, actor=current)
+    db.commit()
+
+    return _move_to_out(move, db)
+
+@router.delete("/moves/{move_id}", response_model=SuccessResponse)
+def delete_move(
+    move_id: int,
+    db: Session = Depends(get_db),
+    current: Profile = Depends(require("moves:write"))
+):
+    move = db.query(Move).filter(Move.id == move_id).first()
+    if not move:
+        raise HTTPException(status_code=404, detail={"error": {"code": "NOT_FOUND", "message": "Move not found"}})
+
+    name = move.name
+    db.delete(move)
+    db.commit()
+
+    record(db, "move", "deleted", f"Deleted move '{name}'", entity_id=move_id, actor=current)
+    db.commit()
+
+    return SuccessResponse(ok=True, message=f"Move '{name}' deleted")
 
 # --- Boxes ---
 

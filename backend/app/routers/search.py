@@ -1,9 +1,10 @@
+import re
 from typing import List
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from backend.app.core.db import get_db
-from backend.app.models import Item, Location, Category, Tag, Contact, Profile
+from backend.app.models import Item, Location, Category, Tag, Contact, Profile, Box, Move
 from backend.app.schemas import QuickSearchResponse, QuickSearchResult
 from backend.app.services.item_service import format_item_code, parse_item_code
 from backend.app.services.permissions import require
@@ -95,6 +96,30 @@ def quick_search(
             title=c.name,
             subtitle=c.note or "Contact",
             url=f"/contacts?selected={c.id}"
+        ))
+
+    # 7. Moving Boxes (max 6)
+    box_num_match = re.match(r"^(?:b|box\s*#?)\s*(\d+)$", term)
+    box_filter = Box.label.ilike(f"%{term}%")
+    if box_num_match:
+        b_num = int(box_num_match.group(1))
+        box_filter = or_(box_filter, Box.number == b_num, Box.id == b_num)
+    boxes = (
+        db.query(Box)
+        .join(Move, Move.id == Box.move_id)
+        .filter(box_filter)
+        .order_by(Box.id.desc())
+        .limit(6)
+        .all()
+    )
+    for b in boxes:
+        dest_str = f" • Destination: {b.destination}" if b.destination else ""
+        results.append(QuickSearchResult(
+            type="box",
+            id=b.id,
+            title=f"Box #{b.number}: {b.label}",
+            subtitle=f"{b.status.capitalize()}{dest_str} • Move #{b.move_id}",
+            url=f"/moves?box={b.id}"
         ))
 
     return QuickSearchResponse(results=results)

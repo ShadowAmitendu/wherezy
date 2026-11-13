@@ -363,7 +363,7 @@ const BulkBoxDialogBody: React.FC<BodyProps> = ({ itemIds, onClose, onApplied, o
       .getMoves()
       .then(async (moves) => {
         const activeMoves = (Array.isArray(moves) ? moves : []).filter(
-          (m) => m.status !== "finished" && m.status !== "completed"
+          (m) => m.status === "planning"
         );
         const perMoveBoxes = await Promise.all(
           activeMoves.map(async (m) => {

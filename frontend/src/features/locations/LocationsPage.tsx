@@ -385,10 +385,18 @@ export const LocationsPage: React.FC = () => {
 
   const handleOpenBatchChildren = (loc: any) => {
     setBatchParent(loc);
-    setBatchRows([
-      { key: `b-${Date.now()}-1`, name: "", kind: "Shelf" },
-      { key: `b-${Date.now()}-2`, name: "", kind: "Storage Area" },
-    ]);
+    const isRoom = isRoomKind(loc.kind);
+    setBatchRows(
+      isRoom
+        ? [
+            { key: `b-${Date.now()}-1`, name: "", kind: "Shelf" },
+            { key: `b-${Date.now()}-2`, name: "", kind: "Storage Area" },
+          ]
+        : [
+            { key: `b-${Date.now()}-1`, name: "", kind: "Box" },
+            { key: `b-${Date.now()}-2`, name: "", kind: "Box" },
+          ]
+    );
     setBatchError(null);
   };
 
@@ -615,7 +623,7 @@ export const LocationsPage: React.FC = () => {
                   size="small"
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleOpenAdd(node.id, "area", "Storage Area");
+                    handleOpenAdd(node.id, "area", nodeIsRoom ? "Storage Area" : "Box");
                   }}
                 >
                   <AddIcon fontSize="small" />
@@ -793,16 +801,14 @@ export const LocationsPage: React.FC = () => {
                         </Typography>
                       </Box>
                       <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-                        {selectedIsRoom && (
-                          <Button
-                            variant="contained"
-                            size="small"
-                            startIcon={<AddIcon />}
-                            onClick={() => handleOpenBatchChildren(selectedDetail)}
-                          >
-                            Add Shelves / Areas
-                          </Button>
-                        )}
+                        <Button
+                          variant="contained"
+                          size="small"
+                          startIcon={<AddIcon />}
+                          onClick={() => handleOpenBatchChildren(selectedDetail)}
+                        >
+                          {selectedIsRoom ? "Add Shelves / Areas" : "Add Sub-locations / Boxes"}
+                        </Button>
                         <Button
                           variant="outlined"
                           size="small"
@@ -872,14 +878,14 @@ export const LocationsPage: React.FC = () => {
                           }}
                         >
                           <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                            Shelves & Storage Areas ({selectedChildren.length})
+                            {selectedIsRoom ? "Shelves & Storage Areas" : "Boxes & Containers"} ({selectedChildren.length})
                           </Typography>
                           <Button
                             size="small"
                             startIcon={<AddIcon />}
                             onClick={() => handleOpenBatchChildren(selectedDetail)}
                           >
-                            Add Shelves / Areas
+                            {selectedIsRoom ? "Add Shelves / Areas" : "Add Sub-locations / Boxes"}
                           </Button>
                         </Box>
 
@@ -1339,7 +1345,10 @@ export const LocationsPage: React.FC = () => {
         fullWidth
         fullScreen={isMobile}
       >
-        <DialogTitle>Add Shelves & Storage Areas in {batchParent?.name}</DialogTitle>
+        <DialogTitle>
+          {isRoomKind(batchParent?.kind) ? "Add Shelves & Storage Areas in " : "Add Boxes & Containers in "}
+          {batchParent?.name}
+        </DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, pt: "16px !important" }}>
           {batchError && (
             <Alert severity="error" onClose={() => setBatchError(null)}>
@@ -1347,8 +1356,9 @@ export const LocationsPage: React.FC = () => {
             </Alert>
           )}
           <Typography variant="body2" color="text.secondary">
-            Add one or multiple shelves, storage areas, cupboards, or racks grouped under{" "}
-            <strong>{batchParent?.name}</strong>.
+            {isRoomKind(batchParent?.kind)
+              ? `Add one or multiple shelves, storage areas, cupboards, or racks grouped under ${batchParent?.name}.`
+              : `Add one or multiple storage boxes, bins, or containers grouped under ${batchParent?.name}.`}
           </Typography>
           <Stack spacing={1.25}>
             {batchRows.map((row, idx) => (
@@ -1356,7 +1366,11 @@ export const LocationsPage: React.FC = () => {
                 <TextField
                   size="small"
                   autoFocus={idx === 0}
-                  placeholder={`e.g. Shelf ${idx + 1} or North Storage Area`}
+                  placeholder={
+                    isRoomKind(batchParent?.kind)
+                      ? `e.g. Shelf ${idx + 1} or North Storage Area`
+                      : `e.g. Box ${idx + 1} or Cable Bin`
+                  }
                   value={row.name}
                   onChange={(e) =>
                     setBatchRows((prev) =>
@@ -1393,6 +1407,18 @@ export const LocationsPage: React.FC = () => {
             ))}
           </Stack>
           <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+            <Button
+              size="small"
+              startIcon={<AddIcon />}
+              onClick={() =>
+                setBatchRows((prev) => [
+                  ...prev,
+                  { key: `b-${Date.now()}-${prev.length + 1}`, name: "", kind: "Box" },
+                ])
+              }
+            >
+              Add Box Row
+            </Button>
             <Button
               size="small"
               startIcon={<AddIcon />}

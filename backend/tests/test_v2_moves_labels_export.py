@@ -34,6 +34,23 @@ def test_moves_labels_and_excel_export(client, db_session):
     res = client.post(f"/api/boxes/{box['id']}/items", json=[it.id], cookies=auth_cookies)
     assert res.status_code == 200
 
+    # Test code resolution for Box
+    code_res = client.get(f"/api/codes/resolve?code=B{box['id']}", cookies=auth_cookies)
+    assert code_res.status_code == 200
+    assert code_res.json()["type"] == "box"
+    assert code_res.json()["box"]["number"] == 1
+
+    # Test quick search for Box
+    search_res = client.get("/api/search/quick?q=Heavy Tools", cookies=auth_cookies)
+    assert search_res.status_code == 200
+    box_results = [r for r in search_res.json()["results"] if r["type"] == "box"]
+    assert len(box_results) >= 1
+    assert "Box #1" in box_results[0]["title"]
+
+    # Mark box as packed
+    pack_res = client.post(f"/api/boxes/{box['id']}/pack", cookies=auth_cookies)
+    assert pack_res.status_code == 200
+
     # Unpack box into loc2
     res = client.post(f"/api/boxes/{box['id']}/unpack", json={
         "item_ids": [it.id],
@@ -44,6 +61,20 @@ def test_moves_labels_and_excel_export(client, db_session):
     # Verify item moved to loc2
     db_session.expire_all()
     assert db_session.query(Item).filter(Item.id == it.id).first().location_id == loc2.id
+
+    # Finish and Reopen Move
+    fin_res = client.post(f"/api/moves/{move['id']}/finish", cookies=auth_cookies)
+    assert fin_res.status_code == 200
+    assert fin_res.json()["status"] == "done"
+
+    reopen_res = client.post(f"/api/moves/{move['id']}/reopen", cookies=auth_cookies)
+    assert reopen_res.status_code == 200
+    assert reopen_res.json()["status"] == "planning"
+
+    # Delete Move
+    del_res = client.delete(f"/api/moves/{move['id']}", cookies=auth_cookies)
+    assert del_res.status_code == 200
+    assert del_res.json()["ok"] is True
 
     # 2. Label Templates
     res = client.post("/api/label-templates", json={

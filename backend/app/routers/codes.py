@@ -2,7 +2,7 @@ import re
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from backend.app.core.db import get_db
-from backend.app.models import Item, Location, Profile
+from backend.app.models import Item, Location, Box, Profile
 from backend.app.schemas import CodeResolveResponse
 from backend.app.services.item_service import format_item_code, map_item, parse_item_code
 from backend.app.services.permissions import require
@@ -12,7 +12,9 @@ from backend.app.routers.settings import get_setting_val
 router = APIRouter(prefix="/codes", tags=["Codes"])
 
 LOC_CODE_REGEX = re.compile(r"^(?:L|l|loc:|location:)(\d+)$")
+BOX_CODE_REGEX = re.compile(r"^(?:B|b|box:)(\d+)$")
 URL_ITEM_REGEX = re.compile(r"(?:#/i/|/items/|/i/)(\d+)")
+URL_BOX_REGEX = re.compile(r"(?:#/moves\?box=|/boxes/|/b/)(\d+)")
 URL_LOC_REGEX = re.compile(r"(?:#/l/|/locations/|/l/)(\d+)")
 
 @router.get("/resolve", response_model=CodeResolveResponse)
@@ -27,18 +29,24 @@ def resolve_code(
 
     # Check URL patterns first
     url_item_match = URL_ITEM_REGEX.search(raw)
+    url_box_match = URL_BOX_REGEX.search(raw)
+    url_loc_match = URL_LOC_REGEX.search(raw)
+
     if url_item_match:
         parsed_item_id = int(url_item_match.group(1))
         if parsed_item_id >= 1:
             target_type = "item"
             target_id = parsed_item_id
-    else:
-        url_loc_match = URL_LOC_REGEX.search(raw)
-        if url_loc_match:
-            parsed_loc_id = int(url_loc_match.group(1))
-            if parsed_loc_id >= 1:
-                target_type = "location"
-                target_id = parsed_loc_id
+    elif url_box_match:
+        parsed_box_id = int(url_box_match.group(1))
+        if parsed_box_id >= 1:
+            target_type = "box"
+            target_id = parsed_box_id
+    elif url_loc_match:
+        parsed_loc_id = int(url_loc_match.group(1))
+        if parsed_loc_id >= 1:
+            target_type = "location"
+            target_id = parsed_loc_id
 
     # Check prefix patterns
     if not target_type:
@@ -47,12 +55,19 @@ def resolve_code(
             target_type = "item"
             target_id = parsed_item_id
         else:
-            loc_match = LOC_CODE_REGEX.match(raw)
-            if loc_match:
-                parsed_loc_id = int(loc_match.group(1))
-                if parsed_loc_id >= 1:
-                    target_type = "location"
-                    target_id = parsed_loc_id
+            box_match = BOX_CODE_REGEX.match(raw)
+            if box_match:
+                parsed_box_id = int(box_match.group(1))
+                if parsed_box_id >= 1:
+                    target_type = "box"
+                    target_id = parsed_box_id
+            else:
+                loc_match = LOC_CODE_REGEX.match(raw)
+                if loc_match:
+                    parsed_loc_id = int(loc_match.group(1))
+                    if parsed_loc_id >= 1:
+                        target_type = "location"
+                        target_id = parsed_loc_id
 
     if not target_type or target_id is None:
         raise HTTPException(
@@ -73,7 +88,23 @@ def resolve_code(
             type="item",
             id=target_id,
             item=map_item(item, db, warn_days),
-            location=None
+            location=None,
+            box=None
+        )
+    elif target_type == "box":
+        box = db.query(Box).filter(Box.id == target_id).first()
+        if not box:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail={"error": {"code": "NOT_FOUND", "message": f"Box B{target_id} not found"}}
+            )
+        from backend.app.routers.moves import _box_to_out
+        return CodeResolveResponse(
+            type="box",
+            id=target_id,
+            item=None,
+            location=None,
+            box=_box_to_out(box, db)
         )
     else:
         loc = db.query(Location).filter(Location.id == target_id, Location.deleted_at.is_(None)).first()
@@ -87,5 +118,6 @@ def resolve_code(
             type="location",
             id=target_id,
             item=None,
-            location=map_location(loc, db, items_count)
+            location=map_location(loc, db, items_count),
+            box=None
         )
