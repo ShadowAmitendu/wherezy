@@ -11,6 +11,7 @@ import {
   type LabelData,
 } from "./labelUtils";
 import { LabelSheetPage } from "./LabelSheetPage";
+import { getAccessibleBoxColor } from "../moves/MovesPage";
 
 vi.mock("jsbarcode", () => ({
   default: vi.fn(),
@@ -64,6 +65,47 @@ describe("LabelSheetPage & labelUtils", () => {
     expect(html).toContain("Label Preset");
     expect(html).toContain("Copies");
     expect(html).toContain("Print Labels");
+    expect(html).toContain("QR Code");
+    expect(html).toContain("Barcode");
+    expect(html).toContain("Storage Place");
+    expect(html).toContain("Thermal / B&amp;W");
+  });
+
+  it("duplicates box labels cleanly preserving box metadata", () => {
+    const boxLabels: LabelData[] = [
+      {
+        id: "BOX-1",
+        type: "box",
+        name: "Kitchen Pans",
+        boxNumber: 1,
+        destination: "Kitchen",
+        colour: "#1976d2",
+        itemCount: 8,
+        qrUrl: "data:image/png;base64,BOX1",
+      },
+    ];
+
+    const copies = buildLabelCopies(boxLabels, 3);
+    expect(copies).toHaveLength(3);
+    expect(copies[0].type).toBe("box");
+    expect(copies[0].boxNumber).toBe(1);
+    expect(copies[0].destination).toBe("Kitchen");
+  });
+
+  it("provides accessible high-contrast color tints for box labels in dark mode", () => {
+    // In light mode, returns exact original color
+    expect(getAccessibleBoxColor("#1976d2", false)).toBe("#1976d2");
+    expect(getAccessibleBoxColor("#546e7a", false)).toBe("#546e7a");
+
+    // In dark mode, maps to bright high-contrast tints
+    expect(getAccessibleBoxColor("#1976d2", true)).toBe("#64b5f6");
+    expect(getAccessibleBoxColor("#2e7d32", true)).toBe("#81c784");
+    expect(getAccessibleBoxColor("#546e7a", true)).toBe("#b0bec5");
+    expect(getAccessibleBoxColor("#ec407a", true)).toBe("#f48fb1");
+
+    // Fallbacks
+    expect(getAccessibleBoxColor(null, true)).toBe("#90caf9");
+    expect(getAccessibleBoxColor(null, false)).toBe("#1976d2");
   });
 
   it("parses unique valid item IDs from item_id and item_ids query parameters", () => {

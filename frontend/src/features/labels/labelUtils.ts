@@ -2,10 +2,14 @@ import JsBarcode from "jsbarcode";
 
 export interface LabelData {
   id: string;
-  type: "item" | "location";
+  type: "item" | "location" | "box";
   name: string;
   path?: string;
   qrUrl: string;
+  colour?: string;
+  boxNumber?: number;
+  destination?: string;
+  itemCount?: number;
 }
 
 /** Extracts only the last storage place name from a full hierarchy path (e.g. "Room > Shelf > Box" -> "Box"). */

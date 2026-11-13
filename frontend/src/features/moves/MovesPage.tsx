@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import {
   Box,
   Typography,
@@ -37,6 +37,10 @@ import {
   Avatar,
   Stack,
   alpha,
+  FormControlLabel,
+  Checkbox,
+  FormControl,
+  InputLabel,
 } from "@mui/material";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 import AddIcon from "@mui/icons-material/Add";
@@ -54,6 +58,8 @@ import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
 import CategoryOutlinedIcon from "@mui/icons-material/CategoryOutlined";
 import CloseIcon from "@mui/icons-material/Close";
 import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
+import TuneIcon from "@mui/icons-material/Tune";
+import QrCode2Icon from "@mui/icons-material/QrCode2";
 import QRCode from "qrcode";
 
 import { api } from "../../api/client";
@@ -74,11 +80,29 @@ const BOX_PALETTE = [
   { name: "Berry Pink", hex: "#ec407a" },
 ];
 
+export function getAccessibleBoxColor(hex?: string | null, isDark: boolean = false): string {
+  if (!hex) return isDark ? "#90caf9" : "#1976d2";
+  if (!isDark) return hex;
+  const darkMap: Record<string, string> = {
+    "#1976d2": "#64b5f6", // Ocean Blue -> Lighter blue
+    "#2e7d32": "#81c784", // Emerald Green -> Lighter green
+    "#ed6c02": "#ffb74d", // Warm Amber -> Lighter amber
+    "#d32f2f": "#e57373", // Crimson Red -> Lighter red
+    "#9c27b0": "#ce93d8", // Royal Purple -> Lighter purple
+    "#00897b": "#4db6ac", // Deep Teal -> Lighter teal
+    "#546e7a": "#b0bec5", // Slate Grey -> Lighter slate
+    "#ec407a": "#f48fb1", // Berry Pink -> Lighter pink
+  };
+  return darkMap[hex.toLowerCase()] || hex;
+}
+
 export const MovesPage: React.FC = () => {
   const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const { showUndo } = useUndo();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   // All moves & active move
   const [allMoves, setAllMoves] = useState<any[]>([]);
@@ -135,10 +159,16 @@ export const MovesPage: React.FC = () => {
   const [unpackSpecificItemIds, setUnpackSpecificItemIds] = useState<number[] | null>(null);
   const [isUnpacking, setIsUnpacking] = useState(false);
 
-  // Print Box Label / Manifest Modal
+  // Print Box Label / Manifest Modal & Options
   const [printBoxTarget, setPrintBoxTarget] = useState<any | null>(null);
   const [printQrDataUrl, setPrintQrDataUrl] = useState<string>("");
   const printContentRef = useRef<HTMLDivElement>(null);
+  const [printLabelFormat, setPrintLabelFormat] = useState<"standard" | "compact" | "manifest">("standard");
+  const [printIncludeChecklist, setPrintIncludeChecklist] = useState(true);
+  const [printIncludeQr, setPrintIncludeQr] = useState(true);
+  const [printIncludeDestination, setPrintIncludeDestination] = useState(true);
+  const [printIncludeNotes, setPrintIncludeNotes] = useState(true);
+  const [printThermalMono, setPrintThermalMono] = useState(false);
 
   const loadMoveData = async (preferredMoveId?: number) => {
     setLoading(true);
@@ -592,7 +622,16 @@ export const MovesPage: React.FC = () => {
         subtitle="Pack numbered boxes, assign rooms, and safely unpack into your new home"
         icon={<LocalShippingOutlinedIcon />}
         action={
-          <Box sx={{ display: "flex", gap: 1 }}>
+          <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+            {activeMove && boxes.length > 0 && (
+              <Button
+                variant="outlined"
+                startIcon={<PrintOutlinedIcon />}
+                onClick={() => navigate(`/labels?move_id=${activeMove.id}`)}
+              >
+                Print All Box Labels
+              </Button>
+            )}
             {activeMove && activeMove.status === "planning" && (
               <Button variant="contained" startIcon={<AddIcon />} onClick={handleOpenCreateBox}>
                 New Box
@@ -844,9 +883,29 @@ export const MovesPage: React.FC = () => {
                         <CardContent sx={{ flexGrow: 1, pb: 1 }}>
                           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1.5 }}>
                             <Box sx={{ minWidth: 0, pr: 1 }}>
-                              <Typography variant="caption" sx={{ fontWeight: 800, color: box.colour || "primary.main" }}>
-                                BOX #{box.number}
-                              </Typography>
+                              <Box
+                                sx={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  px: 0.9,
+                                  py: 0.2,
+                                  borderRadius: 1,
+                                  bgcolor: alpha(box.colour || theme.palette.primary.main, isDark ? 0.25 : 0.1),
+                                  border: `1px solid ${alpha(box.colour || theme.palette.primary.main, isDark ? 0.45 : 0.25)}`,
+                                  mb: 0.5,
+                                }}
+                              >
+                                <Typography
+                                  variant="caption"
+                                  sx={{
+                                    fontWeight: 800,
+                                    letterSpacing: 0.5,
+                                    color: getAccessibleBoxColor(box.colour, isDark),
+                                  }}
+                                >
+                                  BOX #{box.number}
+                                </Typography>
+                              </Box>
                               <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.25 }} noWrap>
                                 {box.label}
                               </Typography>
@@ -863,7 +922,7 @@ export const MovesPage: React.FC = () => {
                             <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.75 }}>
                               <PlaceOutlinedIcon fontSize="small" color="action" />
                               <Typography variant="body2" color="text.secondary" noWrap>
-                                Room: <strong>{box.destination}</strong>
+                                Room: <Box component="span" sx={{ color: "text.primary", fontWeight: 700 }}>{box.destination}</Box>
                               </Typography>
                             </Box>
                           )}
@@ -872,7 +931,7 @@ export const MovesPage: React.FC = () => {
                             <Box sx={{ display: "flex", alignItems: "center", gap: 0.75, mb: 0.75 }}>
                               <CategoryOutlinedIcon fontSize="small" color="action" />
                               <Typography variant="caption" color="text.secondary" noWrap>
-                                Target Inventory: {box.destination_location_name}
+                                Target Inventory: <Box component="span" sx={{ color: "text.primary", fontWeight: 600 }}>{box.destination_location_name}</Box>
                               </Typography>
                             </Box>
                           )}
@@ -1387,101 +1446,365 @@ export const MovesPage: React.FC = () => {
       </Dialog>
 
       {/* Print Box Label & Manifest Modal */}
-      <Dialog open={Boolean(printBoxTarget)} onClose={() => setPrintBoxTarget(null)} maxWidth="sm" fullWidth fullScreen={isMobile}>
+      <Dialog
+        open={Boolean(printBoxTarget)}
+        onClose={() => setPrintBoxTarget(null)}
+        maxWidth="md"
+        fullWidth
+        fullScreen={isMobile}
+      >
         <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span>Print Box #{printBoxTarget?.number} Label</span>
-          <Button variant="contained" startIcon={<PrintOutlinedIcon />} onClick={handlePrintManifest}>
-            Print
-          </Button>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <PrintOutlinedIcon color="primary" />
+            <Typography variant="h6" sx={{ fontWeight: 800 }}>
+              Print Box #{printBoxTarget?.number} Label
+            </Typography>
+          </Box>
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<QrCode2Icon />}
+              onClick={() => {
+                const target = printBoxTarget;
+                setPrintBoxTarget(null);
+                navigate(`/labels?move_id=${activeMove?.id}&box_id=${target?.id}`);
+              }}
+            >
+              Open in Label Sheet
+            </Button>
+            <Button variant="contained" startIcon={<PrintOutlinedIcon />} onClick={handlePrintManifest}>
+              Print Now
+            </Button>
+          </Box>
         </DialogTitle>
-        <DialogContent sx={{ pt: "16px !important" }}>
-          {/* Printable Container */}
+
+        <DialogContent sx={{ pt: "16px !important", display: "flex", flexDirection: "column", gap: 2 }}>
+          {/* Label Options Toolbar */}
           <Paper
-            ref={printContentRef}
             variant="outlined"
+            className="no-print"
             sx={{
-              p: 3,
+              p: 2,
               borderRadius: 2,
-              border: `4px solid ${printBoxTarget?.colour || theme.palette.primary.main}`,
+              bgcolor: "action.hover",
               display: "flex",
               flexDirection: "column",
-              gap: 2,
-              bgcolor: "background.paper",
+              gap: 1.5,
             }}
           >
-            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <Box>
-                <Typography variant="overline" sx={{ fontWeight: 800, letterSpacing: 1.5, color: "text.secondary" }}>
-                  {activeMove?.name || "WHEREZY MOVE"}
-                </Typography>
-                <Typography variant="h3" sx={{ fontWeight: 900, color: printBoxTarget?.colour || "primary.main" }}>
-                  BOX #{printBoxTarget?.number}
-                </Typography>
-                <Typography variant="h5" sx={{ fontWeight: 700 }}>
-                  {printBoxTarget?.label}
-                </Typography>
-              </Box>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, display: "flex", alignItems: "center", gap: 1 }}>
+              <TuneIcon fontSize="small" /> Label & Print Options
+            </Typography>
 
-              {printQrDataUrl && (
-                <Box sx={{ textAlign: "center" }}>
-                  <img src={printQrDataUrl} alt="Box QR" style={{ width: 110, height: 110, borderRadius: 8 }} />
-                  <Typography variant="caption" sx={{ display: "block", fontWeight: 700 }}>
-                    Scan to Open Box
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 2, alignItems: "center" }}>
+              <FormControl size="small" sx={{ minWidth: 180 }}>
+                <InputLabel>Label Format</InputLabel>
+                <Select
+                  value={printLabelFormat}
+                  label="Label Format"
+                  onChange={(e) => setPrintLabelFormat(e.target.value as any)}
+                >
+                  <MenuItem value="standard">Standard Box Label (4×6")</MenuItem>
+                  <MenuItem value="compact">Compact Box Badge (60×40mm)</MenuItem>
+                  <MenuItem value="manifest">Full Manifest Sheet (A4)</MenuItem>
+                </Select>
+              </FormControl>
+
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1.5 }}>
+                <FormControlLabel
+                  control={<Checkbox size="small" checked={printIncludeQr} onChange={(e) => setPrintIncludeQr(e.target.checked)} />}
+                  label={<Typography variant="body2">QR Code</Typography>}
+                />
+                <FormControlLabel
+                  control={<Checkbox size="small" checked={printIncludeDestination} onChange={(e) => setPrintIncludeDestination(e.target.checked)} />}
+                  label={<Typography variant="body2">Destination Room</Typography>}
+                />
+                {printLabelFormat !== "compact" && (
+                  <>
+                    <FormControlLabel
+                      control={<Checkbox size="small" checked={printIncludeChecklist} onChange={(e) => setPrintIncludeChecklist(e.target.checked)} />}
+                      label={<Typography variant="body2">Contents Checklist</Typography>}
+                    />
+                    <FormControlLabel
+                      control={<Checkbox size="small" checked={printIncludeNotes} onChange={(e) => setPrintIncludeNotes(e.target.checked)} />}
+                      label={<Typography variant="body2">Notes</Typography>}
+                    />
+                  </>
+                )}
+                <FormControlLabel
+                  control={<Checkbox size="small" checked={printThermalMono} onChange={(e) => setPrintThermalMono(e.target.checked)} />}
+                  label={<Typography variant="body2">Thermal / B&W Mode</Typography>}
+                />
+              </Box>
+            </Box>
+          </Paper>
+
+          {/* Physical Label Preview Canvas */}
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              p: { xs: 1, sm: 3 },
+              bgcolor: (t) => (t.palette.mode === "dark" ? "#0b0f19" : "#f1f5f9"),
+              borderRadius: 2,
+              overflow: "auto",
+            }}
+          >
+            <Paper
+              id="printable-box-label"
+              ref={printContentRef}
+              elevation={3}
+              sx={{
+                width: printLabelFormat === "compact" ? "320px" : printLabelFormat === "manifest" ? "100%" : "440px",
+                maxWidth: "100%",
+                p: printLabelFormat === "compact" ? 2 : 3,
+                borderRadius: "8px",
+                border: printThermalMono
+                  ? "2px solid #000000"
+                  : `3px solid ${printBoxTarget?.colour || "#1976d2"}`,
+                bgcolor: "#ffffff !important",
+                color: "#111827 !important",
+                display: "flex",
+                flexDirection: "column",
+                gap: 2,
+                boxSizing: "border-box",
+                fontFamily: "Inter, sans-serif",
+              }}
+            >
+              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 1 }}>
+                <Box sx={{ minWidth: 0, flexGrow: 1 }}>
+                  <Typography
+                    variant="overline"
+                    sx={{
+                      fontWeight: 800,
+                      letterSpacing: 1.5,
+                      color: "#4b5563 !important",
+                      display: "block",
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {activeMove?.name || "WHEREZY MOVE"}
+                  </Typography>
+                  <Typography
+                    variant={printLabelFormat === "compact" ? "h4" : "h3"}
+                    sx={{
+                      fontWeight: 900,
+                      color: printThermalMono
+                        ? "#111827 !important"
+                        : `${printBoxTarget?.colour || "#1976d2"} !important`,
+                      lineHeight: 1.1,
+                      my: 0.5,
+                    }}
+                  >
+                    BOX #{printBoxTarget?.number}
+                  </Typography>
+                  <Typography
+                    variant={printLabelFormat === "compact" ? "h6" : "h5"}
+                    sx={{
+                      fontWeight: 800,
+                      color: "#111827 !important",
+                      lineHeight: 1.2,
+                    }}
+                  >
+                    {printBoxTarget?.label}
                   </Typography>
                 </Box>
-              )}
-            </Box>
 
-            <Divider />
-
-            {printBoxTarget?.destination && (
-              <Box sx={{ p: 1.5, bgcolor: alpha(printBoxTarget.colour || theme.palette.primary.main, 0.12), borderRadius: 1.5 }}>
-                <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                  DESTINATION ROOM
-                </Typography>
-                <Typography variant="h5" sx={{ fontWeight: 800 }}>
-                  {printBoxTarget.destination}
-                </Typography>
+                {printIncludeQr && printQrDataUrl && (
+                  <Box sx={{ textAlign: "center", flexShrink: 0 }}>
+                    <img
+                      src={printQrDataUrl}
+                      alt="Box QR"
+                      style={{
+                        width: printLabelFormat === "compact" ? 75 : 100,
+                        height: printLabelFormat === "compact" ? 75 : 100,
+                        borderRadius: 6,
+                        backgroundColor: "#ffffff",
+                        border: "1px solid #e5e7eb",
+                      }}
+                    />
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        display: "block",
+                        fontWeight: 700,
+                        color: "#374151 !important",
+                        fontSize: "0.75rem",
+                        mt: 0.25,
+                      }}
+                    >
+                      Scan to Open
+                    </Typography>
+                  </Box>
+                )}
               </Box>
-            )}
 
-            {printBoxTarget?.notes && (
-              <Typography variant="body2" sx={{ fontStyle: "italic", color: "text.secondary" }}>
-                Notes: &quot;{printBoxTarget.notes}&quot;
-              </Typography>
-            )}
+              {printIncludeDestination && printBoxTarget?.destination && (
+                <Box
+                  sx={{
+                    p: 1.5,
+                    bgcolor: printThermalMono
+                      ? "#f3f4f6 !important"
+                      : `${alpha(printBoxTarget.colour || "#1976d2", 0.08)} !important`,
+                    border: `1.5px solid ${printThermalMono ? "#d1d5db" : alpha(printBoxTarget.colour || "#1976d2", 0.3)}`,
+                    borderRadius: 1.5,
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      display: "block",
+                      fontWeight: 800,
+                      letterSpacing: 1,
+                      color: "#4b5563 !important",
+                    }}
+                  >
+                    DESTINATION ROOM
+                  </Typography>
+                  <Typography
+                    variant={printLabelFormat === "compact" ? "subtitle1" : "h5"}
+                    sx={{
+                      fontWeight: 900,
+                      color: "#111827 !important",
+                    }}
+                  >
+                    {printBoxTarget.destination}
+                  </Typography>
+                  {printBoxTarget.destination_location_name && (
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: "#6b7280 !important",
+                        fontWeight: 600,
+                        display: "block",
+                        mt: 0.25,
+                      }}
+                    >
+                      Target: {printBoxTarget.destination_location_name}
+                    </Typography>
+                  )}
+                </Box>
+              )}
 
-            <Divider />
+              {printIncludeNotes && printBoxTarget?.notes && (
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontStyle: "italic",
+                    color: "#4b5563 !important",
+                    bgcolor: "#f9fafb",
+                    p: 1,
+                    borderRadius: 1,
+                    borderLeft: "3px solid #9ca3af",
+                  }}
+                >
+                  &quot;{printBoxTarget.notes}&quot;
+                </Typography>
+              )}
 
-            <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>
-              Packed Contents Checklist:
-            </Typography>
-            <List dense disablePadding>
-              {(printBoxTarget?.items || boxItems || []).map((it: any) => (
-                <ListItem key={it.id} disableGutters sx={{ py: 0.25 }}>
-                  <ListItemIcon sx={{ minWidth: 28 }}>
-                    <CheckBoxOutlineBlankIcon fontSize="small" color="action" />
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={
-                      <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                        {it.name} {it.quantity > 1 ? `(x${it.quantity})` : ""}
-                      </Typography>
-                    }
-                    secondary={it.category_name ? `${it.category_name}` : undefined}
-                  />
-                </ListItem>
-              ))}
-            </List>
-          </Paper>
+              {printIncludeChecklist && printLabelFormat !== "compact" && (
+                <>
+                  <Divider sx={{ borderColor: "#e5e7eb" }} />
+                  <Box>
+                    <Typography
+                      variant="subtitle2"
+                      sx={{
+                        fontWeight: 800,
+                        color: "#111827 !important",
+                        mb: 0.75,
+                        display: "flex",
+                        justifyContent: "space-between",
+                      }}
+                    >
+                      <span>Packed Contents Checklist:</span>
+                      <span style={{ fontSize: "0.85em", color: "#6b7280", fontWeight: 600 }}>
+                        {(printBoxTarget?.items || boxItems || []).length} items
+                      </span>
+                    </Typography>
+                    <List dense disablePadding>
+                      {(printBoxTarget?.items || boxItems || []).map((it: any) => (
+                        <ListItem key={it.id} disableGutters sx={{ py: 0.35 }}>
+                          <ListItemIcon sx={{ minWidth: 26 }}>
+                            <CheckBoxOutlineBlankIcon fontSize="small" sx={{ color: "#4b5563" }} />
+                          </ListItemIcon>
+                          <ListItemText
+                            primary={
+                              <Typography
+                                variant="body2"
+                                sx={{
+                                  fontWeight: 600,
+                                  color: "#111827 !important",
+                                }}
+                              >
+                                {it.name} {it.quantity > 1 ? `(x${it.quantity})` : ""}
+                              </Typography>
+                            }
+                            secondary={
+                              it.category_name ? (
+                                <span style={{ color: "#6b7280", fontSize: "0.8em" }}>
+                                  {it.category_name}
+                                </span>
+                              ) : undefined
+                            }
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  </Box>
+                </>
+              )}
+            </Paper>
+          </Box>
         </DialogContent>
-        <DialogActions>
+
+        <DialogActions className="no-print">
           <Button onClick={() => setPrintBoxTarget(null)}>Close</Button>
           <Button variant="contained" startIcon={<PrintOutlinedIcon />} onClick={handlePrintManifest}>
             Print Now
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Global Print Stylesheet for Box Labels */}
+      <style>{`
+        @media print {
+          body {
+            background-color: #fff !important;
+            color: #000 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          .no-print, header, nav, .MuiDialogTitle-root, .MuiDialogActions-root, .MuiBackdrop-root {
+            display: none !important;
+          }
+          .MuiDialog-container {
+            display: block !important;
+            position: static !important;
+          }
+          .MuiPaper-root.MuiDialog-paper {
+            box-shadow: none !important;
+            border: none !important;
+            background: transparent !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          #printable-box-label {
+            box-shadow: none !important;
+            border: 2px solid #000 !important;
+            background-color: #fff !important;
+            color: #000 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            page-break-inside: avoid !important;
+          }
+          #printable-box-label * {
+            color: #000 !important;
+            border-color: #999 !important;
+          }
+        }
+      `}</style>
     </Box>
   );
 };
