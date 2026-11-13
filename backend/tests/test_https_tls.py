@@ -231,13 +231,12 @@ def test_desktop_config_https_roundtrip_and_cli_flags(tmp_path, monkeypatch):
 
 def test_desktop_gui_https_toggle_and_lan_notice(tmp_path, monkeypatch):
     import os
-    import tkinter as tk
     from backend.app.desktop.app import WherezyDesktopApp
 
     if sys.platform.startswith("linux") and not (
         os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
     ):
-        pytest.skip("GUI Tk test requires an active display on Linux")
+        monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
 
     cfg_path = tmp_path / "gui_https.json"
     cert_dir = tmp_path / "gui_certs"
@@ -256,17 +255,14 @@ def test_desktop_gui_https_toggle_and_lan_notice(tmp_path, monkeypatch):
         )
     )
 
-    try:
-        desktop = WherezyDesktopApp(enable_tray=False, enable_ipc=False)
-    except tk.TclError as exc:
-        pytest.skip(f"Tk display unavailable: {exc}")
+    desktop = WherezyDesktopApp(enable_tray=False, enable_ipc=False)
 
     try:
         desktop._resolve_lan_notice(enable_lan=True, enable_https=True)
         assert load_desktop_config(cfg_path).host == "0.0.0.0"
         assert load_desktop_config(cfg_path).use_https is True
-        assert desktop.var_use_https.get() is True
-        assert desktop.var_local_url.get().startswith("https://")
+        assert desktop.chk_use_https.isChecked() is True
+        assert desktop._local_url_preview.startswith("https://")
 
         snap = desktop.handle_start_or_resume()
         assert snap.status == "running"
@@ -278,11 +274,12 @@ def test_desktop_gui_https_toggle_and_lan_notice(tmp_path, monkeypatch):
         )
         assert r_https.status_code == 200
 
-        desktop.var_use_https.set(False)
-        desktop.toggle_https()
+        desktop.chk_use_https.setChecked(False)
+        desktop.app.processEvents()
         assert load_desktop_config(cfg_path).use_https is False
         r_http = httpx.get(f"http://127.0.0.1:{free_port}/api/health", timeout=5.0)
         assert r_http.status_code == 200
     finally:
         desktop.quit_app()
+        desktop.app.processEvents()
         set_server_paused(False)

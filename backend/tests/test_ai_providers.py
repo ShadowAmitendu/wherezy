@@ -409,3 +409,59 @@ def test_ai_connection_test_endpoint_local_and_gemini(client, monkeypatch):
     assert res_gem.json()["ok"] is True
     assert res_gem.json()["provider"] == "gemini"
     assert res_gem.json()["model"] == "gemini-3.8-flash"
+
+
+def test_local_llm_disables_reasoning_with_fallback(client, monkeypatch):
+    seen_payloads = []
+
+    def fake_local_fallback(*args, **kwargs):
+        def _post(url, json=None, data=None, files=None, headers=None, **kw):
+            seen_payloads.append(dict(json or {}))
+            if "reasoning_effort" in (json or {}):
+                return _FakeResponse(400, text_body="Unknown parameter: reasoning_effort")
+            return _FakeResponse(200, {"choices": [{"message": {"content": '{"ok": true}'}}]})
+
+        return _FakeHttpxClient(post_handler=_post)
+
+    monkeypatch.setattr(gemini_shared, "_create_httpx_client", fake_local_fallback)
+    res = client.post(
+        "/api/ai/config/test",
+        json={
+            "provider": "local",
+            "local_llm_base_url": "http://127.0.0.1:11434/v1",
+            "local_llm_model": "gemma4:e2b",
+        },
+    )
+    assert res.status_code == 200, res.text
+    assert len(seen_payloads) == 2
+    assert seen_payloads[0].get("reasoning_effort") == "none"
+    assert seen_payloads[0].get("max_tokens") == 512
+    assert "reasoning_effort" not in seen_payloads[1]
+
+
+def test_local_llm_api_path_falls_back_to_v1(client, monkeypatch):
+    seen_urls = []
+
+    def fake_api_then_v1(*args, **kwargs):
+        def _post(url, json=None, data=None, files=None, headers=None, **kw):
+            seen_urls.append(url)
+            if url.endswith("/api/chat/completions"):
+                return _FakeResponse(404, text_body="404 page not found")
+            return _FakeResponse(200, {"choices": [{"message": {"content": '{"ok": true}'}}]})
+
+        return _FakeHttpxClient(post_handler=_post)
+
+    monkeypatch.setattr(gemini_shared, "_create_httpx_client", fake_api_then_v1)
+    res = client.post(
+        "/api/ai/config/test",
+        json={
+            "provider": "local",
+            "local_llm_base_url": "http://localhost:11434/api",
+            "local_llm_model": "gemma4:e2b",
+        },
+    )
+    assert res.status_code == 200, res.text
+    assert seen_urls == [
+        "http://localhost:11434/api/chat/completions",
+        "http://localhost:11434/v1/chat/completions",
+    ]

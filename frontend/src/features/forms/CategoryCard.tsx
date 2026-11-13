@@ -12,6 +12,10 @@ import {
 import EditOutlinedIcon from "@mui/icons-material/EditOutlined";
 import DeleteOutlinedIcon from "@mui/icons-material/DeleteOutlined";
 import { renderMuiIcon } from "../../components/shared/iconUtils";
+import {
+  getCategoryAccentColor,
+  getCategoryBadgeSx,
+} from "../../components/shared/categoryColors";
 import { Category } from "./types";
 
 export interface CategoryCardProps {
@@ -29,23 +33,22 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
 }) => {
   return (
     <Card
-      sx={{
+      sx={(theme) => ({
         width: "100%",
         height: "100%",
         minHeight: 124,
         display: "flex",
         flexDirection: "column",
-        borderLeft: `6px solid ${category.color || "#1976d2"}`,
-        transition: (theme) =>
-          theme.transitions.create(["transform", "box-shadow"], {
-            duration: theme.transitions.duration.shorter,
-            easing: theme.transitions.easing.easeInOut,
-          }),
+        borderLeft: `6px solid ${getCategoryAccentColor(category.color, theme)}`,
+        transition: theme.transitions.create(["transform", "box-shadow"], {
+          duration: theme.transitions.duration.shorter,
+          easing: theme.transitions.easing.easeInOut,
+        }),
         "&:hover": {
           transform: "translateY(-2px)",
           boxShadow: 4,
         },
-      }}
+      })}
     >
       <CardActionArea
         onClick={() => onClick(category)}
@@ -72,17 +75,16 @@ export const CategoryCard: React.FC<CategoryCardProps> = ({
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
               <Box
-                sx={{
+                sx={(theme) => ({
                   width: 44,
                   height: 44,
                   borderRadius: 2,
-                  bgcolor: `${category.color}20`,
-                  color: category.color,
+                  ...getCategoryBadgeSx(category.color, theme),
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   flexShrink: 0,
-                }}
+                })}
               >
                 {renderMuiIcon(category.icon, "medium")}
               </Box>

@@ -3,7 +3,12 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import JsBarcode from "jsbarcode";
-import { buildLabelCopies, renderBarcodeToCanvas, type LabelData } from "./labelUtils";
+import {
+  buildLabelCopies,
+  parseLabelItemIds,
+  renderBarcodeToCanvas,
+  type LabelData,
+} from "./labelUtils";
 import { LabelSheetPage } from "./LabelSheetPage";
 
 vi.mock("jsbarcode", () => ({
@@ -58,5 +63,12 @@ describe("LabelSheetPage & labelUtils", () => {
     expect(html).toContain("Label Preset");
     expect(html).toContain("Copies");
     expect(html).toContain("Print Labels");
+  });
+
+  it("parses unique valid item IDs from item_id and item_ids query parameters", () => {
+    expect(parseLabelItemIds("27", null)).toEqual([27]);
+    expect(parseLabelItemIds(null, "12, 27,12, -1, abc, 45")).toEqual([12, 27, 45]);
+    expect(parseLabelItemIds("9", "3,9,15")).toEqual([3, 9, 15]);
+    expect(parseLabelItemIds(null, null)).toEqual([]);
   });
 });

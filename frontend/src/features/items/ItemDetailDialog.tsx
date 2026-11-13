@@ -56,6 +56,7 @@ import {
 import { formatItemCode } from "./itemCodeUtils";
 import { PhotoManager } from "../photos/PhotoManager";
 import { ExpiryChip } from "../../components/shared/ExpiryChip";
+import { getCategoryBadgeSx } from "../../components/shared/categoryColors";
 import { LocationBreadcrumb } from "../../components/shared/LocationBreadcrumb";
 import { AlertDialog } from "../../components/shared/AlertDialog";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
@@ -445,8 +446,23 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
 
   return (
     <>
-      <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth fullScreen={isMobile}>
-        <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", pb: 1.5 }}>
+      <Dialog
+        open={open}
+        onClose={onClose}
+        maxWidth="md"
+        fullWidth
+        fullScreen={isMobile}
+        slotProps={{
+          paper: {
+            sx: isMobile
+              ? undefined
+              : {
+                  height: "min(680px, calc(100vh - 64px))",
+                },
+          },
+        }}
+      >
+        <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", pb: 1.5, flexShrink: 0 }}>
           <Box sx={{ minWidth: 0, pr: 1 }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.75, flexWrap: "wrap" }}>
               <Chip
@@ -468,11 +484,10 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
                 <Chip
                   label={item.category_name}
                   size="small"
-                  sx={{
-                    bgcolor: `${item.category_color}20`,
-                    color: item.category_color || "text.primary",
+                  sx={(theme) => ({
+                    ...getCategoryBadgeSx(item.category_color, theme),
                     fontWeight: 600,
-                  }}
+                  })}
                 />
               )}
               {item?.tags && item.tags.map((t: any) => (
@@ -496,6 +511,7 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
               mx: 3,
               my: 1,
               p: 1.5,
+              flexShrink: 0,
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
@@ -515,7 +531,7 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
         )}
 
         {/* Tabs */}
-        <Box sx={{ borderBottom: 1, borderColor: "divider", px: { xs: 1, sm: 3 } }}>
+        <Box sx={{ borderBottom: 1, borderColor: "divider", px: { xs: 1, sm: 3 }, flexShrink: 0 }}>
           <Tabs
             value={tabIndex}
             onChange={(_, val) => setTabIndex(val)}
@@ -536,7 +552,7 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
           </Tabs>
         </Box>
 
-        <DialogContent dividers sx={{ p: { xs: 2, sm: 3 } }}>
+        <DialogContent dividers sx={{ p: { xs: 2, sm: 3 }, flex: "1 1 auto", minHeight: 0, overflowY: "auto" }}>
           <AlertDialog
             open={Boolean(errorMsg)}
             onClose={() => setErrorMsg(null)}
@@ -945,6 +961,7 @@ export const ItemDetailDialog: React.FC<ItemDetailDialogProps> = ({
           sx={{
             px: { xs: 2, sm: 3 },
             py: 2,
+            flexShrink: 0,
             justifyContent: "space-between",
             flexDirection: { xs: "column-reverse", sm: "row" },
             alignItems: { xs: "stretch", sm: "center" },

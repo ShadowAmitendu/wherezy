@@ -63,7 +63,7 @@ def find_free_port(host: str = "127.0.0.1", preferred_start: int | None = None) 
 class ServerSnapshot:
     """Immutable view of current desktop server state for UI/tray rendering."""
 
-    status: str  # "stopped" | "starting" | "running" | "paused" | "error"
+    status: str  # "stopped" | "starting" | "running" | "paused" | "stopping" | "error"
     host: str
     port: int
     data_dir: str
@@ -73,6 +73,8 @@ class ServerSnapshot:
     port_in_use: bool = False
     use_https: bool = False
     cert_fingerprint: str | None = None
+    progress: int = 0
+    operation: str | None = None  # "starting" | "stopping" | "restarting" | None
 
 
 class _MemoryLogHandler(logging.Handler):
@@ -108,6 +110,8 @@ class WherezyServerManager:
         self._ssl_certfile: str = ""
         self._ssl_keyfile: str = ""
         self._cert_fingerprint: str | None = None
+        self._progress: int = 0
+        self._operation: str | None = None
 
         self._server = None
         self._thread: threading.Thread | None = None
@@ -123,7 +127,16 @@ class WherezyServerManager:
     def _wire_logging(self) -> None:
         if self._logging_wired:
             return
-        for name in ("uvicorn", "uvicorn.error", "uvicorn.access", "backend"):
+        # Ensure child loggers propagate to top-level namespaces without attaching
+        # the same handler to both parent ("uvicorn") and child ("uvicorn.error").
+        for child_name in ("uvicorn.error", "uvicorn.access"):
+            child = logging.getLogger(child_name)
+            child.setLevel(logging.INFO)
+            child.propagate = True
+            if self._log_handler in child.handlers:
+                child.removeHandler(self._log_handler)
+
+        for name in ("uvicorn", "backend"):
             logger = logging.getLogger(name)
             logger.setLevel(logging.INFO)
             if self._log_handler not in logger.handlers:
@@ -185,7 +198,29 @@ class WherezyServerManager:
                 port_in_use=self._port_in_use,
                 use_https=self._use_https,
                 cert_fingerprint=self._cert_fingerprint,
+                progress=self._progress,
+                operation=self._operation,
             )
+
+    def _set_progress(
+        self,
+        progress: int,
+        *,
+        status: str | None = None,
+        operation: str | None = None,
+        clear_operation: bool = False,
+        emit: bool = True,
+    ) -> None:
+        with self._lock:
+            self._progress = max(0, min(100, int(progress)))
+            if status is not None:
+                self._status = status
+            if clear_operation:
+                self._operation = None
+            elif operation is not None:
+                self._operation = operation
+        if emit:
+            self._emit_state()
 
     def _emit_state(self) -> None:
         snap = self.snapshot()
@@ -213,6 +248,7 @@ class WherezyServerManager:
         ssl_certfile: str = "",
         ssl_keyfile: str = "",
         wait_timeout: float = 8.0,
+        operation: str | None = None,
     ) -> ServerSnapshot:
         """Start the embedded FastAPI + Uvicorn server and wait for startup readiness."""
         resolved_data = str(Path(data_dir).expanduser().resolve())
@@ -232,6 +268,8 @@ class WherezyServerManager:
 
             if self.needs_process_restart_for_data_dir(resolved_data):
                 self._status = "error"
+                self._progress = 0
+                self._operation = None
                 self._error_message = (
                     "Data folder changed after initial load; relaunch Wherezy to switch databases."
                 )
@@ -248,7 +286,13 @@ class WherezyServerManager:
             self._cert_fingerprint = None
             self._error_message = None
             self._port_in_use = False
+            self._status = "starting"
+            self._operation = operation or "starting"
+            self._progress = 10
 
+        self._emit_state()
+
+        with self._lock:
             if effective_https:
                 try:
                     from backend.app.core.tls import (
@@ -267,6 +311,8 @@ class WherezyServerManager:
                     self._cert_fingerprint = cert_fingerprint
                 except Exception as exc:
                     self._status = "error"
+                    self._progress = 0
+                    self._operation = None
                     self._error_message = f"TLS certificate error: {exc}"
                     self.log_event(self._error_message)
                     self._emit_state()
@@ -274,6 +320,8 @@ class WherezyServerManager:
 
             if not is_port_available(self._host, self._port):
                 self._status = "error"
+                self._progress = 0
+                self._operation = None
                 self._port_in_use = True
                 self._error_message = (
                     f"Port {self._port} is already in use by another application. "
@@ -283,7 +331,6 @@ class WherezyServerManager:
                 self._emit_state()
                 return self.snapshot()
 
-            self._status = "starting"
             set_server_paused(False)
             self._wire_logging()
 
@@ -293,7 +340,7 @@ class WherezyServerManager:
         os.environ["WHEREZY_PORT"] = str(self._port)
         os.environ["WHEREZY_HTTPS"] = "1" if effective_https else "0"
 
-        self._emit_state()
+        self._set_progress(25)
         scheme = "https" if effective_https else "http"
         self.log_event(
             f"Starting {scheme.upper()} server on {self._host}:{self._port} (data: {resolved_data})"
@@ -303,6 +350,8 @@ class WherezyServerManager:
 
         import uvicorn
         from backend.app.main import app as fastapi_app
+
+        self._set_progress(45)
 
         with self._lock:
             self._bound_data_dir = resolved_data
@@ -344,6 +393,7 @@ class WherezyServerManager:
                 caught_error = f"Server stopped unexpectedly: {exc}"
             finally:
                 set_server_paused(False)
+                should_emit = True
                 with self._lock:
                     was_requested_stop = bool(getattr(server, "should_exit", False))
                     self._server = None
@@ -352,34 +402,49 @@ class WherezyServerManager:
                         self._status = "error"
                         self._error_message = caught_error
                         self._port_in_use = caught_port_in_use
+                        self._progress = 0
+                        self._operation = None
                     elif not was_requested_stop and self._status in {"starting", "running", "paused"}:
                         self._status = "error"
                         self._error_message = (
                             f"Server exited unexpectedly on {self._host}:{self._port}."
                         )
                         self._port_in_use = False
+                        self._progress = 0
+                        self._operation = None
+                    elif was_requested_stop:
+                        # Controlled shutdown in `stop()` drives progress down cleanly to 0%.
+                        should_emit = False
                     else:
                         self._status = "stopped"
                         self._error_message = None
                         self._port_in_use = False
+                        self._progress = 0
+                        self._operation = None
                 if caught_error:
                     self.log_event(caught_error)
                 else:
                     self.log_event("Server stopped.")
-                self._emit_state()
+                if should_emit:
+                    self._emit_state()
 
         thread = threading.Thread(target=_serve, name="wherezy-uvicorn", daemon=True)
         with self._lock:
             self._server = server
             self._thread = thread
         thread.start()
+        self._set_progress(60)
 
         deadline = time.monotonic() + max(0.5, wait_timeout)
+        tick = 0
         while time.monotonic() < deadline:
             if getattr(server, "started", False):
+                self._set_progress(85)
                 with self._lock:
                     if self._status == "starting":
                         self._status = "running"
+                    self._progress = 100
+                    self._operation = None
                 snap = self.snapshot()
                 self.log_event(f"Server listening on {snap.local_url}")
                 self._emit_state()
@@ -387,11 +452,18 @@ class WherezyServerManager:
             if not thread.is_alive():
                 thread.join(timeout=0.5)
                 break
+            tick += 1
+            next_progress = min(92, 60 + tick * 4)
+            if next_progress > self._progress:
+                self._set_progress(next_progress)
             time.sleep(0.05)
 
         if not thread.is_alive():
             thread.join(timeout=0.5)
 
+        with self._lock:
+            if self._status == "starting":
+                self._operation = None
         return self.snapshot()
 
     def pause(self) -> ServerSnapshot:
@@ -401,6 +473,8 @@ class WherezyServerManager:
                 return self.snapshot()
             set_server_paused(True)
             self._status = "paused"
+            self._progress = 50
+            self._operation = None
         self.log_event("Server paused (returning HTTP 503 until resumed).")
         self._emit_state()
         return self.snapshot()
@@ -412,25 +486,49 @@ class WherezyServerManager:
                 return self.snapshot()
             set_server_paused(False)
             self._status = "running"
+            self._progress = 100
+            self._operation = None
         self.log_event("Server resumed.")
         self._emit_state()
         return self.snapshot()
 
-    def stop(self, timeout: float = 5.0) -> ServerSnapshot:
-        """Gracefully shut down the embedded Uvicorn server."""
+    def stop(self, timeout: float = 5.0, *, keep_operation: bool = False) -> ServerSnapshot:
+        """Gracefully shut down the embedded Uvicorn server with progress updates."""
         set_server_paused(False)
         with self._lock:
             server = self._server
             thread = self._thread
             if server is None:
                 self._status = "stopped"
+                self._progress = 0
+                if not keep_operation:
+                    self._operation = None
                 self._emit_state()
                 return self.snapshot()
+            current_prog = self._progress if self._progress > 0 else 100
+            self._status = "stopping"
+            if not keep_operation:
+                self._operation = "stopping"
+            self._progress = max(25, min(85, current_prog - 15))
             self.log_event("Stopping server...")
             server.should_exit = True
 
+        self._emit_state()
+
         if thread is not None and thread.is_alive():
-            thread.join(timeout=timeout)
+            stop_deadline = time.monotonic() + max(0.2, timeout)
+            while thread.is_alive() and time.monotonic() < stop_deadline:
+                thread.join(timeout=0.05)
+                if thread.is_alive():
+                    with self._lock:
+                        next_prog = max(20, self._progress - 12)
+                        changed = next_prog != self._progress
+                        self._progress = next_prog
+                    if changed:
+                        self._emit_state()
+
+        self._set_progress(10, status="stopping")
+        self._dispose_db_engine()
 
         with self._lock:
             if thread is None or not thread.is_alive():
@@ -440,7 +538,9 @@ class WherezyServerManager:
                 if self._status != "error":
                     self._status = "stopped"
                     self._error_message = None
-        self._dispose_db_engine()
+            self._progress = 0
+            if not keep_operation:
+                self._operation = None
         self._emit_state()
         return self.snapshot()
 
@@ -466,13 +566,23 @@ class WherezyServerManager:
         wait_timeout: float = 8.0,
     ) -> ServerSnapshot:
         """Stop cleanly and start again with the latest host/port/TLS/data settings."""
-        self.stop(timeout=5.0)
-        return self.start(
-            host=host,
-            port=port,
-            data_dir=data_dir,
-            use_https=use_https,
-            ssl_certfile=ssl_certfile,
-            ssl_keyfile=ssl_keyfile,
-            wait_timeout=wait_timeout,
-        )
+        with self._lock:
+            self._operation = "restarting"
+        try:
+            self.stop(timeout=5.0, keep_operation=True)
+            with self._lock:
+                self._operation = "restarting"
+            return self.start(
+                host=host,
+                port=port,
+                data_dir=data_dir,
+                use_https=use_https,
+                ssl_certfile=ssl_certfile,
+                ssl_keyfile=ssl_keyfile,
+                wait_timeout=wait_timeout,
+                operation="restarting",
+            )
+        finally:
+            with self._lock:
+                if self._status in {"running", "stopped", "error", "paused"}:
+                    self._operation = None

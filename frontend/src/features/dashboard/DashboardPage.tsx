@@ -27,6 +27,10 @@ import { PageHeader } from "../../components/shared/PageHeader";
 import { ExpiryChip } from "../../components/shared/ExpiryChip";
 import { CoverThumb } from "../photos/CoverThumb";
 import { renderMuiIcon } from "../../components/shared/iconUtils";
+import {
+  getCategoryAccentColor,
+  getCategoryBadgeSx,
+} from "../../components/shared/categoryColors";
 import { LocationIcon } from "../locations/LocationIcon";
 import { api } from "../../api/client";
 import { formatTakenOutStatusLabel, getItemQuantity } from "../items/quantityUtils";
@@ -389,13 +393,16 @@ export const DashboardPage: React.FC = () => {
                 <Grow in={!isLoading} appear timeout={Math.min(240 + idx * 35, 520)}>
                   <Card
                     variant="outlined"
-                    sx={{
-                      transition: (t) =>
-                        t.transitions.create(["border-color", "transform", "box-shadow"], {
-                          duration: t.transitions.duration.shortest,
-                        }),
-                      "&:hover": { borderColor: cat.color, transform: "translateY(-2px)", boxShadow: 2 },
-                    }}
+                    sx={(theme) => ({
+                      transition: theme.transitions.create(["border-color", "transform", "box-shadow"], {
+                        duration: theme.transitions.duration.shortest,
+                      }),
+                      "&:hover": {
+                        borderColor: getCategoryAccentColor(cat.color, theme),
+                        transform: "translateY(-2px)",
+                        boxShadow: 2,
+                      },
+                    })}
                   >
                     <CardActionArea onClick={() => navigate(`/items?category_id=${cat.id}`)}>
                       <CardContent
@@ -408,17 +415,16 @@ export const DashboardPage: React.FC = () => {
                         }}
                       >
                         <Box
-                          sx={{
+                          sx={(theme) => ({
                             width: { xs: 30, sm: 38 },
                             height: { xs: 30, sm: 38 },
                             minWidth: { xs: 30, sm: 38 },
                             borderRadius: 1.5,
-                            bgcolor: `${cat.color}20`,
-                            color: cat.color,
+                            ...getCategoryBadgeSx(cat.color, theme),
                             display: "flex",
                             alignItems: "center",
                             justifyContent: "center",
-                          }}
+                          })}
                         >
                           {renderMuiIcon(cat.icon, "small")}
                         </Box>

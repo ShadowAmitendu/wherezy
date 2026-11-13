@@ -5,7 +5,7 @@ import importlib.util
 from pathlib import Path
 import sys as _spec_sys
 
-from PyInstaller.utils.hooks import collect_data_files, collect_submodules, copy_metadata
+from PyInstaller.utils.hooks import collect_submodules
 
 ROOT_DIR = Path(SPECPATH).resolve()
 if str(ROOT_DIR) not in _spec_sys.path:
@@ -25,46 +25,46 @@ APP_VERSION = read_app_version(ROOT_DIR)
 FRONTEND_DIST = ROOT_DIR / "frontend" / "dist"
 MIGRATIONS_DIR = ROOT_DIR / "backend" / "app" / "migrations"
 TEMPLATES_DIR = ROOT_DIR / "backend" / "app" / "seed_templates"
+DESKTOP_UI_DIR = ROOT_DIR / "backend" / "app" / "desktop" / "ui"
 
 if not (FRONTEND_DIST / "index.html").is_file():
     raise FileNotFoundError(
         f"Built frontend not found at {FRONTEND_DIST}. Run 'npm --prefix frontend run build' first."
     )
 
-datas = (
-    [
-        (str(FRONTEND_DIST), "frontend/dist"),
-        (str(MIGRATIONS_DIR), "backend/app/migrations"),
-        (str(TEMPLATES_DIR), "backend/app/seed_templates"),
-        (str(ROOT_DIR / "packaging" / "wherezy.ico"), "packaging"),
-        (str(ROOT_DIR / "packaging" / "wherezy.icns"), "packaging"),
-        (str(ROOT_DIR / "LICENSE"), "."),
-    ]
-    + collect_data_files("ttkbootstrap.assets")
-    + copy_metadata("ttkbootstrap")
-)
+datas = [
+    (str(FRONTEND_DIST), "frontend/dist"),
+    (str(MIGRATIONS_DIR), "backend/app/migrations"),
+    (str(TEMPLATES_DIR), "backend/app/seed_templates"),
+    (str(DESKTOP_UI_DIR), "backend/app/desktop/ui"),
+    (str(ROOT_DIR / "packaging" / "wherezy.ico"), "packaging"),
+    (str(ROOT_DIR / "packaging" / "wherezy.icns"), "packaging"),
+    (str(ROOT_DIR / "LICENSE"), "."),
+]
 
 _platform_hiddenimports = []
 if _spec_sys.platform == "win32":
-    _platform_hiddenimports = ["pystray._win32", "winreg", "ctypes"]
+    _platform_hiddenimports = ["winreg", "ctypes"]
 elif _spec_sys.platform == "darwin":
     _platform_hiddenimports = [
-        "pystray._darwin",
         "AppKit",
         "Foundation",
         "objc",
         "PyObjCTools.MachSignals",
     ]
-else:
-    _platform_hiddenimports = ["pystray._xorg", "pystray._gtk", "pystray._appindicator"]
 
 hiddenimports = sorted(
     set(
         collect_submodules("backend.app")
-        + collect_submodules("ttkbootstrap")
+        + collect_submodules("PyQt6.uic")
         + collect_submodules("cryptography")
         + _platform_hiddenimports
         + [
+            "PyQt6",
+            "PyQt6.QtCore",
+            "PyQt6.QtGui",
+            "PyQt6.QtWidgets",
+            "PyQt6.sip",
             "uvicorn.logging",
             "uvicorn.loops",
             "uvicorn.loops.auto",
@@ -100,14 +100,6 @@ hiddenimports = sorted(
             "PIL",
             "PIL.Image",
             "PIL.ImageDraw",
-            "PIL.ImageTk",
-            "PIL._tkinter_finder",
-            "pystray",
-            "tkinter",
-            "tkinter.ttk",
-            "tkinter.scrolledtext",
-            "tkinter.filedialog",
-            "tkinter.messagebox",
             "openpyxl",
             "google.genai",
             "httpx",

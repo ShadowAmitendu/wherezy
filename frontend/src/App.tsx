@@ -68,66 +68,66 @@ export const App: React.FC = () => {
         <UndoProvider>
           <AuthProvider>
             <HashRouter>
-            <Suspense
-              fallback={
-                <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "50vh" }}>
-                  <CircularProgress size={36} />
-                </Box>
-              }
-            >
-              <Routes>
-                {/* Public & guest-only auth routes */}
-                <Route element={<AuthGuard guestOnly />}>
-                  <Route path="/login" element={<LoginPage />} />
-                </Route>
-                <Route path="/lock" element={<NetflixUserPicker />} />
-
-                {/* Standalone Wall Display Mode for Kitchen Tablets (allows is_display profiles) */}
-                <Route element={<AuthGuard allowDisplay loginPath="/lock" />}>
-                  <Route path="/wall" element={<WallPage />} />
-                </Route>
-
-                {/* Protected routes (blocks unauthenticated + display-kiosk profiles) */}
-                <Route element={<AuthGuard />}>
-                  {/* Direct QR scan redirects */}
-                  <Route path="/i/:id" element={<DirectItemShortcut />} />
-                  <Route path="/l/:id" element={<DirectLocationShortcut />} />
-
-                  {/* Standalone Printable Routes (without app chrome) */}
-                  <Route path="/print/location/:id" element={<PrintShelfPage />} />
-                  <Route path="/labels" element={<LabelSheetPage />} />
-
-                  {/* Main App with Shell Layout */}
-                  <Route element={<AppLayout />}>
-                    <Route path="/" element={<DashboardPage />} />
-                    <Route path="/items" element={<ItemsPage />} />
-                    <Route path="/inbox" element={<InboxPage />} />
-                    <Route path="/reminders" element={<RemindersPage />} />
-                    <Route path="/categories" element={<CategoriesPage />} />
-                    <Route path="/categories/:id" element={<CategoryDetailPage />} />
-                    <Route path="/locations" element={<LocationsPage />} />
-                    <Route element={<AuthGuard permission="profiles:write" />}>
-                      <Route path="/users" element={<UsersPage />} />
-                    </Route>
-                    <Route path="/account" element={<AccountProfilePage />} />
-                    <Route path="/profile" element={<Navigate to="/account" replace />} />
-                    <Route path="/health" element={<HealthPage />} />
-                    <Route path="/moves" element={<MovesPage />} />
-                    <Route path="/contacts" element={<ContactsPage />} />
-                    <Route path="/activity" element={<ActivityPage />} />
-                    <Route path="/trash" element={<TrashPage />} />
-                    <Route path="/expiry" element={<ExpiryPage />} />
-                    <Route path="/scan" element={<ScanPage />} />
-                    <Route path="/settings" element={<SettingsPage />} />
+              <Suspense
+                fallback={
+                  <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "50vh" }}>
+                    <CircularProgress size={36} />
+                  </Box>
+                }
+              >
+                <Routes>
+                  {/* Public & guest-only auth routes */}
+                  <Route element={<AuthGuard guestOnly />}>
+                    <Route path="/login" element={<LoginPage />} />
                   </Route>
-                </Route>
+                  <Route path="/lock" element={<NetflixUserPicker />} />
 
-                {/* Fallback */}
-                <Route path="/404" element={<NotFoundPage />} />
-                <Route path="*" element={<NotFoundPage />} />
-              </Routes>
-            </Suspense>
-          </HashRouter>
+                  {/* Standalone Wall Display Mode for Kitchen Tablets (allows is_display profiles) */}
+                  <Route element={<AuthGuard allowDisplay loginPath="/lock" />}>
+                    <Route path="/wall" element={<WallPage />} />
+                  </Route>
+
+                  {/* Protected routes (blocks unauthenticated + display-kiosk profiles) */}
+                  <Route element={<AuthGuard />}>
+                    {/* Direct QR scan redirects */}
+                    <Route path="/i/:id" element={<DirectItemShortcut />} />
+                    <Route path="/l/:id" element={<DirectLocationShortcut />} />
+
+                    {/* Standalone Printable Routes (without app chrome) */}
+                    <Route path="/print/location/:id" element={<PrintShelfPage />} />
+                    <Route path="/labels" element={<LabelSheetPage />} />
+
+                    {/* Main App with Shell Layout */}
+                    <Route element={<AppLayout />}>
+                      <Route path="/" element={<DashboardPage />} />
+                      <Route path="/items" element={<ItemsPage />} />
+                      <Route path="/inbox" element={<InboxPage />} />
+                      <Route path="/reminders" element={<RemindersPage />} />
+                      <Route path="/categories" element={<CategoriesPage />} />
+                      <Route path="/categories/:id" element={<CategoryDetailPage />} />
+                      <Route path="/locations" element={<LocationsPage />} />
+                      <Route element={<AuthGuard permission="profiles:write" />}>
+                        <Route path="/users" element={<UsersPage />} />
+                      </Route>
+                      <Route path="/account" element={<AccountProfilePage />} />
+                      <Route path="/profile" element={<Navigate to="/account" replace />} />
+                      <Route path="/health" element={<HealthPage />} />
+                      <Route path="/moves" element={<MovesPage />} />
+                      <Route path="/contacts" element={<ContactsPage />} />
+                      <Route path="/activity" element={<ActivityPage />} />
+                      <Route path="/trash" element={<TrashPage />} />
+                      <Route path="/expiry" element={<ExpiryPage />} />
+                      <Route path="/scan" element={<ScanPage />} />
+                      <Route path="/settings" element={<SettingsPage />} />
+                    </Route>
+                  </Route>
+
+                  {/* Fallback */}
+                  <Route path="/404" element={<NotFoundPage />} />
+                  <Route path="*" element={<NotFoundPage />} />
+                </Routes>
+              </Suspense>
+            </HashRouter>
           </AuthProvider>
         </UndoProvider>
       </AppThemeProvider>

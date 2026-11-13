@@ -70,6 +70,9 @@ def test_resource_path_and_frontend_dist_resolution(monkeypatch, tmp_path):
     frozen_dist = meipass / "frontend" / "dist"
     frozen_dist.mkdir(parents=True)
     (frozen_dist / "index.html").write_text("<html>frozen</html>", encoding="utf-8")
+    frozen_ui = meipass / "backend" / "app" / "desktop" / "ui"
+    frozen_ui.mkdir(parents=True)
+    (frozen_ui / "main_window.ui").write_text("<ui/>", encoding="utf-8")
 
     monkeypatch.setattr(config.sys, "frozen", True, raising=False)
     monkeypatch.setattr(config.sys, "_MEIPASS", str(meipass), raising=False)
@@ -77,6 +80,10 @@ def test_resource_path_and_frontend_dist_resolution(monkeypatch, tmp_path):
     resolved_bundle = config.resolve_bundle_dir()
     assert resolved_bundle == meipass.resolve()
     assert config.resource_path("frontend/dist/index.html") == (frozen_dist / "index.html").resolve()
+    assert (
+        config.resource_path("backend/app/desktop/ui/main_window.ui")
+        == (frozen_ui / "main_window.ui").resolve()
+    )
     assert config.resolve_frontend_dist(resolved_bundle, tmp_path / "pkg") == frozen_dist.resolve()
 
     # Wheel/pipx fallback to static_dist inside package

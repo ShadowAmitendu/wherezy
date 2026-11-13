@@ -1,13 +1,13 @@
 ; Inno Setup script for Wherezy (per-user Windows installer, zero elevation required).
 ; Invoked via scripts/build_windows.ps1 or:
-;   ISCC.exe /DMyAppVersion=2.2.2 /DMyAppNumericVersion=2.2.2.0 installer\wherezy.iss
+;   ISCC.exe /DMyAppVersion=2.3.2 /DMyAppNumericVersion=2.3.2.0 installer\wherezy.iss
 
 #ifndef MyAppVersion
-  #define MyAppVersion "2.2.2"
+  #define MyAppVersion "2.3.2"
 #endif
 
 #ifndef MyAppNumericVersion
-  #define MyAppNumericVersion "2.2.2.0"
+  #define MyAppNumericVersion "2.3.2.0"
 #endif
 
 #ifndef SourceDistDir

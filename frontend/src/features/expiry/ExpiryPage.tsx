@@ -19,6 +19,7 @@ import { PageHeader } from "../../components/shared/PageHeader";
 import { EmptyState } from "../../components/shared/EmptyState";
 import { useOnUndoRefresh } from "../../components/shared/UndoContext";
 import { ExpiryChip } from "../../components/shared/ExpiryChip";
+import { getCategoryBadgeSx } from "../../components/shared/categoryColors";
 import { CoverThumb } from "../photos/CoverThumb";
 import { ItemDetailDialog } from "../items/ItemDetailDialog";
 import { formatItemCode } from "../items/itemCodeUtils";
@@ -141,15 +142,18 @@ export const ExpiryPage: React.FC = () => {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      <Chip
-                        label={it.category_name || "—"}
-                        size="small"
-                        sx={{
-                          bgcolor: `${it.category_color}20`,
-                          color: it.category_color || "inherit",
-                          fontWeight: 600,
-                        }}
-                      />
+                      {it.category_name ? (
+                        <Chip
+                          label={it.category_name}
+                          size="small"
+                          sx={(theme) => ({
+                            ...getCategoryBadgeSx(it.category_color, theme),
+                            fontWeight: 600,
+                          })}
+                        />
+                      ) : (
+                        "—"
+                      )}
                     </TableCell>
                     <TableCell>{it.location_path || "—"}</TableCell>
                     <TableCell>{it.expiry_date || "—"}</TableCell>

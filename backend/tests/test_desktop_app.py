@@ -245,6 +245,159 @@ def test_cli_mode_selection_and_stdio_fallback(capsys):
     assert "wherezy" in captured.out
 
 
+def test_server_manager_progress_transitions_start_restart_stop():
+    manager = WherezyServerManager()
+    port = _pick_free_port()
+    snapshots = []
+    manager.add_state_listener(snapshots.append)
+    try:
+        started = manager.start(
+            host="127.0.0.1",
+            port=port,
+            data_dir=str(app_config.DATA_DIR),
+            wait_timeout=8.0,
+        )
+        assert started.status == "running"
+        assert started.progress == 100
+        assert started.operation is None
+        start_steps = [
+            s.progress for s in snapshots if s.status == "starting"
+        ]
+        assert any(0 < p < 100 for p in start_steps), f"Expected intermediate start progress, got {start_steps}"
+        assert start_steps == sorted(start_steps)
+
+        paused = manager.pause()
+        assert paused.status == "paused"
+        assert paused.progress == 50
+
+        snapshots.clear()
+        restarted = manager.restart(
+            host="127.0.0.1",
+            port=port,
+            data_dir=str(app_config.DATA_DIR),
+            wait_timeout=8.0,
+        )
+        assert restarted.status == "running"
+        assert restarted.progress == 100
+        assert restarted.operation is None
+        assert any(
+            s.status == "stopping" and s.operation == "restarting" and 0 < s.progress < 100
+            for s in snapshots
+        ), f"Expected stopping phase during restart, got {snapshots}"
+        assert any(
+            s.status == "starting" and s.operation == "restarting" and 0 < s.progress < 100
+            for s in snapshots
+        ), f"Expected starting phase during restart, got {snapshots}"
+
+        snapshots.clear()
+        stopped = manager.stop(timeout=5.0)
+        assert stopped.status == "stopped"
+        assert stopped.progress == 0
+        assert stopped.operation is None
+        stop_steps = [s.progress for s in snapshots if s.status == "stopping"]
+        assert any(0 < p < 100 for p in stop_steps), f"Expected intermediate stop progress, got {stop_steps}"
+        assert stop_steps == sorted(stop_steps, reverse=True)
+    finally:
+        manager.stop(timeout=5.0)
+
+
+def test_desktop_gui_progress_bar_start_restart_stop(tmp_path, monkeypatch):
+    import os
+    from backend.app.desktop.app import WherezyDesktopApp
+    from backend.app.desktop.config_store import DesktopConfig, save_desktop_config
+
+    if not os.environ.get("QT_QPA_PLATFORM"):
+        monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+
+    cfg_path = tmp_path / "desktop-config.json"
+    monkeypatch.setenv("WHEREZY_DESKTOP_CONFIG", str(cfg_path))
+    port = _pick_free_port()
+    save_desktop_config(
+        DesktopConfig(
+            host="127.0.0.1",
+            port=port,
+            data_dir=str(app_config.DATA_DIR),
+            open_browser_on_start=False,
+            auto_start_server=False,
+            lan_notice_shown=True,
+        )
+    )
+
+    desktop = WherezyDesktopApp(
+        initial_host="127.0.0.1",
+        initial_port=port,
+        initial_data_dir=str(app_config.DATA_DIR),
+        initial_https=False,
+        enable_tray=False,
+        enable_ipc=False,
+    )
+    assert desktop.server_manager.snapshot().status == "stopped"
+    assert desktop.progress_bar.value() == 0
+    observed: list[tuple[str, str | None, str, int, int, int]] = []
+    desktop._bridge.state_changed.connect(
+        lambda snap: observed.append(
+            (
+                snap.status,
+                snap.operation,
+                desktop.status_pill.text(),
+                desktop.progress_bar.value(),
+                desktop.progress_bar.minimum(),
+                desktop.progress_bar.maximum(),
+            )
+        )
+    )
+    try:
+        started = desktop.handle_start_or_resume()
+        assert started.status == "running"
+        assert desktop.progress_bar.minimum() == 0
+        assert desktop.progress_bar.maximum() == 100
+        assert desktop.progress_bar.value() == 100
+        assert any(
+            st == "starting" and min_v == 0 and max_v == 100 and 0 < val < 100
+            for st, _op, _lbl, val, min_v, max_v in observed
+        ), f"Expected live determinate starting progress on GUI bar, got {observed}"
+
+        paused = desktop.handle_pause()
+        assert paused.status == "paused"
+        assert desktop.progress_bar.value() == 50
+
+        observed.clear()
+        restarted = desktop.handle_restart()
+        assert restarted.status == "running"
+        assert desktop.progress_bar.value() == 100
+        assert any(
+            st == "stopping" and op == "restarting" and lbl == "Restarting..." and 0 < val < 100
+            for st, op, lbl, val, _min_v, _max_v in observed
+        ), f"Expected Restarting stopping progress, got {observed}"
+        assert any(
+            st == "starting" and op == "restarting" and lbl == "Restarting..." and 0 < val < 100
+            for st, op, lbl, val, _min_v, _max_v in observed
+        ), f"Expected Restarting starting progress, got {observed}"
+
+        observed.clear()
+        stopped = desktop.handle_stop()
+        assert stopped.status == "stopped"
+        assert desktop.progress_bar.value() == 0
+        assert any(
+            st == "stopping" and lbl == "Stopping..." and 0 < val < 100
+            for st, _op, lbl, val, _min_v, _max_v in observed
+        ), f"Expected Stopping progress on GUI bar, got {observed}"
+
+        started_again = desktop.handle_start_or_resume()
+        assert started_again.status == "running"
+        observed.clear()
+        desktop.quit_app()
+        assert desktop.server_manager.snapshot().status == "stopped"
+        assert any(
+            st == "stopping" and 0 < val < 100
+            for st, _op, _lbl, val, _min_v, _max_v in observed
+        ), f"Expected Stopping progress during quit_app, got {observed}"
+        assert desktop.progress_bar.value() == 0
+    finally:
+        desktop.server_manager.stop(timeout=5.0)
+        desktop.window.close()
+
+
 def test_server_manager_start_pause_resume_stop_lifecycle():
     manager = WherezyServerManager()
     port = _pick_free_port()
@@ -276,106 +429,148 @@ def test_server_manager_start_pause_resume_stop_lifecycle():
         with pytest.raises(httpx.HTTPError):
             httpx.get(f"{snap.local_url}/api/health", timeout=1.0)
 
-        logs = "\n".join(manager.get_logs())
+        log_lines = manager.get_logs()
+        logs = "\n".join(log_lines)
         assert "Server listening" in logs
         assert "Server paused" in logs
         assert "Server resumed" in logs
+        assert sum(1 for line in log_lines if "Application startup complete." in line) == 1
+        assert sum(1 for line in log_lines if "Waiting for application shutdown." in line) == 1
+
+        # Verify child uvicorn loggers do not duplicate records across parent/child handlers
+        manager.clear_logs()
+        import logging
+
+        logging.getLogger("uvicorn.error").info("unique-uvicorn-error-probe")
+        logging.getLogger("uvicorn.access").info("unique-uvicorn-access-probe")
+        probe_logs = manager.get_logs()
+        assert sum(1 for line in probe_logs if "unique-uvicorn-error-probe" in line) == 1
+        assert sum(1 for line in probe_logs if "unique-uvicorn-access-probe" in line) == 1
     finally:
         set_server_paused(False)
         manager.stop(timeout=5.0)
 
 
+def test_main_window_ui_loads_cleanly_in_qt(monkeypatch):
+    import os
+    from PyQt6 import QtWidgets, uic
+    from backend.app.core.config import resource_path
+
+    if sys.platform.startswith("linux") and not (
+        os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
+    ):
+        monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+
+    ui_file = resource_path("backend/app/desktop/ui/main_window.ui")
+    assert ui_file.is_file()
+
+    qt_app = QtWidgets.QApplication.instance() or QtWidgets.QApplication(["wherezy-test"])
+    window = QtWidgets.QMainWindow()
+    uic.loadUi(str(ui_file), window)
+
+    assert isinstance(window.label_5, QtWidgets.QLabel)
+    assert isinstance(window.label_6, QtWidgets.QLabel)
+    assert isinstance(window.pushButton, QtWidgets.QPushButton)
+    assert isinstance(window.pushButton_2, QtWidgets.QPushButton)
+    assert isinstance(window.pushButton_3, QtWidgets.QPushButton)
+    assert isinstance(window.pushButton_4, QtWidgets.QPushButton)
+    assert isinstance(window.pushButton_5, QtWidgets.QPushButton)
+    assert isinstance(window.pushButton_6, QtWidgets.QPushButton)
+    assert isinstance(window.pushButton_7, QtWidgets.QPushButton)
+    assert isinstance(window.pushButton_8, QtWidgets.QPushButton)
+    assert isinstance(window.pushButton_9, QtWidgets.QPushButton)
+    assert isinstance(window.pushButton_10, QtWidgets.QPushButton)
+    assert isinstance(window.pushButton_11, QtWidgets.QPushButton)
+    assert isinstance(window.pushButton_12, QtWidgets.QPushButton)
+    assert isinstance(window.pushButton_13, QtWidgets.QPushButton)
+    assert isinstance(window.checkBox, QtWidgets.QCheckBox)
+    assert isinstance(window.checkBox_2, QtWidgets.QCheckBox)
+    assert isinstance(window.checkBox_3, QtWidgets.QCheckBox)
+    assert isinstance(window.checkBox_4, QtWidgets.QCheckBox)
+    assert isinstance(window.checkBox_5, QtWidgets.QCheckBox)
+    assert isinstance(window.lineEdit, QtWidgets.QLineEdit)
+    assert isinstance(window.lineEdit_2, QtWidgets.QLineEdit)
+    assert isinstance(window.plainTextEdit, QtWidgets.QPlainTextEdit)
+    assert isinstance(window.progressBar, QtWidgets.QProgressBar)
+    window.close()
+    window.deleteLater()
+    qt_app.processEvents()
+
+
 def test_desktop_gui_window_and_tray_smoke(tmp_path, monkeypatch):
     import os
-    import tkinter as tk
-    import ttkbootstrap as tb
+    import time
+    from PyQt6 import QtWidgets
     from backend.app.desktop.app import WherezyDesktopApp
 
     if sys.platform.startswith("linux") and not (
         os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
     ):
-        pytest.skip("GUI Tk test requires an active display on Linux")
+        monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
 
     cfg_path = tmp_path / "gui_desktop.json"
     monkeypatch.setenv("WHEREZY_DESKTOP_CONFIG", str(cfg_path))
     free_port = _pick_free_port()
 
-    try:
-        desktop = WherezyDesktopApp(
-            initial_host="127.0.0.1",
-            initial_port=free_port,
-            initial_data_dir=str(app_config.DATA_DIR),
-            start_minimized=False,
-            open_browser_override=False,
-            enable_tray=True,
-            enable_ipc=False,
-        )
-    except tk.TclError as exc:
-        pytest.skip(f"Tk display unavailable: {exc}")
+    desktop = WherezyDesktopApp(
+        initial_host="127.0.0.1",
+        initial_port=free_port,
+        initial_data_dir=str(app_config.DATA_DIR),
+        start_minimized=False,
+        open_browser_override=False,
+        enable_tray=True,
+        enable_ipc=False,
+    )
 
     try:
-        assert isinstance(desktop.root, tb.Window)
-        assert desktop.root.style.theme.name == DEFAULT_DESKTOP_THEME
+        assert isinstance(desktop.window, QtWidgets.QMainWindow)
 
-        # Process initial scheduled startup callback
         for _ in range(15):
-            desktop.root.update()
+            desktop.app.processEvents()
             snap = desktop.server_manager.snapshot()
             if snap.status == "running":
                 break
-            import time
-
             time.sleep(0.08)
 
         snap = desktop.server_manager.snapshot()
         assert snap.status == "running"
-        assert desktop.status_pill.cget("style") == "@success.TLabel"
+        assert "Running" in desktop.status_pill.text()
+        assert desktop.status_pill.property("status") == "running"
         if desktop._tray_active:
             assert desktop._tray_icon is not None
-
-        # Verify theme switcher updates ttkbootstrap style and persists to disk
-        assert desktop.change_theme("bootstrap-light") == "bootstrap-light"
-        desktop.root.update()
-        assert desktop.root.style.theme.name == "bootstrap-light"
-        assert load_desktop_config(cfg_path).theme == "bootstrap-light"
 
         paused = desktop.handle_pause()
         assert paused.status == "paused"
         for _ in range(10):
-            desktop.root.update()
-            if "Paused" in desktop.status_pill.cget("text"):
+            desktop.app.processEvents()
+            if "Paused" in desktop.status_pill.text():
                 break
-            import time
-
             time.sleep(0.03)
-        assert "Paused" in desktop.status_pill.cget("text")
-        assert desktop.status_pill.cget("style") == "@warning.TLabel"
+        assert "Paused" in desktop.status_pill.text()
+        assert desktop.status_pill.property("status") == "paused"
 
         resumed = desktop.handle_start_or_resume()
         assert resumed.status == "running"
         for _ in range(10):
-            desktop.root.update()
-            if "Running" in desktop.status_pill.cget("text"):
+            desktop.app.processEvents()
+            if "Running" in desktop.status_pill.text():
                 break
-            import time
-
             time.sleep(0.03)
-        assert "Running" in desktop.status_pill.cget("text")
-        assert desktop.status_pill.cget("style") == "@success.TLabel"
+        assert "Running" in desktop.status_pill.text()
+        assert desktop.status_pill.property("status") == "running"
 
         stopped = desktop.handle_stop()
         assert stopped.status == "stopped"
         for _ in range(10):
-            desktop.root.update()
-            if "Stopped" in desktop.status_pill.cget("text"):
+            desktop.app.processEvents()
+            if "Stopped" in desktop.status_pill.text():
                 break
-            import time
-
             time.sleep(0.03)
-        assert "Stopped" in desktop.status_pill.cget("text")
-        assert desktop.status_pill.cget("style") == "@secondary.TLabel"
+        assert "Stopped" in desktop.status_pill.text()
+        assert desktop.status_pill.property("status") == "stopped"
     finally:
         desktop.quit_app()
+        desktop.app.processEvents()
         set_server_paused(False)
 
 
@@ -445,13 +640,12 @@ def test_single_instance_ipc_quit_and_cli_flags(tmp_path, monkeypatch):
 def test_port_in_use_recovery_and_lan_notice(tmp_path, monkeypatch):
     import os
     import time
-    import tkinter as tk
     from backend.app.desktop.app import WherezyDesktopApp
 
     if sys.platform.startswith("linux") and not (
         os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
     ):
-        pytest.skip("GUI Tk test requires an active display on Linux")
+        monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
 
     cfg_path = tmp_path / "gui_port_test.json"
     monkeypatch.setenv("WHEREZY_DESKTOP_CONFIG", str(cfg_path))
@@ -482,40 +676,136 @@ def test_port_in_use_recovery_and_lan_notice(tmp_path, monkeypatch):
                 lan_notice_shown=False,
             )
         )
-        try:
-            desktop = WherezyDesktopApp(
-                enable_tray=False,
-                enable_ipc=False,
-            )
-        except tk.TclError as exc:
-            pytest.skip(f"Tk display unavailable: {exc}")
+        desktop = WherezyDesktopApp(
+            enable_tray=False,
+            enable_ipc=False,
+        )
 
-        # First-run LAN notice is visible initially and clears cleanly once resolved
-        assert desktop.lan_notice_frame.winfo_manager()
+        # First-run LAN notice helper persists config cleanly even when banner isn't in layout
         desktop._resolve_lan_notice(enable_lan=False)
-        assert not desktop.lan_notice_frame.winfo_manager()
         assert load_desktop_config(cfg_path).lan_notice_shown is True
         assert load_desktop_config(cfg_path).host == "127.0.0.1"
 
-        # Starting on occupied port reports port_in_use and shows recovery button cleanly
+        # Starting on occupied port reports port_in_use cleanly in status & logs
         failed = desktop.handle_start_or_resume()
         assert failed.status == "error"
         assert failed.port_in_use is True
         for _ in range(10):
-            desktop.root.update()
-            if desktop.port_error_frame.winfo_manager():
+            desktop.app.processEvents()
+            if f"Port {busy_port} busy" in desktop.lbl_server_status.text():
                 break
             time.sleep(0.02)
-        assert desktop.port_error_frame.winfo_manager()
+        assert f"Port {busy_port} busy" in desktop.lbl_server_status.text()
+        assert desktop.progress_bar.value() == 0
 
-        # One-click recovery finds a free port and starts server cleanly
+        # One-click recovery helper finds a free port and starts server cleanly
         recovered = desktop.pick_free_port_and_start()
         assert recovered.status == "running"
         assert recovered.port != busy_port
+        assert desktop.edit_port.text() == str(recovered.port)
+        assert desktop.lbl_server_status.text() == recovered.local_url
+        assert desktop.progress_bar.value() == 100
         assert load_desktop_config(cfg_path).port == recovered.port
     finally:
         if desktop is not None:
             desktop.quit_app()
+            desktop.app.processEvents()
         occupied.close()
         set_server_paused(False)
+
+
+def test_desktop_settings_copy_and_logs(tmp_path, monkeypatch):
+    import os
+    from backend.app.desktop.app import WherezyDesktopApp
+
+    if sys.platform.startswith("linux") and not (
+        os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
+    ):
+        monkeypatch.setenv("QT_QPA_PLATFORM", "offscreen")
+
+    cfg_path = tmp_path / "gui_settings_test.json"
+    monkeypatch.setenv("WHEREZY_DESKTOP_CONFIG", str(cfg_path))
+    port1 = _pick_free_port()
+    port2 = _pick_free_port()
+    while port2 == port1:
+        port2 = _pick_free_port()
+
+    save_desktop_config(
+        DesktopConfig(
+            host="127.0.0.1",
+            port=port1,
+            data_dir=str(app_config.DATA_DIR),
+            auto_start_server=False,
+            lan_notice_shown=True,
+        )
+    )
+
+    desktop = WherezyDesktopApp(enable_tray=False, enable_ipc=False)
+    try:
+        # Copy URL updates clipboard, feedback, and terminal output
+        desktop.copy_lan_url()
+        assert f":{port1}" in desktop._last_feedback
+        assert f":{port1}" in desktop.log_text.toPlainText()
+        cb = desktop.app.clipboard()
+        if cb is not None:
+            assert f":{port1}" in cb.text()
+
+        # Start server, verify logs populate and clear cleanly, then apply new port via form
+        snap = desktop.handle_start_or_resume()
+        assert snap.status == "running"
+        desktop.app.processEvents()
+        assert desktop.log_text.toPlainText().strip() != ""
+
+        desktop.clear_logs()
+        assert desktop.log_text.toPlainText() == ""
+
+        desktop.edit_port.setText(str(port2))
+        desktop.chk_open_browser.setChecked(True)
+        desktop.apply_settings_and_restart()
+        desktop.app.processEvents()
+        reloaded = load_desktop_config(cfg_path)
+        assert reloaded.port == port2
+        assert reloaded.open_browser_on_start is True
+        assert desktop.server_manager.snapshot().port == port2
+
+        # Stop before reset to avoid binding port 8000 if busy, and verify Reset to Default restores config
+        desktop.handle_stop()
+        monkeypatch.setattr("backend.app.desktop.app.set_autostart_enabled", lambda flag: bool(flag))
+        desktop.reset_settings_to_default()
+        desktop.app.processEvents()
+        reset_cfg = load_desktop_config(cfg_path)
+        assert reset_cfg.port == 8000
+        assert reset_cfg.open_browser_on_start is False
+        assert desktop.edit_port.text() == "8000"
+        assert desktop.chk_open_browser.isChecked() is False
+    finally:
+        desktop.quit_app()
+        desktop.app.processEvents()
+        set_server_paused(False)
+
+
+def test_clean_subprocess_env_strips_frozen_bundle_paths(tmp_path, monkeypatch):
+    import os
+    from backend.app.desktop.app import _clean_subprocess_env
+
+    app_dir = tmp_path / "Wherezy"
+    internal_dir = app_dir / "_internal"
+    system_dir = tmp_path / "System32"
+    internal_dir.mkdir(parents=True)
+    system_dir.mkdir(parents=True)
+
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    monkeypatch.setattr(sys, "_MEIPASS", str(internal_dir), raising=False)
+    monkeypatch.setattr(sys, "executable", str(app_dir / "Wherezy.exe"))
+    monkeypatch.setenv("PATH", f"{internal_dir}{os.pathsep}{app_dir}{os.pathsep}{system_dir}")
+    monkeypatch.setenv("_MEIPASS2", str(internal_dir))
+    monkeypatch.setenv("_PYI_SPLASH_IPC", "123")
+
+    cleaned = _clean_subprocess_env()
+    path_parts = cleaned["PATH"].split(os.pathsep)
+    assert str(system_dir) in path_parts
+    assert str(internal_dir) not in path_parts
+    assert str(app_dir) not in path_parts
+    assert "_MEIPASS2" not in cleaned
+    assert "_PYI_SPLASH_IPC" not in cleaned
 

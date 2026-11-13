@@ -17,7 +17,12 @@ import QRCode from "qrcode";
 import { api } from "../../api/client";
 import { useDocumentTitle } from "../../hooks/useDocumentTitle";
 import { formatItemCode } from "../items/itemCodeUtils";
-import { buildLabelCopies, renderBarcodeToCanvas, type LabelData } from "./labelUtils";
+import {
+  buildLabelCopies,
+  parseLabelItemIds,
+  renderBarcodeToCanvas,
+  type LabelData,
+} from "./labelUtils";
 
 interface BarcodeCanvasProps {
   value: string;
@@ -39,6 +44,7 @@ export const LabelSheetPage: React.FC = () => {
   const navigate = useNavigate();
 
   const itemId = searchParams.get("item_id");
+  const itemIdsParam = searchParams.get("item_ids");
   const locationId = searchParams.get("location_id");
 
   const [preset, setPreset] = useState<"small" | "medium" | "a4_grid">("medium");
@@ -49,17 +55,23 @@ export const LabelSheetPage: React.FC = () => {
     const loadLabelData = async () => {
       const origin = window.location.origin;
       const list: LabelData[] = [];
+      const parsedItemIds = parseLabelItemIds(itemId, itemIdsParam);
 
-      if (itemId) {
-        const item = await api.getItem(Number(itemId));
-        const qrTarget = `${origin}/#/i/${item.id}`;
-        const qrUrl = await QRCode.toDataURL(qrTarget, { width: 100, margin: 1 });
-        list.push({
-          id: formatItemCode(item.id),
-          type: "item",
-          name: item.name,
-          path: item.location_path || undefined,
-          qrUrl,
+      if (parsedItemIds.length > 0) {
+        const fetchedItems = await Promise.all(parsedItemIds.map((id) => api.getItem(id)));
+        const qrUrls = await Promise.all(
+          fetchedItems.map((item) =>
+            QRCode.toDataURL(`${origin}/#/i/${item.id}`, { width: 100, margin: 1 })
+          )
+        );
+        fetchedItems.forEach((item, index) => {
+          list.push({
+            id: formatItemCode(item.id),
+            type: "item",
+            name: item.name,
+            path: item.location_path || undefined,
+            qrUrl: qrUrls[index],
+          });
         });
       } else if (locationId) {
         const loc = await api.getLocation(Number(locationId));
@@ -89,7 +101,7 @@ export const LabelSheetPage: React.FC = () => {
     };
 
     loadLabelData().catch(console.error);
-  }, [itemId, locationId]);
+  }, [itemId, itemIdsParam, locationId]);
 
   const handlePrint = () => {
     window.print();

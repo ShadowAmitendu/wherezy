@@ -259,9 +259,14 @@ def normalize_local_base_url(raw_url: str) -> str:
 def _endpoint_candidates(base_url: str, endpoint: str) -> List[str]:
     normalized = base_url.rstrip("/")
     parsed = urlparse(normalized)
-    if not parsed.path or parsed.path == "/":
+    path = parsed.path.rstrip("/")
+    if not path:
         # User pasted host:port (e.g. http://127.0.0.1:11434) without /v1
         return [f"{normalized}/v1{endpoint}", f"{normalized}{endpoint}"]
+    if path == "/api":
+        # Common Ollama mistake: user pasted /api instead of /v1; try /api first, then /v1
+        root = f"{parsed.scheme}://{parsed.netloc}"
+        return [f"{normalized}{endpoint}", f"{root}/v1{endpoint}"]
     return [f"{normalized}{endpoint}"]
 
 
@@ -738,106 +743,127 @@ def _call_local_llm_structured(
 
         for url in candidates:
             url_not_found = False
+            abort_url = False
+            disable_reasoning = True
             for fmt in response_formats:
-                payload: Dict[str, Any] = {
-                    "model": model_name,
-                    "messages": messages,
-                    "temperature": temperature,
-                    "max_tokens": max_output_tokens,
-                    "stream": False,
-                }
-                if fmt is not None:
-                    payload["response_format"] = fmt
+                while True:
+                    payload: Dict[str, Any] = {
+                        "model": model_name,
+                        "messages": messages,
+                        "temperature": temperature,
+                        "max_tokens": max_output_tokens,
+                        "stream": False,
+                    }
+                    if disable_reasoning:
+                        payload["reasoning_effort"] = "none"
+                    if fmt is not None:
+                        payload["response_format"] = fmt
 
-                try:
-                    resp = client.post(url, headers=headers, json=payload)
-                except Exception as exc:
-                    had_connect_error = True
-                    last_error_msg = _redact_secret(str(exc), api_key)
-                    break
+                    try:
+                        resp = client.post(url, headers=headers, json=payload)
+                    except Exception as exc:
+                        had_connect_error = True
+                        last_error_msg = _redact_secret(str(exc), api_key)
+                        abort_url = True
+                        break
 
-                if resp.status_code == 404:
-                    err_text = _redact_secret(resp.text[:400], api_key)
-                    if "model" in err_text.lower():
+                    if resp.status_code == 404:
+                        err_text = _redact_secret(resp.text[:400], api_key)
+                        if "model" in err_text.lower():
+                            raise HTTPException(
+                                status_code=status.HTTP_502_BAD_GATEWAY,
+                                detail={
+                                    "error": {
+                                        "code": "AI_PROVIDER_ERROR",
+                                        "message": f"Model '{model_name}' was not found on the local LLM server. Click Fetch Models in Settings to choose an available model.",
+                                    }
+                                },
+                            )
+                        url_not_found = True
+                        last_error_msg = f"Endpoint not found (HTTP 404) at {url}"
+                        abort_url = True
+                        break
+
+                    if resp.status_code in (401, 403):
                         raise HTTPException(
                             status_code=status.HTTP_502_BAD_GATEWAY,
                             detail={
                                 "error": {
                                     "code": "AI_PROVIDER_ERROR",
-                                    "message": f"Model '{model_name}' was not found on the local LLM server. Click Fetch Models in Settings to choose an available model.",
+                                    "message": "Local / OpenAI-compatible API rejected the API key. Check your credentials in Settings.",
                                 }
                             },
                         )
-                    url_not_found = True
-                    last_error_msg = f"Endpoint not found (HTTP 404) at {url}"
-                    break
 
-                if resp.status_code in (401, 403):
-                    raise HTTPException(
-                        status_code=status.HTTP_502_BAD_GATEWAY,
-                        detail={
-                            "error": {
-                                "code": "AI_PROVIDER_ERROR",
-                                "message": "Local / OpenAI-compatible API rejected the API key. Check your credentials in Settings.",
-                            }
-                        },
-                    )
-
-                if resp.status_code == 429:
-                    raise HTTPException(
-                        status_code=status.HTTP_502_BAD_GATEWAY,
-                        detail={
-                            "error": {
-                                "code": "AI_PROVIDER_ERROR",
-                                "message": "LLM rate limit reached. Please wait a moment and try again.",
-                            }
-                        },
-                    )
-
-                if resp.status_code >= 400:
-                    err_text = _redact_secret(resp.text[:400], api_key)
-                    lower = err_text.lower()
-                    if any(tok in lower for tok in ("input_audio", "audio", "modality")):
+                    if resp.status_code == 429:
                         raise HTTPException(
-                            status_code=status.HTTP_400_BAD_REQUEST,
+                            status_code=status.HTTP_502_BAD_GATEWAY,
                             detail={
                                 "error": {
-                                    "code": "UNSUPPORTED_AUDIO_BY_LOCAL_MODEL",
-                                    "message": "This local model does not accept raw audio directly. Type your prompt, configure a Whisper STT model in Settings, or use Gemini AI.",
+                                    "code": "AI_PROVIDER_ERROR",
+                                    "message": "LLM rate limit reached. Please wait a moment and try again.",
                                 }
                             },
                         )
-                    if resp.status_code in (400, 422) and fmt is not None and any(
-                        tok in lower for tok in ("response_format", "json_schema", "json_object", "schema")
-                    ):
-                        # Try next simpler response_format tier
-                        last_error_msg = err_text
-                        continue
-                    raise HTTPException(
-                        status_code=status.HTTP_502_BAD_GATEWAY,
-                        detail={
-                            "error": {
-                                "code": "AI_PROVIDER_ERROR",
-                                "message": f"LLM server returned HTTP {resp.status_code}: {err_text}",
-                            }
-                        },
-                    )
 
-                try:
-                    data = resp.json()
-                except Exception as exc:
-                    raise HTTPException(
-                        status_code=status.HTTP_502_BAD_GATEWAY,
-                        detail={
-                            "error": {
-                                "code": "AI_INVALID_RESPONSE",
-                                "message": "LLM server returned non-JSON HTTP response.",
-                            }
-                        },
-                    ) from exc
+                    if resp.status_code >= 400:
+                        err_text = _redact_secret(resp.text[:400], api_key)
+                        lower = err_text.lower()
+                        if any(tok in lower for tok in ("input_audio", "audio", "modality")):
+                            raise HTTPException(
+                                status_code=status.HTTP_400_BAD_REQUEST,
+                                detail={
+                                    "error": {
+                                        "code": "UNSUPPORTED_AUDIO_BY_LOCAL_MODEL",
+                                        "message": "This local model does not accept raw audio directly. Type your prompt, configure a Whisper STT model in Settings, or use Gemini AI.",
+                                    }
+                                },
+                            )
+                        if (
+                            resp.status_code in (400, 422)
+                            and disable_reasoning
+                            and any(
+                                tok in lower
+                                for tok in ("reasoning", "effort", "unknown", "extra", "unrecognized", "unexpected")
+                            )
+                        ):
+                            # Older OpenAI-compatible servers may reject reasoning_effort; retry without it
+                            disable_reasoning = False
+                            continue
+                        if resp.status_code in (400, 422) and fmt is not None and any(
+                            tok in lower for tok in ("response_format", "json_schema", "json_object", "schema")
+                        ):
+                            # Try next simpler response_format tier
+                            last_error_msg = err_text
+                            break
+                        raise HTTPException(
+                            status_code=status.HTTP_502_BAD_GATEWAY,
+                            detail={
+                                "error": {
+                                    "code": "AI_PROVIDER_ERROR",
+                                    "message": f"LLM server returned HTTP {resp.status_code}: {err_text}",
+                                }
+                            },
+                        )
 
-                raw_text = _extract_openai_message_text(data)
-                break
+                    try:
+                        data = resp.json()
+                    except Exception as exc:
+                        raise HTTPException(
+                            status_code=status.HTTP_502_BAD_GATEWAY,
+                            detail={
+                                "error": {
+                                    "code": "AI_INVALID_RESPONSE",
+                                    "message": "LLM server returned non-JSON HTTP response.",
+                                }
+                            },
+                        ) from exc
+
+                    raw_text = _extract_openai_message_text(data)
+                    break
+
+                if abort_url or raw_text:
+                    break
 
             if raw_text or not url_not_found:
                 break
@@ -1189,7 +1215,7 @@ def test_ai_connection(
             system_instruction="Respond with JSON {\"ok\": true}.",
             text_prompt="Health check. Reply with {\"ok\": true}.",
             temperature=0.0,
-            max_output_tokens=64,
+            max_output_tokens=512,
             http_client_factory=http_client_factory,
         )
         elapsed_ms = max(1, int((time.perf_counter() - started) * 1000))
@@ -1229,7 +1255,7 @@ def test_ai_connection(
                 "mime_type": "application/json",
                 "schema": inline_json_schema(_PingSchema),
             },
-            generation_config={"temperature": 0.0, "max_output_tokens": 64},
+            generation_config={"temperature": 0.0, "max_output_tokens": 512},
             store=False,
         )
     except genai_errors.APIError as exc:

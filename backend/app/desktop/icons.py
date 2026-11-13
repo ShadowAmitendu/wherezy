@@ -13,6 +13,7 @@ STATUS_COLORS = {
     "running": "#22c55e",
     "paused": "#f59e0b",
     "starting": "#38bdf8",
+    "stopping": "#f59e0b",
     "stopped": "#64748b",
     "error": "#ef4444",
 }
@@ -21,6 +22,7 @@ STATUS_LABELS = {
     "running": "Running",
     "paused": "Paused",
     "starting": "Starting...",
+    "stopping": "Stopping...",
     "stopped": "Stopped",
     "error": "Error",
 }

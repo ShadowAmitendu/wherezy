@@ -8,6 +8,25 @@ export interface LabelData {
   qrUrl: string;
 }
 
+/** Parse positive unique item IDs from either `?item_id=` or `?item_ids=1,2,3`. */
+export function parseLabelItemIds(
+  itemIdParam: string | null,
+  itemIdsParam: string | null
+): number[] {
+  const seen = new Set<number>();
+  const rawParts = [
+    ...(itemIdsParam ? itemIdsParam.split(",") : []),
+    ...(itemIdParam ? [itemIdParam] : []),
+  ];
+  for (const part of rawParts) {
+    const parsed = Number(part.trim());
+    if (Number.isInteger(parsed) && parsed > 0) {
+      seen.add(parsed);
+    }
+  }
+  return Array.from(seen);
+}
+
 export function buildLabelCopies(labels: LabelData[], copies: number): LabelData[] {
   const safeCopies = Math.max(1, Math.floor(Number.isFinite(copies) ? copies : 1));
   const result: LabelData[] = [];

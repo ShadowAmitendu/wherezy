@@ -13,11 +13,19 @@ import {
   Grid,
   Fade,
   Grow,
+  Snackbar,
   Stack,
   useTheme,
   useMediaQuery,
 } from "@mui/material";
-import { DataGrid, GridColDef, GridRenderCellParams, GridPaginationModel, GridSortModel } from "@mui/x-data-grid";
+import {
+  DataGrid,
+  GridColDef,
+  GridRenderCellParams,
+  GridPaginationModel,
+  GridRowSelectionModel,
+  GridSortModel,
+} from "@mui/x-data-grid";
 import ViewListIcon from "@mui/icons-material/ViewList";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import MeetingRoomOutlinedIcon from "@mui/icons-material/MeetingRoomOutlined";
@@ -31,14 +39,26 @@ import RemoveCircleOutlinedIcon from "@mui/icons-material/RemoveCircleOutlined";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import { PageHeader } from "../../components/shared/PageHeader";
 import { EmptyState } from "../../components/shared/EmptyState";
+import { AlertDialog } from "../../components/shared/AlertDialog";
 import { ConfirmDialog } from "../../components/shared/ConfirmDialog";
 import { useUndo, useOnUndoRefresh } from "../../components/shared/UndoContext";
 import { ExpiryChip } from "../../components/shared/ExpiryChip";
+import { useAuth } from "../../auth/useAuth";
+import { hasPermission } from "../../auth/permissions";
 import { CoverThumb } from "../photos/CoverThumb";
 import { ItemDetailDialog } from "./ItemDetailDialog";
 import { ItemFormDialog } from "./ItemFormDialog";
 import { ItemMoveDialog } from "./ItemMoveDialog";
 import { BulkMoveDialog } from "./BulkMoveDialog";
+import { BulkSelectionBar } from "./BulkSelectionBar";
+import {
+  BulkBoxDialog,
+  BulkExpiryDialog,
+  BulkRetireDialog,
+  BulkTagsDialog,
+  BulkTakenOutDialog,
+} from "./BulkActionsDialogs";
+import { resolveDataGridSelectionIds, runBulkItemsRequest } from "./selectionUtils";
 import { BulkAddDialog, type BulkAddTab } from "./BulkAddDialog";
 import { ItemCard } from "./ItemCard";
 import { ItemsFilterToolbar } from "./ItemsFilterToolbar";
@@ -49,6 +69,7 @@ import {
   getItemTakenOutQuantity,
 } from "./quantityUtils";
 import { formatItemCode } from "./itemCodeUtils";
+import { getCategoryBadgeSx } from "../../components/shared/categoryColors";
 import { api } from "../../api/client";
 import { Item } from "./types";
 import { Category } from "../forms/types";
@@ -58,6 +79,8 @@ export const ItemsPage: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const [searchParams] = useSearchParams();
+  const { currentProfile } = useAuth();
+  const canBulkWrite = hasPermission(currentProfile, "bulk:write");
   const { showUndo } = useUndo();
 
   // View mode: 'table', 'card', or 'room' (grouped by higher Room), remembered in localStorage
@@ -93,6 +116,20 @@ export const ItemsPage: React.FC = () => {
   // Selection & Bulk actions
   const [selectedItemIds, setSelectedItemIds] = useState<number[]>([]);
   const [bulkMoveOpen, setBulkMoveOpen] = useState(false);
+  const [bulkTagsOpen, setBulkTagsOpen] = useState(false);
+  const [bulkTakenOutOpen, setBulkTakenOutOpen] = useState(false);
+  const [bulkExpiryOpen, setBulkExpiryOpen] = useState(false);
+  const [bulkBoxOpen, setBulkBoxOpen] = useState(false);
+  const [bulkRetireOpen, setBulkRetireOpen] = useState(false);
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
+  const [isBulkBusy, setIsBulkBusy] = useState(false);
+  const [bulkErrorMsg, setBulkErrorMsg] = useState<string | null>(null);
+  const [bulkNoticeMsg, setBulkNoticeMsg] = useState<string | null>(null);
+
+  const rowSelectionModel = useMemo<GridRowSelectionModel>(
+    () => ({ type: "include", ids: new Set(selectedItemIds) }),
+    [selectedItemIds]
+  );
 
   // Dialogs
   const [detailItemId, setDetailItemId] = useState<number | null>(
@@ -114,6 +151,9 @@ export const ItemsPage: React.FC = () => {
   const handleViewModeChange = (_: any, newMode: "table" | "card" | "room" | null) => {
     if (newMode) {
       setViewMode(newMode);
+      if (newMode !== "table") {
+        setSelectedItemIds([]);
+      }
       localStorage.setItem("hi_items_view", newMode);
     }
   };
@@ -222,6 +262,11 @@ export const ItemsPage: React.FC = () => {
         if (!active || !res) return;
         setItems(res.items);
         setTotal(res.total);
+        const visibleIds = new Set<number>(res.items.map((r: Item) => Number(r.id)));
+        setSelectedItemIds((prev) => {
+          const next = prev.filter((id) => visibleIds.has(id));
+          return next.length === prev.length ? prev : next;
+        });
       })
       .catch((err) => {
         if (active) console.error(err);
@@ -292,6 +337,61 @@ export const ItemsPage: React.FC = () => {
     }
   };
 
+  const handleBulkCompleted = async () => {
+    setSelectedItemIds([]);
+    await loadItems();
+  };
+
+  const handleBulkMarkReturned = async () => {
+    if (selectedItemIds.length === 0) return;
+    setIsBulkBusy(true);
+    try {
+      await runBulkItemsRequest({
+        ids: selectedItemIds,
+        action: "set_taken",
+        params: { taken_out: false },
+        pastTenseLabel: "Marked returned:",
+        showUndo,
+        onSuccess: handleBulkCompleted,
+      });
+    } catch (err: any) {
+      setBulkErrorMsg(err?.message || "Failed to mark selected items as returned.");
+    } finally {
+      setIsBulkBusy(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedItemIds.length === 0) return;
+    setIsBulkBusy(true);
+    try {
+      const deletedSet = new Set(selectedItemIds);
+      await runBulkItemsRequest({
+        ids: selectedItemIds,
+        action: "delete",
+        pastTenseLabel: "Deleted",
+        showUndo,
+        onSuccess: async () => {
+          setBulkDeleteConfirmOpen(false);
+          if (detailItemId && deletedSet.has(detailItemId)) {
+            setDetailItemId(null);
+          }
+          await handleBulkCompleted();
+        },
+      });
+    } catch (err: any) {
+      setBulkDeleteConfirmOpen(false);
+      setBulkErrorMsg(err?.message || "Failed to delete selected items.");
+    } finally {
+      setIsBulkBusy(false);
+    }
+  };
+
+  const handleBulkPrintLabels = () => {
+    if (selectedItemIds.length === 0) return;
+    navigate(`/labels?item_ids=${selectedItemIds.join(",")}`);
+  };
+
   // DataGrid Columns definition
   const columns: GridColDef[] = [
     {
@@ -332,11 +432,10 @@ export const ItemsPage: React.FC = () => {
             <Chip
               label={params.value}
               size="small"
-              sx={{
-                bgcolor: `${params.row.category_color}20`,
-                color: params.row.category_color || "text.primary",
+              sx={(t) => ({
+                ...getCategoryBadgeSx(params.row.category_color, t),
                 fontWeight: 600,
-              }}
+              })}
             />
           ) : (
             "—"
@@ -454,18 +553,6 @@ export const ItemsPage: React.FC = () => {
         icon={<Inventory2OutlinedIcon />}
         action={
           <Box sx={{ display: "flex", gap: { xs: 0.75, sm: 1 }, alignItems: "center", flexWrap: "wrap" }}>
-            {selectedItemIds.length > 0 && (
-              <Grow in appear timeout={200}>
-                <Button
-                  variant="outlined"
-                  size={isMobile ? "small" : "medium"}
-                  startIcon={<DriveFileMoveOutlinedIcon />}
-                  onClick={() => setBulkMoveOpen(true)}
-                >
-                  Move Selected ({selectedItemIds.length})
-                </Button>
-              </Grow>
-            )}
             <ToggleButtonGroup
               size="small"
               value={viewMode}
@@ -550,6 +637,21 @@ export const ItemsPage: React.FC = () => {
       ) : viewMode === "table" ? (
         <Fade in appear timeout={225}>
           <Card>
+            <BulkSelectionBar
+              selectedCount={selectedItemIds.length}
+              canWrite={canBulkWrite}
+              busy={isBulkBusy}
+              onClear={() => setSelectedItemIds([])}
+              onMove={() => setBulkMoveOpen(true)}
+              onManageTags={() => setBulkTagsOpen(true)}
+              onMarkTakenOut={() => setBulkTakenOutOpen(true)}
+              onMarkReturned={handleBulkMarkReturned}
+              onSetExpiry={() => setBulkExpiryOpen(true)}
+              onPackInBox={() => setBulkBoxOpen(true)}
+              onRetire={() => setBulkRetireOpen(true)}
+              onPrintLabels={handleBulkPrintLabels}
+              onDelete={() => setBulkDeleteConfirmOpen(true)}
+            />
             <Box sx={{ width: "100%", height: 600 }}>
               <DataGrid
                 rows={items}
@@ -559,18 +661,17 @@ export const ItemsPage: React.FC = () => {
                 pageSizeOptions={[10, 25, 50, 100]}
                 paginationModel={paginationModel}
                 paginationMode="server"
-                onPaginationModelChange={setPaginationModel}
+                onPaginationModelChange={(next) => {
+                  setSelectedItemIds([]);
+                  setPaginationModel(next);
+                }}
                 sortModel={sortModel}
                 sortingMode="server"
                 onSortModelChange={setSortModel}
                 checkboxSelection
+                rowSelectionModel={rowSelectionModel}
                 onRowSelectionModelChange={(newSelection) => {
-                  if (newSelection && typeof newSelection === "object" && "ids" in newSelection) {
-                    const set = (newSelection as { ids: Set<any> }).ids;
-                    setSelectedItemIds(Array.from(set).map(Number));
-                  } else if (Array.isArray(newSelection)) {
-                    setSelectedItemIds((newSelection as any[]).map(Number));
-                  }
+                  setSelectedItemIds(resolveDataGridSelectionIds(newSelection, items));
                 }}
                 onRowClick={(params) => setDetailItemId(params.row.id)}
                 disableRowSelectionOnClick
@@ -697,10 +798,75 @@ export const ItemsPage: React.FC = () => {
         open={bulkMoveOpen}
         itemIds={selectedItemIds}
         onClose={() => setBulkMoveOpen(false)}
-        onMoved={() => {
-          setSelectedItemIds([]);
-          loadItems();
-        }}
+        onMoved={handleBulkCompleted}
+      />
+
+      {/* Additional Bulk Action Dialogs */}
+      <BulkTagsDialog
+        open={bulkTagsOpen}
+        itemIds={selectedItemIds}
+        onClose={() => setBulkTagsOpen(false)}
+        onApplied={handleBulkCompleted}
+        showUndo={showUndo}
+      />
+
+      <BulkTakenOutDialog
+        open={bulkTakenOutOpen}
+        itemIds={selectedItemIds}
+        onClose={() => setBulkTakenOutOpen(false)}
+        onApplied={handleBulkCompleted}
+        showUndo={showUndo}
+      />
+
+      <BulkExpiryDialog
+        open={bulkExpiryOpen}
+        itemIds={selectedItemIds}
+        onClose={() => setBulkExpiryOpen(false)}
+        onApplied={handleBulkCompleted}
+        showUndo={showUndo}
+      />
+
+      <BulkBoxDialog
+        open={bulkBoxOpen}
+        itemIds={selectedItemIds}
+        onClose={() => setBulkBoxOpen(false)}
+        onApplied={handleBulkCompleted}
+        showUndo={showUndo}
+        onNotice={(msg) => setBulkNoticeMsg(msg)}
+      />
+
+      <BulkRetireDialog
+        open={bulkRetireOpen}
+        itemIds={selectedItemIds}
+        onClose={() => setBulkRetireOpen(false)}
+        onApplied={handleBulkCompleted}
+        showUndo={showUndo}
+      />
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={bulkDeleteConfirmOpen}
+        title={`Delete ${selectedItemIds.length} Item(s)`}
+        message={`Move ${selectedItemIds.length} selected ${selectedItemIds.length === 1 ? "item" : "items"} to trash? You can undo this for 10 seconds.`}
+        confirmLabel="Delete All"
+        confirmColor="error"
+        onConfirm={handleBulkDelete}
+        onCancel={() => setBulkDeleteConfirmOpen(false)}
+      />
+
+      <AlertDialog
+        open={Boolean(bulkErrorMsg)}
+        onClose={() => setBulkErrorMsg(null)}
+        title="Bulk Action Notice"
+        message={bulkErrorMsg}
+        severity="warning"
+      />
+
+      <Snackbar
+        open={Boolean(bulkNoticeMsg)}
+        autoHideDuration={4000}
+        onClose={() => setBulkNoticeMsg(null)}
+        message={bulkNoticeMsg}
       />
 
       {/* Taken Out Quantity Dialog */}
