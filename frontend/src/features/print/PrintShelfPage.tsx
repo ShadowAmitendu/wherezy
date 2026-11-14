@@ -45,6 +45,14 @@ function safeSetLocalStorage(key: string, value: string): void {
   } catch {}
 }
 
+export interface ShelfAuditGroup {
+  locationId: number;
+  name: string;
+  path: string;
+  items: any[];
+  isRoot: boolean;
+}
+
 export const PrintShelfPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -53,6 +61,7 @@ export const PrintShelfPage: React.FC = () => {
   useDocumentTitle(location?.name ? `Shelf Audit: ${location.name}` : "Shelf Audit Sheet");
   const [items, setItems] = useState<any[]>([]);
   const [qrDataUrl, setQrDataUrl] = useState<string>("");
+  const [qrMap, setQrMap] = useState<Record<number, string>>({});
   const [printedAt] = useState(() => new Date());
 
   // Options
@@ -86,8 +95,24 @@ export const PrintShelfPage: React.FC = () => {
         setItems(locItems);
 
         const targetUrl = `${window.location.origin}/#/l/${loc.id}`;
-        const url = await QRCode.toDataURL(targetUrl, { width: 100, margin: 1 });
-        if (active) setQrDataUrl(url);
+        const rootQr = await QRCode.toDataURL(targetUrl, { width: 100, margin: 1 });
+        if (!active) return;
+        setQrDataUrl(rootQr);
+
+        const distinctLocIds = Array.from(
+          new Set([loc.id, ...locItems.map((it: any) => it.location_id).filter(Boolean)])
+        );
+        const map: Record<number, string> = { [loc.id]: rootQr };
+        await Promise.all(
+          distinctLocIds.map(async (lid) => {
+            if (lid === loc.id) return;
+            try {
+              const url = `${window.location.origin}/#/l/${lid}`;
+              map[lid] = await QRCode.toDataURL(url, { width: 100, margin: 1 });
+            } catch {}
+          })
+        );
+        if (active) setQrMap(map);
       } catch (err) {
         if (active) console.error(err);
       }
@@ -101,15 +126,74 @@ export const PrintShelfPage: React.FC = () => {
     window.print();
   };
 
-  // Group items by sub-location if includeSub is on
-  const groupedItems: Record<string, any[]> = {};
-  items.forEach((item) => {
-    const locPath = item.location_path || location?.name || "Directly here";
-    if (!groupedItems[locPath]) {
-      groupedItems[locPath] = [];
+  // Build structured groups
+  const groups: ShelfAuditGroup[] = [];
+
+  if (items.length === 0) {
+    if (location) {
+      groups.push({
+        locationId: location.id,
+        name: location.name,
+        path: location.path || location.name,
+        items: [],
+        isRoot: true,
+      });
     }
-    groupedItems[locPath].push(item);
-  });
+  } else if (!includeSub) {
+    if (location) {
+      groups.push({
+        locationId: location.id,
+        name: location.name,
+        path: location.path || location.name,
+        items,
+        isRoot: true,
+      });
+    }
+  } else {
+    // 1. Direct items in root location
+    const rootItems = items.filter((it) => it.location_id === location?.id);
+    if (rootItems.length > 0 && location) {
+      groups.push({
+        locationId: location.id,
+        name: location.name,
+        path: location.path || location.name,
+        items: rootItems,
+        isRoot: true,
+      });
+    }
+
+    // 2. Sub-location items grouped by location_id or location_path
+    const subGroupsMap = new Map<number | string, ShelfAuditGroup>();
+    items.forEach((it) => {
+      if (it.location_id === location?.id) return;
+      const key = it.location_id || it.location_path || "sub";
+      if (!subGroupsMap.has(key)) {
+        subGroupsMap.set(key, {
+          locationId: it.location_id || location?.id,
+          name: it.location_name || it.location_path?.split(" > ").pop() || location?.name,
+          path: it.location_path || location?.path || location?.name,
+          items: [],
+          isRoot: false,
+        });
+      }
+      subGroupsMap.get(key)!.items.push(it);
+    });
+
+    subGroupsMap.forEach((sg) => {
+      groups.push(sg);
+    });
+
+    // Fallback: If no groups were formed, add root
+    if (groups.length === 0 && location) {
+      groups.push({
+        locationId: location.id,
+        name: location.name,
+        path: location.path || location.name,
+        items,
+        isRoot: true,
+      });
+    }
+  }
 
   const fontSizeMap = {
     small: "11px",
@@ -117,6 +201,82 @@ export const PrintShelfPage: React.FC = () => {
     large: "15px",
   };
   const tableFontSize = fontSizeMap[fontSize as keyof typeof fontSizeMap] || "13px";
+
+  const renderTable = (groupItemList: any[]) => {
+    if (groupItemList.length === 0) {
+      return (
+        <Box sx={{ py: 3, textAlign: "center", color: "text.secondary" }}>
+          <Typography variant="body2" className="print-muted">
+            No items directly stored in this location.
+          </Typography>
+        </Box>
+      );
+    }
+
+    return (
+      <TableContainer component={Box}>
+        <Table size="small" sx={{ "& th, & td": { fontSize: tableFontSize, py: 1 } }}>
+          <TableHead>
+            <TableRow sx={{ bgcolor: "action.selected" }}>
+              {showAuditBox && <TableCell width={40} align="center">Tick</TableCell>}
+              {showPhotos && <TableCell width={50}>Photo</TableCell>}
+              <TableCell>Item Name</TableCell>
+              <TableCell>Category</TableCell>
+              <TableCell width={60} align="center">Qty</TableCell>
+              <TableCell>Expiry</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Notes</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {groupItemList.map((it) => (
+              <TableRow key={it.id} sx={{ "&:nth-of-type(even)": { bgcolor: "action.hover" } }}>
+                {showAuditBox && (
+                  <TableCell align="center">
+                    <Box
+                      className="audit-tick-box"
+                      sx={{
+                        width: 16,
+                        height: 16,
+                        border: "1.5px solid #000",
+                        borderRadius: "3px",
+                        display: "inline-block",
+                      }}
+                    />
+                  </TableCell>
+                )}
+                {showPhotos && (
+                  <TableCell>
+                    <CoverThumb thumbUrl={it.cover_thumb_url} size={32} />
+                  </TableCell>
+                )}
+                <TableCell sx={{ fontWeight: 600 }}>
+                  {it.name}
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    className="print-muted"
+                    sx={{ display: "block", fontFamily: "var(--font-mono)" }}
+                  >
+                    {formatItemCode(it.id)}
+                  </Typography>
+                </TableCell>
+                <TableCell>{it.category_name || "—"}</TableCell>
+                <TableCell align="center" sx={{ fontFamily: "var(--font-mono)" }}>
+                  {getItemQuantity(it)}
+                </TableCell>
+                <TableCell>{it.expiry_date || "—"}</TableCell>
+                <TableCell>
+                  {formatTakenOutStatusLabel(it)}
+                </TableCell>
+                <TableCell>{it.notes || "—"}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    );
+  };
 
   return (
     <Box sx={{ p: { xs: 1, sm: 3 } }}>
@@ -220,168 +380,203 @@ export const PrintShelfPage: React.FC = () => {
           fontSize: tableFontSize,
         }}
       >
-        {/* Print Header */}
-        <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
-          <Box>
-            <Typography variant="overline" color="text.secondary">
-              Wherezy Shelf Audit Sheet
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800 }} gutterBottom>
-              {location?.name}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Path: {location?.path || location?.name}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-              Printed on {printedAt.toLocaleDateString()} at {printedAt.toLocaleTimeString()}
-            </Typography>
-          </Box>
-
-          {qrDataUrl && (
-            <Box sx={{ textAlign: "center" }}>
-              <img src={qrDataUrl} alt="Location QR" style={{ width: 80, height: 80 }} />
-              <Typography variant="caption" sx={{ display: "block", fontFamily: "var(--font-mono)", fontWeight: 700 }}>
-                L{location?.id}
-              </Typography>
-            </Box>
-          )}
-        </Box>
-
-        <Divider sx={{ mb: 2 }} />
-
-        {/* Grouped Tables */}
-        {Object.entries(groupedItems).map(([groupPath, groupItemList], groupIdx) => (
-          <Box
-            key={groupPath}
-            className={`location-group-box ${onePerPage ? "one-per-page" : ""}`}
-            sx={{
-              mb: onePerPage ? 4 : 3,
-              p: onePerPage ? { xs: 1.5, sm: 3 } : 0,
-              border: onePerPage ? "1px solid" : "none",
-              borderColor: "divider",
-              borderRadius: onePerPage ? 2 : 0,
-              bgcolor: onePerPage ? "background.paper" : "transparent",
-              pageBreakAfter: onePerPage && groupIdx < Object.keys(groupedItems).length - 1 ? "always" : "auto",
-              breakAfter: onePerPage && groupIdx < Object.keys(groupedItems).length - 1 ? "page" : "auto",
-            }}
-          >
-            {onePerPage && groupIdx > 0 && (
-              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
-                <Box>
-                  <Typography variant="overline" color="text.secondary">
-                    Wherezy Shelf Audit Sheet • Page {groupIdx + 1} of {Object.keys(groupedItems).length}
-                  </Typography>
-                  <Typography variant="h5" sx={{ fontWeight: 800 }}>
-                    {groupPath}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                    Location: {location?.name} • Printed on {printedAt.toLocaleDateString()}
-                  </Typography>
-                </Box>
-                {qrDataUrl && (
-                  <Box sx={{ textAlign: "center" }}>
-                    <img src={qrDataUrl} alt="Location QR" style={{ width: 60, height: 60 }} />
-                    <Typography variant="caption" sx={{ display: "block", fontFamily: "var(--font-mono)", fontWeight: 700 }}>
-                      L{location?.id}
+        {onePerPage ? (
+          // One location/box per page mode: Each group is a complete self-contained page with its header + table + footer
+          groups.map((group, groupIdx) => {
+            const qrUrl = qrMap[group.locationId] || qrDataUrl;
+            return (
+              <Box
+                key={group.locationId ? `loc-${group.locationId}` : `grp-${groupIdx}`}
+                className="shelf-page-card one-per-page"
+                sx={{
+                  mb: groupIdx < groups.length - 1 ? 4 : 0,
+                  p: { xs: 1.5, sm: 3 },
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: 2,
+                  bgcolor: "background.paper",
+                }}
+              >
+                {/* Header for this page */}
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
+                  <Box>
+                    <Typography variant="overline" color="text.secondary" className="print-muted">
+                      Wherezy Shelf Audit Sheet{groups.length > 1 ? ` • Box ${groupIdx + 1} of ${groups.length}` : ""}
+                    </Typography>
+                    <Typography variant="h4" sx={{ fontWeight: 800 }} gutterBottom>
+                      {group.name}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" className="print-muted">
+                      Path: {group.path}
+                    </Typography>
+                    {!group.isRoot && location && location.name !== group.name && (
+                      <Typography variant="caption" color="text.secondary" className="print-muted" sx={{ display: "block" }}>
+                        In: {location.name}
+                      </Typography>
+                    )}
+                    <Typography variant="caption" color="text.secondary" className="print-muted" sx={{ display: "block" }}>
+                      Printed on {printedAt.toLocaleDateString()} at {printedAt.toLocaleTimeString()}
                     </Typography>
                   </Box>
-                )}
+
+                  {qrUrl && (
+                    <Box sx={{ textAlign: "center" }}>
+                      <img src={qrUrl} alt="Location QR" style={{ width: 80, height: 80 }} />
+                      <Typography
+                        variant="caption"
+                        sx={{ display: "block", fontFamily: "var(--font-mono)", fontWeight: 700 }}
+                      >
+                        L{group.locationId}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+
+                <Divider sx={{ mb: 2 }} />
+
+                <Typography
+                  variant="subtitle1"
+                  className="section-banner"
+                  sx={{
+                    fontWeight: 700,
+                    mb: 1.5,
+                    bgcolor: "action.hover",
+                    p: 1,
+                    borderRadius: 1,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <span>{group.name}</span>
+                  <span>{group.items.length} {group.items.length === 1 ? "item" : "items"}</span>
+                </Typography>
+
+                {renderTable(group.items)}
+
+                {/* Shelf Sheet Footer */}
+                <Box
+                  className="page-footer"
+                  sx={{
+                    mt: 3,
+                    pt: 1.5,
+                    borderTop: "1px solid",
+                    borderColor: "divider",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    color: "text.secondary",
+                    fontSize: "0.8rem",
+                    flexWrap: "wrap",
+                    gap: 1,
+                  }}
+                >
+                  <Typography variant="caption" className="print-muted" sx={{ fontWeight: 600 }}>
+                    Wherezy Shelf Audit Sheet • Location: {group.name}
+                  </Typography>
+                  <Typography variant="caption" className="print-muted">
+                    {group.items.length} {group.items.length === 1 ? "item" : "items"} listed
+                    {groups.length > 1 ? ` • Box ${groupIdx + 1} of ${groups.length}` : ""} • Printed on {printedAt.toLocaleDateString()} {printedAt.toLocaleTimeString()}
+                  </Typography>
+                </Box>
               </Box>
-            )}
+            );
+          })
+        ) : (
+          // Continuous Sheet Mode: Master header at top, groups with banners, master footer at bottom
+          <Box className="shelf-page-card continuous">
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
+              <Box>
+                <Typography variant="overline" color="text.secondary" className="print-muted">
+                  Wherezy Shelf Audit Sheet
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 800 }} gutterBottom>
+                  {location?.name}
+                </Typography>
+                <Typography variant="body2" color="text.secondary" className="print-muted">
+                  Path: {location?.path || location?.name}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" className="print-muted" sx={{ display: "block" }}>
+                  Printed on {printedAt.toLocaleDateString()} at {printedAt.toLocaleTimeString()}
+                </Typography>
+              </Box>
 
-            <Typography variant="subtitle1" sx={{ fontWeight: 700, mb: 1, bgcolor: "action.hover", p: 1, borderRadius: 1 }}>
-              {groupPath} ({groupItemList.length} items)
-            </Typography>
+              {qrDataUrl && (
+                <Box sx={{ textAlign: "center" }}>
+                  <img src={qrDataUrl} alt="Location QR" style={{ width: 80, height: 80 }} />
+                  <Typography variant="caption" sx={{ display: "block", fontFamily: "var(--font-mono)", fontWeight: 700 }}>
+                    L{location?.id}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
 
-            <TableContainer component={Box}>
-              <Table size="small" sx={{ "& th, & td": { fontSize: tableFontSize, py: 1 } }}>
-                <TableHead>
-                  <TableRow sx={{ bgcolor: "action.selected" }}>
-                    {showAuditBox && <TableCell width={40} align="center">Tick</TableCell>}
-                    {showPhotos && <TableCell width={50}>Photo</TableCell>}
-                    <TableCell>Item Name</TableCell>
-                    <TableCell>Category</TableCell>
-                    <TableCell width={60} align="center">Qty</TableCell>
-                    <TableCell>Expiry</TableCell>
-                    <TableCell>Status</TableCell>
-                    <TableCell>Notes</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {groupItemList.map((it) => (
-                    <TableRow key={it.id} sx={{ "&:nth-of-type(even)": { bgcolor: "action.hover" } }}>
-                      {showAuditBox && (
-                        <TableCell align="center">
-                          <Box
-                            sx={{
-                              width: 16,
-                              height: 16,
-                              border: "1.5px solid #000",
-                              borderRadius: "3px",
-                              display: "inline-block",
-                            }}
-                          />
-                        </TableCell>
-                      )}
-                      {showPhotos && (
-                        <TableCell>
-                          <CoverThumb thumbUrl={it.cover_thumb_url} size={32} />
-                        </TableCell>
-                      )}
-                      <TableCell sx={{ fontWeight: 600 }}>
-                        {it.name}
-                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", fontFamily: "var(--font-mono)" }}>
-                          {formatItemCode(it.id)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>{it.category_name || "—"}</TableCell>
-                      <TableCell align="center" sx={{ fontFamily: "var(--font-mono)" }}>
-                        {getItemQuantity(it)}
-                      </TableCell>
-                      <TableCell>{it.expiry_date || "—"}</TableCell>
-                      <TableCell>
-                        {formatTakenOutStatusLabel(it)}
-                      </TableCell>
-                      <TableCell>{it.notes || "—"}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+            <Divider sx={{ mb: 2 }} />
+
+            {groups.map((group) => (
+              <Box key={group.locationId || group.name} sx={{ mb: 3 }}>
+                <Typography
+                  variant="subtitle1"
+                  className="section-banner"
+                  sx={{
+                    fontWeight: 700,
+                    mb: 1,
+                    bgcolor: "action.hover",
+                    p: 1,
+                    borderRadius: 1,
+                    display: "flex",
+                    justifyContent: "space-between",
+                  }}
+                >
+                  <span>{group.name} {group.path && group.path !== group.name ? `— ${group.path}` : ""}</span>
+                  <span>{group.items.length} {group.items.length === 1 ? "item" : "items"}</span>
+                </Typography>
+
+                {renderTable(group.items)}
+              </Box>
+            ))}
+
+            <Box
+              className="page-footer"
+              sx={{
+                mt: 4,
+                pt: 2,
+                borderTop: "1px solid",
+                borderColor: "divider",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                color: "text.secondary",
+                fontSize: "0.8rem",
+                flexWrap: "wrap",
+                gap: 1,
+              }}
+            >
+              <Typography variant="caption" className="print-muted" sx={{ fontWeight: 600 }}>
+                Wherezy Shelf Audit Sheet • Location: {location?.name}
+              </Typography>
+              <Typography variant="caption" className="print-muted">
+                {items.length} total {items.length === 1 ? "item" : "items"} listed • Printed on {printedAt.toLocaleDateString()} {printedAt.toLocaleTimeString()}
+              </Typography>
+            </Box>
           </Box>
-        ))}
-
-        {/* Shelf Sheet Footer */}
-        <Box
-          sx={{
-            mt: 4,
-            pt: 2,
-            borderTop: "1px solid",
-            borderColor: "divider",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            color: "text.secondary",
-            fontSize: "0.8rem",
-            flexWrap: "wrap",
-            gap: 1,
-          }}
-        >
-          <Typography variant="caption" sx={{ fontWeight: 600 }}>
-            Wherezy Shelf Audit Sheet • Location: {location?.name}
-          </Typography>
-          <Typography variant="caption">
-            {items.length} total {items.length === 1 ? "item" : "items"} listed • Printed on {printedAt.toLocaleDateString()} {printedAt.toLocaleTimeString()}
-          </Typography>
-        </Box>
+        )}
       </Paper>
 
       {/* Global Print CSS */}
       <style>{`
         @media print {
-          body {
-            background-color: #fff !important;
-            color: #000 !important;
+          @page {
+            size: A4;
+            margin: 12mm 10mm;
+          }
+          html, body {
+            background-color: #ffffff !important;
+            color: #111827 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           .no-print, header, nav, .MuiDrawer-root, .MuiBottomNavigation-root {
             display: none !important;
@@ -392,36 +587,110 @@ export const PrintShelfPage: React.FC = () => {
             width: 100% !important;
           }
           #printable-shelf-sheet {
+            background-color: #ffffff !important;
+            color: #111827 !important;
             box-shadow: none !important;
             border: none !important;
             padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
           }
-          .location-group-box.one-per-page {
-            page-break-after: always !important;
-            break-after: page !important;
-            break-inside: avoid !important;
-            border: none !important;
-            padding: 0 !important;
-            margin-bottom: 0 !important;
-            min-height: 90vh !important;
+          #printable-shelf-sheet * {
+            color: #111827 !important;
+            border-color: #d1d5db !important;
+            text-shadow: none !important;
+            box-shadow: none !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
-          .location-group-box.one-per-page:last-child {
-            page-break-after: auto !important;
-            break-after: auto !important;
+          #printable-shelf-sheet .MuiTypography-root {
+            color: #111827 !important;
           }
-          table {
+          #printable-shelf-sheet h1,
+          #printable-shelf-sheet h2,
+          #printable-shelf-sheet h3,
+          #printable-shelf-sheet h4,
+          #printable-shelf-sheet h5,
+          #printable-shelf-sheet h6,
+          #printable-shelf-sheet .MuiTypography-h4,
+          #printable-shelf-sheet .MuiTypography-h5,
+          #printable-shelf-sheet .MuiTypography-subtitle1 {
+            color: #000000 !important;
+            font-weight: 800 !important;
+          }
+          #printable-shelf-sheet .MuiTypography-colorTextSecondary,
+          #printable-shelf-sheet .MuiTypography-caption,
+          #printable-shelf-sheet .MuiTypography-overline,
+          #printable-shelf-sheet .print-muted {
+            color: #374151 !important;
+            font-weight: 500 !important;
+          }
+          #printable-shelf-sheet .MuiDivider-root,
+          #printable-shelf-sheet hr {
+            border-color: #111827 !important;
+            border-bottom-width: 1.5px !important;
+            opacity: 1 !important;
+          }
+          #printable-shelf-sheet table {
+            width: 100% !important;
+            border-collapse: collapse !important;
             page-break-inside: auto;
           }
-          tr {
-            page-break-inside: avoid;
-            page-break-after: auto;
+          #printable-shelf-sheet thead {
+            display: table-header-group !important;
           }
-          thead {
-            display: table-header-group;
+          #printable-shelf-sheet th,
+          #printable-shelf-sheet .MuiTableCell-head {
+            background-color: #f3f4f6 !important;
+            color: #000000 !important;
+            font-weight: 800 !important;
+            border-top: 1px solid #111827 !important;
+            border-bottom: 2px solid #111827 !important;
+            border-left: none !important;
+            border-right: none !important;
+            padding: 6px 8px !important;
           }
-          @page {
-            size: A4;
-            margin: 1.5cm;
+          #printable-shelf-sheet td,
+          #printable-shelf-sheet .MuiTableCell-body {
+            color: #111827 !important;
+            border-bottom: 1px solid #e5e7eb !important;
+            border-top: none !important;
+            border-left: none !important;
+            border-right: none !important;
+            background-color: #ffffff !important;
+            padding: 6px 8px !important;
+          }
+          #printable-shelf-sheet tr:nth-of-type(even) td,
+          #printable-shelf-sheet tr:nth-of-type(even) .MuiTableCell-body {
+            background-color: #f9fafb !important;
+          }
+          #printable-shelf-sheet tr {
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          #printable-shelf-sheet .section-banner {
+            background-color: #f3f4f6 !important;
+            color: #000000 !important;
+            font-weight: 700 !important;
+            border-left: 4px solid #111827 !important;
+            border-top: 1px solid #e5e7eb !important;
+            border-right: 1px solid #e5e7eb !important;
+            border-bottom: 1px solid #e5e7eb !important;
+          }
+          #printable-shelf-sheet .audit-tick-box {
+            border: 2px solid #000000 !important;
+            background-color: #ffffff !important;
+          }
+          .shelf-page-card.one-per-page {
+            page-break-after: always !important;
+            break-after: page !important;
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          .shelf-page-card.one-per-page:last-child {
+            page-break-after: auto !important;
+            break-after: auto !important;
           }
         }
       `}</style>

@@ -680,6 +680,12 @@ export const LabelSheetPage: React.FC = () => {
             box-shadow: none !important;
             background: #fff !important;
             display: block !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+          #label-sheet-container * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           .label-card {
             border: 1px solid #aaa !important;
@@ -710,6 +716,10 @@ export const LabelSheetPage: React.FC = () => {
           .label-card * {
             color: #000 !important;
             border-color: #000 !important;
+          }
+          .label-card .MuiTypography-colorTextSecondary,
+          .label-card .MuiTypography-caption {
+            color: #333 !important;
           }
         }
       `}</style>
